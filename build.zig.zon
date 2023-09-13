@@ -1,0 +1,10 @@
+.{
+    .name = "blinky",
+    .version = "0.0.0",
+    .dependencies = .{
+        .microzig = .{
+            .url = "https://github.com/ZigEmbeddedGroup/microzig/archive/f0a6aa9ce1829df91f2d7f160bbc6f5bc41a3c80.tar.gz",
+            .hash = "12203f8cb7803a82dff1310ab0917055c0055bc7385f1321bbaf0de998b26a00b44d",
+        },
+    },
+}
