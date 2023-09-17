@@ -28,3 +28,14 @@ pub const ch32v203c8 = microzig.Chip{
         .{ .offset = 0x2000_0000, .length = 20 * 1024, .kind = .ram },
     },
 };
+
+pub const ch32v203k8 = microzig.Chip{
+    .name = "CH32V20xxx",
+    .source = .{ .path = std.fmt.comptimePrint("{s}/chips/CH32V20xxx.zig", .{root_dir()}) },
+    .hal = .{ .path = hal_path },
+    .cpu = microzig.cpus.riscv32_imac,
+    .memory_regions = &.{
+        .{ .offset = 0x0800_0000, .length = 64 * 1024, .kind = .flash },
+        .{ .offset = 0x2000_0000, .length = 20 * 1024, .kind = .ram },
+    },
+};

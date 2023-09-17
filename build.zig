@@ -17,7 +17,9 @@ pub const BuildOptions = struct {
 pub const Ch32vExecutableOptions = struct {
     name: []const u8,
     source_file: LazyPath,
-    optimize: std.builtin.OptimizeMode = .Debug,
+    optimize: std.builtin.OptimizeMode = .ReleaseSmall,
+
+    board: boards.Board = boards.suzuduino_uno_v1,
 };
 
 pub fn addCh32vExecutable(
@@ -29,7 +31,8 @@ pub fn addCh32vExecutable(
         .source_file = opts.source_file,
         .backing = .{
             // .chip = chips.ch32v103c8,
-            .chip = chips.ch32v203c8,
+            // .chip = chips.ch32v203c8,
+            .board = opts.board.inner,
         },
         .optimize = opts.optimize,
         .linkerscript_source_file = .{ .path = linkerscript_path },

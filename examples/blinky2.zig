@@ -6,7 +6,7 @@ const gpio = ch32v.gpio;
 // const time = ch32v.time;
 
 const pin_config = ch32v.pins.GlobalConfiguration{
-    .PA9 = .{
+    .PA5 = .{
         .name = "led",
         .direction = .out,
     },
@@ -31,7 +31,7 @@ pub fn main() !void {
 }
 
 fn busyloop() void {
-    const limit = 500_000;
+    const limit = 100_000;
 
     var i: u32 = 0;
     while (i < limit) : (i += 1) {

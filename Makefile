@@ -3,7 +3,7 @@ BIN_NAME=firmware.bin
 INIT = libinit.a
 
 all: ${INIT}
-	zig build -Doptimize=ReleaseSmall
+	zig build
 
 init:
 	zig build-lib -target riscv32-freestanding -mcpu=baseline_rv32-d \
@@ -24,8 +24,8 @@ blinky2: all
 	riscv64-unknown-elf-objdump --disassemble-all zig-out/bin/blinky2 > zig-out/blinky2.s
 
 flash:
-	#wchisp flash zig-out/${BIN_NAME}
-	wch-isp -pr flash zig-out/${BIN_NAME}
+	wchisp flash zig-out/${BIN_NAME}
+	#wch-isp -pr flash zig-out/${BIN_NAME}
 
 clean:
 	rm -r zig-out zig-cache
