@@ -19,14 +19,14 @@ pub fn main() !void {
         pins.led.toggle();
         busyloop();
 
-        var val = pins.led.read();
-        switch (val) {
-            0 => pins.led.put(1),
-            1 => pins.led.put(0),
-        }
+        // var val = pins.led.read();
+        // switch (val) {
+        //     0 => pins.led.put(1),
+        //     1 => pins.led.put(0),
+        // }
 
-        // time.sleep_ms(250);
-        busyloop();
+        // // time.sleep_ms(250);
+        // busyloop();
     }
 }
 
