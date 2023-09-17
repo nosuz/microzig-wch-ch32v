@@ -19,6 +19,10 @@ blinky: all
 	riscv64-unknown-elf-objcopy -O binary zig-out/bin/blinky zig-out/${BIN_NAME} && \
 	riscv64-unknown-elf-objdump --disassemble-all zig-out/bin/blinky > zig-out/blinky.s
 
+blinky2: all
+	riscv64-unknown-elf-objcopy -O binary zig-out/bin/blinky2 zig-out/${BIN_NAME} && \
+	riscv64-unknown-elf-objdump --disassemble-all zig-out/bin/blinky2 > zig-out/blinky2.s
+
 flash:
 	#wchisp flash zig-out/${BIN_NAME}
 	wch-isp -pr flash zig-out/${BIN_NAME}

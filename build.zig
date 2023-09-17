@@ -54,6 +54,7 @@ fn root() []const u8 {
 
 pub const Examples = struct {
     blinky: *microzig.EmbeddedExecutable,
+    blinky2: *microzig.EmbeddedExecutable,
 
     pub fn init(b: *Builder, optimize: std.builtin.OptimizeMode) Examples {
         var ret: Examples = undefined;
