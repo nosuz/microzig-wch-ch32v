@@ -3,7 +3,7 @@ BIN_NAME=firmware.bin
 INIT = libinit.a
 
 all: ${INIT}
-	zig build
+	zig build -Doptimize=ReleaseSmall
 
 init:
 	zig build-lib -target riscv32-freestanding -mcpu=baseline_rv32-d \
