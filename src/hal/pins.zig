@@ -8,6 +8,7 @@ const peripherals = microzig.chip.peripherals;
 // const GPIOS = microzig.chip.peripherals.GPIO;
 
 const gpio = @import("gpio.zig");
+const serial = @import("serial.zig");
 // const pwm = @import("pwm.zig");
 // const adc = @import("adc.zig");
 // const resets = @import("resets.zig");
@@ -493,3 +494,45 @@ pub const GlobalConfiguration = struct {
         return ret;
     }
 };
+
+pub fn setup_uart_pins(port: serial.UART) void {
+    switch (@intFromEnum(port)) {
+        // UART1
+        0 => {
+            // Enable GPIOA for changing PIn config.
+            peripherals.RCC.APB2PCENR.modify(.{
+                .IOPAEN = 1,
+            });
+            peripherals.GPIOA.CFGHR.modify(.{
+                // PA9 TX
+                .CNF9 = 0b10,
+                .MODE9 = 0b11,
+                // PA10 RX
+                .CNF10 = 0b01,
+                .MODE10 = 0,
+            });
+        },
+        // UART2
+        1 => {
+            peripherals.RCC.APB2PCENR.modify(.{
+                .IOPAEN = 1,
+            });
+            peripherals.GPIOA.CFGLR.modify(.{
+                // PA2 TX
+                .CNF2 = 0b10,
+                .MODE2 = 0b11,
+                // PA3 RX
+                .CNF3 = 0b01,
+                .MODE3 = 0,
+            });
+        },
+        // UART3
+        2 => {
+            //@compileError("Not implimented");
+        },
+        // UART4
+        3 => {
+            //@compileError("Not implimented");
+        },
+    }
+}

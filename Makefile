@@ -31,6 +31,10 @@ blinky_rcc: all
 	riscv64-unknown-elf-objcopy -O binary zig-out/bin/blinky_rcc zig-out/${BIN_NAME} && \
 	riscv64-unknown-elf-objdump --disassemble-all zig-out/bin/blinky_rcc > zig-out/blinky_rcc.s
 
+serial: all
+	riscv64-unknown-elf-objcopy -O binary zig-out/bin/serial zig-out/${BIN_NAME} && \
+	riscv64-unknown-elf-objdump --disassemble-all zig-out/bin/serial > zig-out/serial.s
+
 flash:
 	wchisp flash zig-out/${BIN_NAME}
 	#wch-isp -pr flash zig-out/${BIN_NAME}
