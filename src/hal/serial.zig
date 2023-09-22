@@ -1,3 +1,4 @@
+const std = @import("std");
 const microzig = @import("microzig");
 const ch32v = microzig.hal;
 const pins = ch32v.pins;
@@ -85,8 +86,44 @@ pub const Port = enum {
     const WriteError = error{};
     const ReadError = error{};
 
+    pub const Writer = std.io.Writer(Port, WriteError, write);
+    pub const Reader = std.io.Reader(Port, ReadError, read);
+
+    pub fn writer(port: Port) Writer {
+        return .{ .context = port };
+    }
+
+    pub fn reader(port: Port) Reader {
+        return .{ .context = port };
+    }
+
     pub fn is_readable(port: Port) bool {
         return (port.get_regs().STATR.read().RXNE == 1);
+    }
+
+    pub fn read(port: Port, buffer: []u8) ReadError!usize {
+        const regs = port.get_regs();
+        for (buffer) |*byte| {
+            // while (!port.is_readable()) {}
+            var i: u32 = 0;
+            while (!port.is_read_able()) : (i += 1) {
+                @import("std").mem.doNotOptimizeAway(i);
+            }
+
+            byte.* = regs.UARTDR.read().DATA;
+        }
+        return buffer.len;
+    }
+
+    pub fn read_word(port: Port) u8 {
+        const regs = port.get_regs();
+        // while (!port.is_readable()) {}
+        var i: u32 = 0;
+        while (!port.is_read_able()) : (i += 1) {
+            @import("std").mem.doNotOptimizeAway(i);
+        }
+
+        return regs.DATAR.read().DATA;
     }
 
     pub fn is_writeable(port: Port) bool {
@@ -108,3 +145,38 @@ pub const Port = enum {
         return payload.len;
     }
 };
+
+// Logger
+var uart_logger: ?Port.Writer = null;
+
+pub fn init_logger(port: Port) void {
+    // bind logger to serail port.
+    uart_logger = port.writer();
+    uart_logger.?.writeAll("\r\n================ STARTING NEW LOGGER ================\r\n") catch {};
+}
+
+pub fn log(
+    comptime level: std.log.Level,
+    comptime scope: @TypeOf(.EnumLiteral),
+    comptime format: []const u8,
+    args: anytype,
+) void {
+    // const level_prefix = comptime "[{}.{:0>6}] " ++ level.asText();
+    const level_prefix = comptime level.asText();
+    const prefix = comptime level_prefix ++ switch (scope) {
+        .default => ": ",
+        else => " (" ++ @tagName(scope) ++ "): ",
+    };
+
+    if (uart_logger) |uart| {
+        // TODO: use RTC for log time.
+        // const current_time = time.get_time_since_boot();
+        // const seconds = current_time.to_us() / std.time.us_per_s;
+        // const microseconds = current_time.to_us() % std.time.us_per_s;
+
+        // uart.print(prefix ++ format ++ "\r\n", .{ seconds, microseconds } ++ args) catch {};
+
+        uart.print(prefix ++ format ++ "\r\n", args) catch {};
+        // uart.writeAll("-") catch {};
+    }
+}
