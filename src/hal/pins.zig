@@ -495,9 +495,9 @@ pub const GlobalConfiguration = struct {
     }
 };
 
-pub fn setup_uart_pins(port: serial.UART) void {
+pub fn setup_uart_pins(port: serial.Port) void {
     switch (@intFromEnum(port)) {
-        // UART1
+        // USART1
         0 => {
             // Enable GPIOA for changing PIn config.
             peripherals.RCC.APB2PCENR.modify(.{
@@ -512,7 +512,7 @@ pub fn setup_uart_pins(port: serial.UART) void {
                 .MODE10 = 0,
             });
         },
-        // UART2
+        // USART2
         1 => {
             peripherals.RCC.APB2PCENR.modify(.{
                 .IOPAEN = 1,
@@ -526,7 +526,7 @@ pub fn setup_uart_pins(port: serial.UART) void {
                 .MODE3 = 0,
             });
         },
-        // UART3
+        // USART3
         2 => {
             //@compileError("Not implimented");
         },

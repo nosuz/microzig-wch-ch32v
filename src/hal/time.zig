@@ -16,7 +16,7 @@ pub fn sleep_ms(duration: u16) void {
     });
 
     // STK_CNTL STK_CNTH
-    var count: u64 = microzig.hal.rcc.Clocks.hclk_freq / 8 / 1000 * duration;
+    var count: u64 = microzig.hal.clocks.Clocks_freq.hclk / 8 / 1000 * duration;
     PFIC.STK_CNTL.write_raw(@intCast(count & 0xffff_ffff));
     PFIC.STK_CNTH.write_raw(@intCast(count >> 32));
 

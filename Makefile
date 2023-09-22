@@ -27,9 +27,9 @@ blinky_sleep: all
 	riscv64-unknown-elf-objcopy -O binary zig-out/bin/blinky_sleep zig-out/${BIN_NAME} && \
 	riscv64-unknown-elf-objdump --disassemble-all zig-out/bin/blinky_sleep > zig-out/blinky_sleep.s
 
-blinky_rcc: all
-	riscv64-unknown-elf-objcopy -O binary zig-out/bin/blinky_rcc zig-out/${BIN_NAME} && \
-	riscv64-unknown-elf-objdump --disassemble-all zig-out/bin/blinky_rcc > zig-out/blinky_rcc.s
+blinky_clocks: all
+	riscv64-unknown-elf-objcopy -O binary zig-out/bin/blinky_clocks zig-out/${BIN_NAME} && \
+	riscv64-unknown-elf-objdump --disassemble-all zig-out/bin/blinky_clocks > zig-out/blinky_clocks.s
 
 serial: all
 	riscv64-unknown-elf-objcopy -O binary zig-out/bin/serial zig-out/${BIN_NAME} && \

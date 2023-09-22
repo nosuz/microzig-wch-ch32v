@@ -2,17 +2,17 @@ const microzig = @import("microzig");
 
 const ch32v = microzig.hal;
 const gpio = ch32v.gpio;
-const rcc = ch32v.rcc;
+const clocks = ch32v.clocks;
 const time = ch32v.time;
 
-const rcc_config = rcc.Configuration{
-    // .sysclk_src = rcc.Sysclk_src.HSE,
+const clocks_config = clocks.Configuration{
+    // .sysclk_src = clocks.Sysclk_src.HSE,
     // .hse_freq = 25_000_000,
-    .sysclk_src = rcc.Sysclk_src.PLL,
-    // .pll_src = rcc.Pll_src.HSI,
-    .pll_src = rcc.Pll_src.HSI_div2,
-    .pll_multiplex = rcc.Pll_multiplex.MUL_18,
-    .ahb_prescale = rcc.Ahb_prescale.SYSCLK_2,
+    .sysclk_src = clocks.Sysclk_src.PLL,
+    // .pll_src = clocks.Pll_src.HSI,
+    .pll_src = clocks.Pll_src.HSI_div2,
+    .pll_multiplex = clocks.Pll_multiplex.MUL_18,
+    .ahb_prescale = clocks.Ahb_prescale.SYSCLK_2,
 };
 
 const pin_config = ch32v.pins.GlobalConfiguration{
@@ -23,7 +23,7 @@ const pin_config = ch32v.pins.GlobalConfiguration{
 };
 
 pub fn main() !void {
-    rcc_config.apply();
+    clocks_config.apply();
 
     const pins = pin_config.apply();
 

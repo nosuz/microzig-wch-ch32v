@@ -101,17 +101,17 @@ pub const Pll_src = enum {
 
 const Rcc = struct {
     // config: Configuration = undefined,
-    pllclk_freq: u32 = 0,
-    hclk_freq: u32 = 8_000_000,
-    pclk1_freq: u32 = 8_000_000,
-    pclk2_freq: u32 = 8_000_000,
-    adcclk_freq: u32 = 4_000_000,
-    apb1_timclk_freq: u32 = 8_000_000,
-    apb2_timclk_freq: u32 = 8_000_000,
+    pllclk: u32 = 0,
+    hclk: u32 = 8_000_000,
+    pclk1: u32 = 8_000_000,
+    pclk2: u32 = 8_000_000,
+    adcclk: u32 = 4_000_000,
+    apb1_timclk: u32 = 8_000_000,
+    apb2_timclk: u32 = 8_000_000,
 };
 
 // TODO: swtich by CPU series.
-pub var Clocks = Rcc{};
+pub var Clocks_freq = Rcc{};
 
 pub const Configuration = struct {
     sysclk_src: Sysclk_src = Sysclk_src.HSI,
@@ -303,15 +303,15 @@ pub const Configuration = struct {
             .ADCPRE = @intFromEnum(config.adc_prescale), // ADC
         });
 
-        Clocks = Rcc{
+        Clocks_freq = Rcc{
             // .config = config,
-            .pllclk_freq = pllclk_freq,
-            .hclk_freq = hclk_freq,
-            .pclk1_freq = pclk1_freq,
-            .apb1_timclk_freq = apb1_timclk_freq,
-            .pclk2_freq = pclk2_freq,
-            .apb2_timclk_freq = apb2_timclk_freq,
-            .adcclk_freq = adcclk_freq,
+            .pllclk = pllclk_freq,
+            .hclk = hclk_freq,
+            .pclk1 = pclk1_freq,
+            .apb1_timclk = apb1_timclk_freq,
+            .pclk2 = pclk2_freq,
+            .apb2_timclk = apb2_timclk_freq,
+            .adcclk = adcclk_freq,
         };
     }
 };

@@ -15,7 +15,7 @@ const pin_config = ch32v.pins.GlobalConfiguration{
 };
 
 pub fn main() !void {
-    const serial1 = serial.UART.PORT1;
+    const serial1 = serial.Port.USART1;
     serial1.apply(.{
         .baud_rate = 115200,
     });

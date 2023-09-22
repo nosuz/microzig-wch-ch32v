@@ -59,7 +59,7 @@ pub const Examples = struct {
     blinky: *microzig.EmbeddedExecutable,
     blinky2: *microzig.EmbeddedExecutable,
     blinky_sleep: *microzig.EmbeddedExecutable,
-    blinky_rcc: *microzig.EmbeddedExecutable,
+    blinky_clocks: *microzig.EmbeddedExecutable,
     serial: *microzig.EmbeddedExecutable,
 
     pub fn init(b: *Builder, optimize: std.builtin.OptimizeMode) Examples {
