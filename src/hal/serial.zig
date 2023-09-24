@@ -5,6 +5,7 @@ const pins = ch32v.pins;
 const clocks = ch32v.clocks;
 
 const peripherals = microzig.chip.peripherals;
+const RTC = peripherals.RTC;
 
 const USART1 = peripherals.USART1;
 const USART2 = peripherals.USART2;
@@ -156,12 +157,44 @@ pub fn init_logger(port: Port) void {
 }
 
 pub fn log(
+    // RTC required
     comptime level: std.log.Level,
     comptime scope: @TypeOf(.EnumLiteral),
     comptime format: []const u8,
     args: anytype,
 ) void {
-    // const level_prefix = comptime "[{}.{:0>6}] " ++ level.asText();
+    const level_prefix = comptime "[{}.{:0>3}] " ++ level.asText();
+    const prefix = comptime level_prefix ++ switch (scope) {
+        .default => ": ",
+        else => " (" ++ @tagName(scope) ++ "): ",
+    };
+
+    if (uart_logger) |uart| {
+        // wait sync
+        RTC.CTLRL.modify(.{
+            .RSF = 0,
+        });
+        while (RTC.CTLRL.read().RSF == 0) {
+            asm volatile ("" ::: "memory");
+        }
+        var cntl1 = RTC.CNTL.read().CNTL;
+        var cnth = RTC.CNTH.read().CNTH;
+        var cntl2 = RTC.CNTL.read().CNTL;
+        if (cntl2 < cntl1) cnth = RTC.CNTH.read().CNTH;
+        const current_time = (@as(u32, cnth) << 16) + cntl2;
+        const seconds = current_time / 1000;
+        const microseconds = current_time % 1000;
+
+        uart.print(prefix ++ format ++ "\r\n", .{ seconds, microseconds } ++ args) catch {};
+    }
+}
+
+pub fn log_no_timestamp(
+    comptime level: std.log.Level,
+    comptime scope: @TypeOf(.EnumLiteral),
+    comptime format: []const u8,
+    args: anytype,
+) void {
     const level_prefix = comptime level.asText();
     const prefix = comptime level_prefix ++ switch (scope) {
         .default => ": ",
@@ -169,14 +202,6 @@ pub fn log(
     };
 
     if (uart_logger) |uart| {
-        // TODO: use RTC for log time.
-        // const current_time = time.get_time_since_boot();
-        // const seconds = current_time.to_us() / std.time.us_per_s;
-        // const microseconds = current_time.to_us() % std.time.us_per_s;
-
-        // uart.print(prefix ++ format ++ "\r\n", .{ seconds, microseconds } ++ args) catch {};
-
         uart.print(prefix ++ format ++ "\r\n", args) catch {};
-        // uart.writeAll("-") catch {};
     }
 }

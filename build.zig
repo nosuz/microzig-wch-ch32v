@@ -61,6 +61,7 @@ pub const Examples = struct {
     blinky_sleep: *microzig.EmbeddedExecutable,
     blinky_clocks: *microzig.EmbeddedExecutable,
     serial: *microzig.EmbeddedExecutable,
+    serial_log: *microzig.EmbeddedExecutable,
 
     pub fn init(b: *Builder, optimize: std.builtin.OptimizeMode) Examples {
         var ret: Examples = undefined;

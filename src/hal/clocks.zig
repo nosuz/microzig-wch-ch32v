@@ -1,6 +1,7 @@
 const microzig = @import("microzig");
 const peripherals = microzig.chip.peripherals;
 const RCC = peripherals.RCC;
+const RTC = peripherals.RTC;
 
 pub const Sysclk_src = enum(u2) {
     HSI = 0,
@@ -99,6 +100,18 @@ pub const Pll_src = enum {
     HSE_div2,
 };
 
+// RTCSEL
+// 00: No clock;
+// 01: LSE oscillator clock;
+// 10: LSI oscillator clock;
+// 11: HSE oscillator clock divided by 128.
+
+pub const Rtcclk_src = enum(u2) {
+    LSE = 0b01,
+    LSI = 0b10,
+    HSE_128 = 0b11,
+};
+
 const Rcc = struct {
     // config: Configuration = undefined,
     pllclk: u32 = 0,
@@ -108,6 +121,7 @@ const Rcc = struct {
     adcclk: u32 = 4_000_000,
     apb1_timclk: u32 = 8_000_000,
     apb2_timclk: u32 = 8_000_000,
+    rtcclk: ?u32 = null,
 };
 
 // TODO: swtich by CPU series.
@@ -116,16 +130,19 @@ pub var Clocks_freq = Rcc{};
 pub const Configuration = struct {
     sysclk_src: Sysclk_src = Sysclk_src.HSI,
     hsi_freq: u32 = 8_000_000,
-    lsi_freq: u32 = 40_000,
     hse_freq: ?u32 = null,
     hse_baypass: bool = false,
-    lse_freq: ?u32 = null,
     pll_src: Pll_src = Pll_src.HSI,
     pll_multiplex: Pll_multiplex = Pll_multiplex.MUL_2,
     ahb_prescale: Ahb_prescale = Ahb_prescale.SYSCLK,
     apb1_prescale: Apb_prescale = Apb_prescale.HCLK,
     apb2_prescale: Apb_prescale = Apb_prescale.HCLK,
     adc_prescale: Adc_prescale = Adc_prescale.PCLK2_2,
+    lsi_freq: u32 = 40_000,
+    lse_freq: ?u32 = null,
+    lse_baypass: bool = false,
+    enable_rtc: bool = true,
+    rtcclk_src: Rtcclk_src = Rtcclk_src.LSI,
 
     pub fn apply(comptime config: Configuration) void {
         comptime var sysclk_src = Sysclk_src.HSI;
@@ -137,6 +154,7 @@ pub const Configuration = struct {
         comptime var apb2_timclk_freq = 0;
         comptime var adc_prescale = 0;
         comptime var adcclk_freq = 0;
+        comptime var rtcclk_freq = 0;
 
         comptime {
             if (config.sysclk_src == Sysclk_src.HSE) {
@@ -235,6 +253,12 @@ pub const Configuration = struct {
             //     @compileLog("ADC clock = ", adcclk_freq);
             //     @compileError("ADC clock shall not exceed 14MHz ");
             // }
+
+            rtcclk_freq = switch (config.rtcclk_src) {
+                Rtcclk_src.LSE => config.lse_freq,
+                Rtcclk_src.LSI => config.lsi_freq,
+                Rtcclk_src.HSE_128 => config.hse_freq / 128,
+            };
         }
 
         // runtimes
@@ -313,5 +337,87 @@ pub const Configuration = struct {
             .apb2_timclk = apb2_timclk_freq,
             .adcclk = adcclk_freq,
         };
+
+        if (config.enable_rtc) {
+            Clocks_freq.rtcclk = rtcclk_freq;
+
+            // supply clock to POWER and BACKUP domain.
+            RCC.APB1PCENR.modify(.{
+                .PWREN = 1,
+                .BKPEN = 1,
+            });
+
+            // Setup RTC
+            RCC.BDCTLR.modify(.{
+                .RTCEN = 0,
+            });
+
+            //  Disable backup domain protection
+            peripherals.PWR.CTLR.modify(.{
+                .DBP = 1,
+            });
+
+            switch (config.rtcclk_src) {
+                Rtcclk_src.LSE => {
+                    RCC.BDCTLR.modify(.{
+                        .LSEON = 1,
+                        .LSEBYP = if (config.lse_baypass) 1 else 1,
+                    });
+                    var i: u32 = 0;
+                    while (RCC.BDCTLR.read().LSERDY == 0) : (i += 1) {
+                        @import("std").mem.doNotOptimizeAway(i);
+                    }
+                },
+                Rtcclk_src.LSI => {
+                    RCC.RSTSCKR.modify(.{
+                        .LSION = 1,
+                    });
+                    var i: u32 = 0;
+                    while (RCC.RSTSCKR.read().LSIRDY == 0) : (i += 1) {
+                        @import("std").mem.doNotOptimizeAway(i);
+                    }
+                },
+                Rtcclk_src.HSE_128 => {},
+            }
+            // set RTC clock source
+            RCC.BDCTLR.modify(.{
+                .RTCSEL = @intFromEnum(config.rtcclk_src),
+            });
+
+            // wait RTOFF
+            while (RTC.CTLRL.read().RTOFF == 0) {
+                asm volatile ("" ::: "memory");
+            }
+            // count up RTC every 1ms not 1s.
+            RTC.CTLRL.modify(.{
+                .CNF = 1,
+            });
+            // var i: u32 = 0;
+            // while (RTC.CTLRL.read().RSF == 0) : (i += 1) {
+            //     @import("std").mem.doNotOptimizeAway(i);
+            // }
+            const rtc_prescale = @as(u20, rtcclk_freq / 1000 - 1);
+            RTC.PSCRL.write(.{
+                .PRLL = @as(u16, rtc_prescale & 0xffff),
+                .padding = 0,
+            });
+            RTC.PSCRH.write(.{
+                .PRLH = @as(u4, rtc_prescale >> 16),
+                .padding = 0,
+            });
+
+            // exit configuration mode
+            RTC.CTLRL.modify(.{
+                .CNF = 0,
+            });
+            // wait RTOFF
+            while (RTC.CTLRL.read().RTOFF == 0) {
+                asm volatile ("" ::: "memory");
+            }
+            // start RTC
+            RCC.BDCTLR.modify(.{
+                .RTCEN = 1,
+            });
+        }
     }
 };
