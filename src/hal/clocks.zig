@@ -360,18 +360,16 @@ pub const Configuration = struct {
                         .LSEON = 1,
                         .LSEBYP = if (config.lse_baypass) 1 else 1,
                     });
-                    var i: u32 = 0;
-                    while (RCC.BDCTLR.read().LSERDY == 0) : (i += 1) {
-                        @import("std").mem.doNotOptimizeAway(i);
+                    while (RCC.BDCTLR.read().LSERDY == 0) {
+                        asm volatile ("" ::: "memory");
                     }
                 },
                 Rtcclk_src.LSI => {
                     RCC.RSTSCKR.modify(.{
                         .LSION = 1,
                     });
-                    var i: u32 = 0;
-                    while (RCC.RSTSCKR.read().LSIRDY == 0) : (i += 1) {
-                        @import("std").mem.doNotOptimizeAway(i);
+                    while (RCC.RSTSCKR.read().LSIRDY == 0) {
+                        asm volatile ("" ::: "memory");
                     }
                 },
                 Rtcclk_src.HSE_128 => {},
@@ -389,10 +387,6 @@ pub const Configuration = struct {
             RTC.CTLRL.modify(.{
                 .CNF = 1,
             });
-            // var i: u32 = 0;
-            // while (RTC.CTLRL.read().RSF == 0) : (i += 1) {
-            //     @import("std").mem.doNotOptimizeAway(i);
-            // }
             const rtc_prescale = @as(u20, rtcclk_freq / 1000 - 1);
             RTC.PSCRL.write(.{
                 .PRLL = @as(u16, rtc_prescale & 0xffff),
