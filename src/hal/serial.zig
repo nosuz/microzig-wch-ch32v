@@ -106,9 +106,8 @@ pub const Port = enum {
         const regs = port.get_regs();
         for (buffer) |*byte| {
             // while (!port.is_readable()) {}
-            var i: u32 = 0;
-            while (!port.is_read_able()) : (i += 1) {
-                @import("std").mem.doNotOptimizeAway(i);
+            while (!port.is_read_able()) {
+                asm volatile ("" ::: "memory");
             }
 
             byte.* = regs.UARTDR.read().DATA;
@@ -119,9 +118,8 @@ pub const Port = enum {
     pub fn read_word(port: Port) u8 {
         const regs = port.get_regs();
         // while (!port.is_readable()) {}
-        var i: u32 = 0;
-        while (!port.is_read_able()) : (i += 1) {
-            @import("std").mem.doNotOptimizeAway(i);
+        while (!port.is_read_able()) {
+            asm volatile ("" ::: "memory");
         }
 
         return regs.DATAR.read().DATA;
@@ -135,9 +133,8 @@ pub const Port = enum {
         const regs = port.get_regs();
         for (payload) |byte| {
             // while (!port.is_writeable()) {}
-            var i: u32 = 0;
-            while (!port.is_writeable()) : (i += 1) {
-                @import("std").mem.doNotOptimizeAway(i);
+            while (!port.is_writeable()) {
+                asm volatile ("" ::: "memory");
             }
 
             regs.DATAR.raw = byte;

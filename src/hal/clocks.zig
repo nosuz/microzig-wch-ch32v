@@ -263,11 +263,11 @@ pub const Configuration = struct {
 
         // runtimes
         // EXTEN_CTR
-        if (config.pll_src == Pll_src.HSI) {
-            peripherals.EXTEND.EXTEND_CTR.modify(.{
-                .PLL_HSI_PRE = 1,
-            });
-        }
+        // EXTEN reseted only on system reset.
+        peripherals.EXTEND.EXTEND_CTR.modify(.{
+            .PLL_HSI_PRE = if (config.pll_src == Pll_src.HSI) 1 else 0,
+        });
+
         switch (sysclk_src) {
             .PLL => {
                 // RCC_CFGR0
@@ -286,9 +286,8 @@ pub const Configuration = struct {
                     .PLLON = 1,
                 });
                 // while (RCC.CTLR.read().PLLRDY == 0) {}
-                var i: u32 = 0;
-                while (RCC.CTLR.read().PLLRDY == 0) : (i += 1) {
-                    @import("std").mem.doNotOptimizeAway(i);
+                while (RCC.CTLR.read().PLLRDY == 0) {
+                    asm volatile ("" ::: "memory");
                 }
             },
             .HSI => {
@@ -297,9 +296,8 @@ pub const Configuration = struct {
                     .HSION = 1,
                 });
                 // while (RCC.CTLR.read().HSIRDY == 0) {}
-                var i: u32 = 0;
-                while (RCC.CTLR.read().HSIRDY == 0) : (i += 1) {
-                    @import("std").mem.doNotOptimizeAway(i);
+                while (RCC.CTLR.read().HSIRDY == 0) {
+                    asm volatile ("" ::: "memory");
                 }
             },
             .HSE => {
@@ -309,9 +307,8 @@ pub const Configuration = struct {
                 RCC.CTLR.modify(.{
                     .HSEON = 1,
                 });
-                var i: u32 = 0;
-                while (RCC.CTLR.read().HSERDY == 0) : (i += 1) {
-                    @import("std").mem.doNotOptimizeAway(i);
+                while (RCC.CTLR.read().HSERDY == 0) {
+                    asm volatile ("" ::: "memory");
                 }
             },
         }
