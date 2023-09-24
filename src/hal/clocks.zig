@@ -239,11 +239,11 @@ pub const Configuration = struct {
 
         // runtimes
         // EXTEN_CTR
-        if (config.pll_src == Pll_src.HSI) {
-            peripherals.EXTEND.EXTEND_CTR.modify(.{
-                .PLL_HSI_PRE = 1,
-            });
-        }
+        // EXTEN reseted only on system reset.
+        peripherals.EXTEND.EXTEND_CTR.modify(.{
+            .PLL_HSI_PRE = if (config.pll_src == Pll_src.HSI) 1 else 0,
+        });
+
         switch (sysclk_src) {
             .PLL => {
                 // RCC_CFGR0
