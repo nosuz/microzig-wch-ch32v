@@ -39,6 +39,6 @@ fn busyloop() void {
 
     var i: u32 = 0;
     while (i < limit) : (i += 1) {
-        @import("std").mem.doNotOptimizeAway(i);
+        asm volatile ("" ::: "memory");
     }
 }

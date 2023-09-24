@@ -1,4 +1,3 @@
-const std = @import("std");
 const microzig = @import("microzig");
 const peripherals = microzig.chip.peripherals;
 const PFIC = peripherals.PFIC;
@@ -27,9 +26,8 @@ pub fn sleep_ms(duration: u16) void {
 
     // wait
     // while (PFIC.STK_SR.read().CNTIF == 0) {} // makes inifit loop
-    var i: u32 = 0;
-    while (PFIC.STK_SR.read().CNTIF == 0) : (i += 1) {
-        @import("std").mem.doNotOptimizeAway(i);
+    while (PFIC.STK_SR.read().CNTIF == 0) {
+        asm volatile ("" ::: "memory");
     }
 
     // start SysTick

@@ -262,9 +262,8 @@ pub const Configuration = struct {
                     .PLLON = 1,
                 });
                 // while (RCC.CTLR.read().PLLRDY == 0) {}
-                var i: u32 = 0;
-                while (RCC.CTLR.read().PLLRDY == 0) : (i += 1) {
-                    @import("std").mem.doNotOptimizeAway(i);
+                while (RCC.CTLR.read().PLLRDY == 0) {
+                    asm volatile ("" ::: "memory");
                 }
             },
             .HSI => {
@@ -273,9 +272,8 @@ pub const Configuration = struct {
                     .HSION = 1,
                 });
                 // while (RCC.CTLR.read().HSIRDY == 0) {}
-                var i: u32 = 0;
-                while (RCC.CTLR.read().HSIRDY == 0) : (i += 1) {
-                    @import("std").mem.doNotOptimizeAway(i);
+                while (RCC.CTLR.read().HSIRDY == 0) {
+                    asm volatile ("" ::: "memory");
                 }
             },
             .HSE => {
@@ -285,9 +283,8 @@ pub const Configuration = struct {
                 RCC.CTLR.modify(.{
                     .HSEON = 1,
                 });
-                var i: u32 = 0;
-                while (RCC.CTLR.read().HSERDY == 0) : (i += 1) {
-                    @import("std").mem.doNotOptimizeAway(i);
+                while (RCC.CTLR.read().HSERDY == 0) {
+                    asm volatile ("" ::: "memory");
                 }
             },
         }

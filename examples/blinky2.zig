@@ -1,4 +1,3 @@
-const std = @import("std");
 const microzig = @import("microzig");
 
 const ch32v = microzig.hal;
@@ -35,6 +34,6 @@ fn busyloop() void {
 
     var i: u32 = 0;
     while (i < limit) : (i += 1) {
-        @import("std").mem.doNotOptimizeAway(i);
+        asm volatile ("" ::: "memory");
     }
 }
