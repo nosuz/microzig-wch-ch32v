@@ -3,7 +3,6 @@ const microzig = @import("microzig");
 
 const ch32v = microzig.hal;
 const time = ch32v.time;
-const gpio = ch32v.gpio;
 const serial = ch32v.serial;
 const clocks = ch32v.clocks;
 

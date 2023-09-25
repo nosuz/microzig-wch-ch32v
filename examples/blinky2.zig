@@ -1,7 +1,6 @@
 const microzig = @import("microzig");
 
 const ch32v = microzig.hal;
-const gpio = ch32v.gpio;
 // const time = ch32v.time;
 
 const pin_config = ch32v.pins.GlobalConfiguration{
