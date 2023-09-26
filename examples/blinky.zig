@@ -46,7 +46,3 @@ fn busyloop(limit: u32) void {
         asm volatile ("" ::: "memory");
     }
 }
-
-// export fn interrupts_handler() void {
-//     busyloop();
-// }

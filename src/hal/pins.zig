@@ -479,21 +479,25 @@ pub const GlobalConfiguration = struct {
         //     adc.init();
         // }
 
-        // fields in the Pins(config) type should be zero sized, so we just
-        // default build them all (wasn't sure how to do that cleanly in
-        // `Pins()`
-        var ret: Pins(config) = undefined;
-        inline for (@typeInfo(Pins(config)).Struct.fields) |field| {
-            if (field.default_value) |default_value| {
-                @field(ret, field.name) = @as(*const field.field_type, @ptrCast(default_value)).*;
-            } else {
-                @field(ret, field.name) = .{};
-            }
-        }
-
-        return ret;
+        return get_pins(config);
     }
 };
+
+pub fn get_pins(comptime config: GlobalConfiguration) Pins(config) {
+    // fields in the Pins(config) type should be zero sized, so we just
+    // default build them all (wasn't sure how to do that cleanly in
+    // `Pins()`
+    var ret: Pins(config) = undefined;
+    inline for (@typeInfo(Pins(config)).Struct.fields) |field| {
+        if (field.default_value) |default_value| {
+            @field(ret, field.name) = @as(*const field.field_type, @ptrCast(default_value)).*;
+        } else {
+            @field(ret, field.name) = .{};
+        }
+    }
+
+    return ret;
+}
 
 pub fn setup_uart_pins(port: serial.Port) void {
     switch (@intFromEnum(port)) {

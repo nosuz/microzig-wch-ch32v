@@ -39,6 +39,10 @@ serial_log: all
 	riscv64-unknown-elf-objcopy -O binary zig-out/bin/serial_log zig-out/${BIN_NAME} && \
 	riscv64-unknown-elf-objdump --disassemble-all zig-out/bin/serial_log > zig-out/serial_log.s
 
+timer_interrupt: all
+	riscv64-unknown-elf-objcopy -O binary zig-out/bin/timer_interrupt zig-out/${BIN_NAME} && \
+	riscv64-unknown-elf-objdump --disassemble-all zig-out/bin/timer_interrupt > zig-out/timer_interrupt.s
+
 flash:
 	wchisp flash zig-out/${BIN_NAME}
 	#wch-isp -pr flash zig-out/${BIN_NAME}
