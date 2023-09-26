@@ -35,6 +35,10 @@ SECTIONS
 
     *(.text .text.*);
 
+    /*
+    CH32V203 don't need to be aligned on 1024.
+    . = ALIGN(4);
+    */
     . = ALIGN(1024);
     *(.trap .trap.*);
   } > REGION_TEXT
