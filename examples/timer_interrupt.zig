@@ -23,8 +23,10 @@ pub fn main() !void {
     setup_timer();
 
     while (true) {
+        // microzig.cpu.enable_interrupt();
         interrupt.enable_interrupt();
         time.sleep_ms(1000);
+        // microzig.cpu.disable_interrupt();
         interrupt.disable_interrupt();
         time.sleep_ms(1000);
         pin.led.toggle();
@@ -69,20 +71,22 @@ fn setup_timer() void {
     PFIC.IENR2.write_raw(ienr);
 }
 
-export fn interrupts_handler(mcause: u32) void {
-    switch (@as(interrupt.Interrupts_ch32v203, @enumFromInt(mcause))) {
-        interrupt.Interrupts_ch32v203.TIM1_UP => {
-            // clear timer interrupt flag
-            const peripherals = microzig.chip.peripherals;
-            const TIM1 = peripherals.TIM1;
+fn tim1_up_handler() void {
+    // clear timer interrupt flag
+    const peripherals = microzig.chip.peripherals;
+    const TIM1 = peripherals.TIM1;
 
-            TIM1.INTFR.modify(.{
-                .UIF = 0,
-            });
+    TIM1.INTFR.modify(.{
+        .UIF = 0,
+    });
 
-            const pin = pins.get_pins(pin_config);
-            pin.led.toggle();
-        },
-        else => {},
-    }
+    const pin = pins.get_pins(pin_config);
+    pin.led.toggle();
 }
+
+// Set interrupt handlers
+pub const interrupt_handlers = struct {
+    pub fn TIM1_UP() void {
+        tim1_up_handler();
+    }
+};

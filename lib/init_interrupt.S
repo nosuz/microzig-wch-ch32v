@@ -98,11 +98,11 @@ clear_bss_done:
 
 /*
 default interrupts handler
-this instruction is removed if defined interrupts_handler in other part.
+this instruction is removed if defined microzig_interrupts_handler in other part.
 */
 .section .trap.handler, "ax"
-.weak interrupts_handler
-interrupts_handler:
+.weak microzig_interrupts_handler
+microzig_interrupts_handler:
     ret
 
 // trap interrupts
@@ -136,7 +136,7 @@ _start_trap:
     // csrr a2, mepc
     // interrupts_handler(mcause: u32);
     csrr a0, mcause
-    jal ra, interrupts_handler
+    jal ra, microzig_interrupts_handler
 
     LOAD ra, 0*REGBYTES(sp)
     LOAD t0, 1*REGBYTES(sp)

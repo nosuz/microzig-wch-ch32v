@@ -1,3 +1,6 @@
+const microzig = @import("microzig");
+const root = @import("root");
+
 pub fn enable_interrupt() void {
     asm volatile ("csrwi mstatus, (1 << 3)" ::: "");
 }
@@ -149,3 +152,210 @@ pub const Interrupts_ch32v203 = enum(u7) {
     ///97 - TIM10 Capture Compare interrupt
     TIM10_CC = 97,
 };
+
+export fn microzig_interrupts_handler(mcause: u32) void {
+    // Do I need to write all Interrupt names?
+    switch (@as(Interrupts_ch32v203, @enumFromInt(mcause))) {
+        Interrupts_ch32v203.WWDG => {
+            if (@hasDecl(root.interrupt_handlers, "WWDG")) root.interrupt_handlers.WWDG();
+        },
+        Interrupts_ch32v203.PVD => {
+            if (@hasDecl(root.interrupt_handlers, "PVD")) root.interrupt_handlers.PVD();
+        },
+        Interrupts_ch32v203.TAMPER => {
+            if (@hasDecl(root.interrupt_handlers, "TAMPER")) root.interrupt_handlers.TAMPER();
+        },
+        Interrupts_ch32v203.RTC => {
+            if (@hasDecl(root.interrupt_handlers, "RTC")) root.interrupt_handlers.RTC();
+        },
+        Interrupts_ch32v203.FLASH => {
+            if (@hasDecl(root.interrupt_handlers, "FLASH")) root.interrupt_handlers.FLASH();
+        },
+        Interrupts_ch32v203.RCC => {
+            if (@hasDecl(root.interrupt_handlers, "RCC")) root.interrupt_handlers.RCC();
+        },
+        Interrupts_ch32v203.EXTI0 => {
+            if (@hasDecl(root.interrupt_handlers, "EXTI0")) root.interrupt_handlers.EXTI0();
+        },
+        Interrupts_ch32v203.EXTI1 => {
+            if (@hasDecl(root.interrupt_handlers, "EXTI1")) root.interrupt_handlers.EXTI1();
+        },
+        Interrupts_ch32v203.EXTI2 => {
+            if (@hasDecl(root.interrupt_handlers, "EXTI2")) root.interrupt_handlers.EXTI2();
+        },
+        Interrupts_ch32v203.EXTI3 => {
+            if (@hasDecl(root.interrupt_handlers, "EXTI3")) root.interrupt_handlers.EXTI3();
+        },
+        Interrupts_ch32v203.EXTI4 => {
+            if (@hasDecl(root.interrupt_handlers, "EXTI4")) root.interrupt_handlers.EXTI4();
+        },
+        Interrupts_ch32v203.DMA1_CHANNEL1 => {
+            if (@hasDecl(root.interrupt_handlers, "DMA1_CHANNEL1")) root.interrupt_handlers.DMA1_CHANNEL1();
+        },
+        Interrupts_ch32v203.DMA1_CHANNEL2 => {
+            if (@hasDecl(root.interrupt_handlers, "DMA1_CHANNEL2")) root.interrupt_handlers.DMA1_CHANNEL2();
+        },
+        Interrupts_ch32v203.DMA1_CHANNEL3 => {
+            if (@hasDecl(root.interrupt_handlers, "DMA1_CHANNEL3")) root.interrupt_handlers.DMA1_CHANNEL3();
+        },
+        Interrupts_ch32v203.DMA1_CHANNEL4 => {
+            if (@hasDecl(root.interrupt_handlers, "DMA1_CHANNEL4")) root.interrupt_handlers.DMA1_CHANNEL4();
+        },
+        Interrupts_ch32v203.DMA1_CHANNEL5 => {
+            if (@hasDecl(root.interrupt_handlers, "DMA1_CHANNEL5")) root.interrupt_handlers.DMA1_CHANNEL5();
+        },
+        Interrupts_ch32v203.DMA1_CHANNEL6 => {
+            if (@hasDecl(root.interrupt_handlers, "DMA1_CHANNEL6")) root.interrupt_handlers.DMA1_CHANNEL6();
+        },
+        Interrupts_ch32v203.DMA1_CHANNEL7 => {
+            if (@hasDecl(root.interrupt_handlers, "DMA1_CHANNEL7")) root.interrupt_handlers.DMA1_CHANNEL7();
+        },
+        Interrupts_ch32v203.ADC => {
+            if (@hasDecl(root.interrupt_handlers, "ADC")) root.interrupt_handlers.ADC();
+        },
+        Interrupts_ch32v203.USB_HP_CAN1_TX => {
+            if (@hasDecl(root.interrupt_handlers, "USB_HP_CAN1_TX")) root.interrupt_handlers.USB_HP_CAN1_TX();
+        },
+        Interrupts_ch32v203.USB_LP_CAN1_RX0 => {
+            if (@hasDecl(root.interrupt_handlers, "USB_LP_CAN1_RX0")) root.interrupt_handlers.USB_LP_CAN1_RX0();
+        },
+        Interrupts_ch32v203.CAN1_RX1 => {
+            if (@hasDecl(root.interrupt_handlers, "CAN1_RX1")) root.interrupt_handlers.CAN1_RX1();
+        },
+        Interrupts_ch32v203.CAN1_SCE => {
+            if (@hasDecl(root.interrupt_handlers, "CAN1_SCE")) root.interrupt_handlers.CAN1_SCE();
+        },
+        Interrupts_ch32v203.EXTI9_5 => {
+            if (@hasDecl(root.interrupt_handlers, "EXTI9_5")) root.interrupt_handlers.EXTI9_5();
+        },
+        Interrupts_ch32v203.TIM1_BRK => {
+            if (@hasDecl(root.interrupt_handlers, "TIM1_BRK")) root.interrupt_handlers.TIM1_BRK();
+        },
+        Interrupts_ch32v203.TIM1_UP => {
+            if (@hasDecl(root.interrupt_handlers, "TIM1_UP")) root.interrupt_handlers.TIM1_UP();
+        },
+        Interrupts_ch32v203.TIM1_TRG_COM => {
+            if (@hasDecl(root.interrupt_handlers, "TIM1_TRG_COM")) root.interrupt_handlers.TIM1_TRG_COM();
+        },
+        Interrupts_ch32v203.TIM1_CC => {
+            if (@hasDecl(root.interrupt_handlers, "TIM1_CC")) root.interrupt_handlers.TIM1_CC();
+        },
+        Interrupts_ch32v203.TIM2 => {
+            if (@hasDecl(root.interrupt_handlers, "TIM2")) root.interrupt_handlers.TIM2();
+        },
+        Interrupts_ch32v203.TIM3 => {
+            if (@hasDecl(root.interrupt_handlers, "TIM3")) root.interrupt_handlers.TIM3();
+        },
+        Interrupts_ch32v203.TIM4 => {
+            if (@hasDecl(root.interrupt_handlers, "TIM4")) root.interrupt_handlers.TIM4();
+        },
+        Interrupts_ch32v203.I2C1_EV => {
+            if (@hasDecl(root.interrupt_handlers, "I2C1_EV")) root.interrupt_handlers.I2C1_EV();
+        },
+        Interrupts_ch32v203.I2C1_ER => {
+            if (@hasDecl(root.interrupt_handlers, "I2C1_ER")) root.interrupt_handlers.I2C1_ER();
+        },
+        Interrupts_ch32v203.I2C2_EV => {
+            if (@hasDecl(root.interrupt_handlers, "I2C2_EV")) root.interrupt_handlers.I2C2_EV();
+        },
+        Interrupts_ch32v203.I2C2_ER => {
+            if (@hasDecl(root.interrupt_handlers, "I2C2_ER")) root.interrupt_handlers.I2C2_ER();
+        },
+        Interrupts_ch32v203.SPI1 => {
+            if (@hasDecl(root.interrupt_handlers, "SPI1")) root.interrupt_handlers.SPI1();
+        },
+        Interrupts_ch32v203.SPI2 => {
+            if (@hasDecl(root.interrupt_handlers, "SPI2")) root.interrupt_handlers.SPI2();
+        },
+        Interrupts_ch32v203.USART1 => {
+            if (@hasDecl(root.interrupt_handlers, "USART1")) root.interrupt_handlers.USART1();
+        },
+        Interrupts_ch32v203.USART2 => {
+            if (@hasDecl(root.interrupt_handlers, "USART2")) root.interrupt_handlers.USART2();
+        },
+        Interrupts_ch32v203.USART3 => {
+            if (@hasDecl(root.interrupt_handlers, "USART3")) root.interrupt_handlers.USART3();
+        },
+        Interrupts_ch32v203.EXTI15_10 => {
+            if (@hasDecl(root.interrupt_handlers, "EXTI15_10")) root.interrupt_handlers.EXTI15_10();
+        },
+        Interrupts_ch32v203.RTCALARM => {
+            if (@hasDecl(root.interrupt_handlers, "RTCALARM")) root.interrupt_handlers.RTCALARM();
+        },
+        Interrupts_ch32v203.USBWAKE_UP => {
+            if (@hasDecl(root.interrupt_handlers, "USBWAKE_UP")) root.interrupt_handlers.USBWAKE_UP();
+        },
+        Interrupts_ch32v203.TIM8_BRK => {
+            if (@hasDecl(root.interrupt_handlers, "TIM8_BRK")) root.interrupt_handlers.TIM8_BRK();
+        },
+        Interrupts_ch32v203.TIM8_UP => {
+            if (@hasDecl(root.interrupt_handlers, "TIM8_UP")) root.interrupt_handlers.TIM8_UP();
+        },
+        Interrupts_ch32v203.TIM8_TRG_COM => {
+            if (@hasDecl(root.interrupt_handlers, "TIM8_TRG_COM")) root.interrupt_handlers.TIM8_TRG_COM();
+        },
+        Interrupts_ch32v203.TIM8_CC => {
+            if (@hasDecl(root.interrupt_handlers, "TIM8_CC")) root.interrupt_handlers.TIM8_CC();
+        },
+        Interrupts_ch32v203.TIM5 => {
+            if (@hasDecl(root.interrupt_handlers, "TIM5")) root.interrupt_handlers.TIM5();
+        },
+        Interrupts_ch32v203.SPI3 => {
+            if (@hasDecl(root.interrupt_handlers, "SPI3")) root.interrupt_handlers.SPI3();
+        },
+        Interrupts_ch32v203.UART4 => {
+            if (@hasDecl(root.interrupt_handlers, "UART4")) root.interrupt_handlers.UART4();
+        },
+        Interrupts_ch32v203.UART5 => {
+            if (@hasDecl(root.interrupt_handlers, "UART5")) root.interrupt_handlers.UART5();
+        },
+        Interrupts_ch32v203.ETH => {
+            if (@hasDecl(root.interrupt_handlers, "ETH")) root.interrupt_handlers.ETH();
+        },
+        Interrupts_ch32v203.ETH_WKUP => {
+            if (@hasDecl(root.interrupt_handlers, "ETH_WKUP")) root.interrupt_handlers.ETH_WKUP();
+        },
+        Interrupts_ch32v203.OTG_FS => {
+            if (@hasDecl(root.interrupt_handlers, "OTG_FS")) root.interrupt_handlers.OTG_FS();
+        },
+        Interrupts_ch32v203.USBHSWAKEUP => {
+            if (@hasDecl(root.interrupt_handlers, "USBHSWAKEUP")) root.interrupt_handlers.USBHSWAKEUP();
+        },
+        Interrupts_ch32v203.USBHS => {
+            if (@hasDecl(root.interrupt_handlers, "USBHS")) root.interrupt_handlers.USBHS();
+        },
+        Interrupts_ch32v203.UART6 => {
+            if (@hasDecl(root.interrupt_handlers, "UART6")) root.interrupt_handlers.UART6();
+        },
+        Interrupts_ch32v203.UART7 => {
+            if (@hasDecl(root.interrupt_handlers, "UART7")) root.interrupt_handlers.UART7();
+        },
+        Interrupts_ch32v203.UART8 => {
+            if (@hasDecl(root.interrupt_handlers, "UART8")) root.interrupt_handlers.UART8();
+        },
+        Interrupts_ch32v203.TIM9_BRK => {
+            if (@hasDecl(root.interrupt_handlers, "TIM9_BRK")) root.interrupt_handlers.TIM9_BRK();
+        },
+        Interrupts_ch32v203.TIM9_UP => {
+            if (@hasDecl(root.interrupt_handlers, "TIM9_UP")) root.interrupt_handlers.TIM9_UP();
+        },
+        Interrupts_ch32v203.TIM9_TRG_COM => {
+            if (@hasDecl(root.interrupt_handlers, "TIM9_TRG_COM")) root.interrupt_handlers.TIM9_TRG_COM();
+        },
+        Interrupts_ch32v203.TIM9_CC => {
+            if (@hasDecl(root.interrupt_handlers, "TIM9_CC")) root.interrupt_handlers.TIM9_CC();
+        },
+        Interrupts_ch32v203.TIM10_BRK => {
+            if (@hasDecl(root.interrupt_handlers, "TIM10_BRK")) root.interrupt_handlers.TIM10_BRK();
+        },
+        Interrupts_ch32v203.TIM10_UP => {
+            if (@hasDecl(root.interrupt_handlers, "TIM10_UP")) root.interrupt_handlers.TIM10_UP();
+        },
+        Interrupts_ch32v203.TIM10_TRG_COM => {
+            if (@hasDecl(root.interrupt_handlers, "TIM10_TRG_COM")) root.interrupt_handlers.TIM10_TRG_COM();
+        },
+        Interrupts_ch32v203.TIM10_CC => {
+            if (@hasDecl(root.interrupt_handlers, "TIM10_CC")) root.interrupt_handlers.TIM10_CC();
+        },
+    }
+}
