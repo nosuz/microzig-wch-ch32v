@@ -3,3 +3,4 @@ zig-cache/
 zig-out/
 libinit.a
 ch32v.ld
+examples/code_memo.zig
