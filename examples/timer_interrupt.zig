@@ -85,8 +85,10 @@ fn tim1_up_handler() void {
 }
 
 // Set interrupt handlers
-pub const interrupt_handlers = struct {
-    pub fn TIM1_UP() void {
-        tim1_up_handler();
-    }
+pub const microzig_options = struct {
+    pub const interrupts = struct {
+        pub fn TIM1_UP() void {
+            tim1_up_handler();
+        }
+    };
 };

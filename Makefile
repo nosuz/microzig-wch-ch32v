@@ -44,8 +44,8 @@ timer_interrupt: all
 	riscv64-unknown-elf-objdump --disassemble-all zig-out/bin/timer_interrupt > zig-out/timer_interrupt.s
 
 flash:
-	wchisp flash zig-out/${BIN_NAME}
-	#wch-isp -pr flash zig-out/${BIN_NAME}
+	#wchisp flash zig-out/${BIN_NAME}
+	wch-isp -pr flash zig-out/${BIN_NAME}
 
 clean:
 	rm -r zig-out zig-cache
