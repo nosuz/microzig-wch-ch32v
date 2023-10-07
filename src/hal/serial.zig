@@ -142,6 +142,15 @@ pub const Port = enum {
 
         return payload.len;
     }
+
+    pub fn write_word(port: Port, byte: u8) void {
+        const regs = port.get_regs();
+        while (!port.is_writeable()) {
+            asm volatile ("" ::: "memory");
+        }
+
+        regs.DATAR.raw = byte;
+    }
 };
 
 // Logger
