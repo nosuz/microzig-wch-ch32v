@@ -55,6 +55,7 @@ copy_data_loop:
     bnez a2, copy_data_loop
 copy_data_done:
 */
+
 copy_data_section:
     // copy data section to RAM
     la a0, _sdata_lma
@@ -72,8 +73,8 @@ copy_data_loop:
 copy_data_done:
 
 /*
-  C: un-initialize variables are filled with 0.
-  Zig: all variables must be initialized.
+  Zig: un-initialize variables should fill with 0 as C.
+*/
 
 clear_bss_section:
     # clear data and bss section
@@ -86,7 +87,6 @@ clear_bss_loop:
     addi t1, t1, 4
     bne t1, t2, clear_bss_loop
 clear_bss_done:
-*/
 
     // Set frame pointer
     add s0, sp, zero
