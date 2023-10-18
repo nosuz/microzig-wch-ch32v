@@ -163,28 +163,28 @@ pub const Configuration = struct {
                 sysclk_src = config.sysclk_src;
             }
             const pll_multiplex = switch (config.pll_multiplex) {
-                Pll_multiplex.MUL_2 => 2,
-                Pll_multiplex.MUL_3 => 3,
-                Pll_multiplex.MUL_4 => 4,
-                Pll_multiplex.MUL_5 => 5,
-                Pll_multiplex.MUL_6 => 6,
-                Pll_multiplex.MUL_7 => 7,
-                Pll_multiplex.MUL_8 => 8,
-                Pll_multiplex.MUL_9 => 9,
-                Pll_multiplex.MUL_10 => 10,
-                Pll_multiplex.MUL_11 => 11,
-                Pll_multiplex.MUL_12 => 12,
-                Pll_multiplex.MUL_13 => 13,
-                Pll_multiplex.MUL_14 => 14,
-                Pll_multiplex.MUL_15 => 15,
-                Pll_multiplex.MUL_16 => 16,
-                Pll_multiplex.MUL_18 => 18,
+                .MUL_2 => 2,
+                .MUL_3 => 3,
+                .MUL_4 => 4,
+                .MUL_5 => 5,
+                .MUL_6 => 6,
+                .MUL_7 => 7,
+                .MUL_8 => 8,
+                .MUL_9 => 9,
+                .MUL_10 => 10,
+                .MUL_11 => 11,
+                .MUL_12 => 12,
+                .MUL_13 => 13,
+                .MUL_14 => 14,
+                .MUL_15 => 15,
+                .MUL_16 => 16,
+                .MUL_18 => 18,
             };
             pllclk_freq = pll_multiplex * switch (config.pll_src) {
-                Pll_src.HSI => config.hsi_freq,
-                Pll_src.HSI_div2 => config.hsi_freq / 2,
-                Pll_src.HSE => config.hse_freq,
-                Pll_src.HSE_div2 => config.hse_freq / 2,
+                .HSI => config.hsi_freq,
+                .HSI_div2 => config.hsi_freq / 2,
+                .HSE => config.hse_freq,
+                .HSE_div2 => config.hse_freq / 2,
             };
             const sysclk_freq = switch (sysclk_src) {
                 .PLL => pllclk_freq,
@@ -209,44 +209,44 @@ pub const Configuration = struct {
             }
 
             const ahb_prescale = switch (config.ahb_prescale) {
-                Ahb_prescale.SYSCLK => 1,
-                Ahb_prescale.SYSCLK_2 => 2,
-                Ahb_prescale.SYSCLK_4 => 4,
-                Ahb_prescale.SYSCLK_8 => 8,
-                Ahb_prescale.SYSCLK_16 => 16,
-                Ahb_prescale.SYSCLK_64 => 64,
-                Ahb_prescale.SYSCLK_128 => 128,
-                Ahb_prescale.SYSCLK_256 => 256,
-                Ahb_prescale.SYSCLK_512 => 512,
+                .SYSCLK => 1,
+                .SYSCLK_2 => 2,
+                .SYSCLK_4 => 4,
+                .SYSCLK_8 => 8,
+                .SYSCLK_16 => 16,
+                .SYSCLK_64 => 64,
+                .SYSCLK_128 => 128,
+                .SYSCLK_256 => 256,
+                .SYSCLK_512 => 512,
             };
             hclk_freq = sysclk_freq / ahb_prescale;
 
             const apb1_prescale = switch (config.apb1_prescale) {
-                Apb_prescale.HCLK => 1,
-                Apb_prescale.HCLK_2 => 2,
-                Apb_prescale.HCLK_4 => 4,
-                Apb_prescale.HCLK_8 => 8,
-                Apb_prescale.HCLK_16 => 16,
+                .HCLK => 1,
+                .HCLK_2 => 2,
+                .HCLK_4 => 4,
+                .HCLK_8 => 8,
+                .HCLK_16 => 16,
             };
             pclk1_freq = hclk_freq / apb1_prescale;
 
             apb1_timclk_freq = pclk1_freq * if (config.apb1_prescale == Apb_prescale.HCLK) 1 else 2;
 
             const apb2_prescale = switch (config.apb2_prescale) {
-                Apb_prescale.HCLK => 1,
-                Apb_prescale.HCLK_2 => 2,
-                Apb_prescale.HCLK_4 => 4,
-                Apb_prescale.HCLK_8 => 8,
-                Apb_prescale.HCLK_16 => 16,
+                .HCLK => 1,
+                .HCLK_2 => 2,
+                .HCLK_4 => 4,
+                .HCLK_8 => 8,
+                .HCLK_16 => 16,
             };
             pclk2_freq = hclk_freq / apb2_prescale;
             apb2_timclk_freq = pclk2_freq * if (config.apb1_prescale == Apb_prescale.HCLK) 1 else 2;
 
             adc_prescale = switch (config.adc_prescale) {
-                Adc_prescale.PCLK2_2 => 2,
-                Adc_prescale.PCLK2_4 => 4,
-                Adc_prescale.PCLK2_6 => 6,
-                Adc_prescale.PCLK2_8 => 8,
+                .PCLK2_2 => 2,
+                .PCLK2_4 => 4,
+                .PCLK2_6 => 6,
+                .PCLK2_8 => 8,
             };
             adcclk_freq = pclk2_freq / adc_prescale;
             // if (adcclk_freq > 14_000_000) {
@@ -255,9 +255,9 @@ pub const Configuration = struct {
             // }
 
             rtcclk_freq = switch (config.rtcclk_src) {
-                Rtcclk_src.LSE => config.lse_freq,
-                Rtcclk_src.LSI => config.lsi_freq,
-                Rtcclk_src.HSE_128 => config.hse_freq / 128,
+                .LSE => config.lse_freq,
+                .LSI => config.lsi_freq,
+                .HSE_128 => config.hse_freq / 128,
             };
         }
 
@@ -275,10 +275,10 @@ pub const Configuration = struct {
                     .PLLMUL = @intFromEnum(config.pll_multiplex),
                     .PLLXTPRE = if (config.pll_src == Pll_src.HSE_div2) 1 else 0,
                     .PLLSRC = switch (config.pll_src) {
-                        Pll_src.HSI => 0,
-                        Pll_src.HSI_div2 => 0,
-                        Pll_src.HSE => 1,
-                        Pll_src.HSE_div2 => 1,
+                        .HSI => 0,
+                        .HSI_div2 => 0,
+                        .HSE => 1,
+                        .HSE_div2 => 1,
                     },
                 });
                 // RCC_CTLR
