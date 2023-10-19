@@ -47,6 +47,10 @@ ring_buffer: all
 	riscv64-unknown-elf-objcopy -O binary zig-out/bin/ring_buffer zig-out/${BIN_NAME} && \
 	riscv64-unknown-elf-objdump --disassemble-all zig-out/bin/ring_buffer > zig-out/ring_buffer.s
 
+adc: all
+	riscv64-unknown-elf-objcopy -O binary zig-out/bin/adc zig-out/${BIN_NAME} && \
+	riscv64-unknown-elf-objdump --disassemble-all zig-out/bin/adc > zig-out/adc.s
+
 flash:
 	#wchisp flash zig-out/${BIN_NAME}
 	wch-isp -pr flash zig-out/${BIN_NAME}

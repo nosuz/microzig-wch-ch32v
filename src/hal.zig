@@ -6,4 +6,5 @@ pub const pins = @import("hal/pins.zig");
 pub const clocks = @import("hal/clocks.zig");
 pub const time = @import("hal/time.zig");
 pub const serial = @import("hal/serial.zig");
+pub const adc = @import("hal/adc.zig");
 pub const interrupt = @import("hal/interrupt.zig");

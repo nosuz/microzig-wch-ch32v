@@ -40,7 +40,7 @@ pub fn GPIO(comptime pin_name: []const u8, comptime direction: Direction) type {
             pub inline fn read(self: @This()) u1 {
                 _ = self;
                 var reg = pin.gpio_port;
-                return @field(reg.read(), "IDR" ++ pin.suffix);
+                return @field(reg.read(), "IDR" ++ pin.gpio_suffix);
             }
         },
         .out => struct {
@@ -49,7 +49,7 @@ pub fn GPIO(comptime pin_name: []const u8, comptime direction: Direction) type {
             pub inline fn read(self: @This()) u1 {
                 _ = self;
                 var reg = pin.gpio_port.OUTDR;
-                return @field(reg.read(), "ODR" ++ pin.suffix);
+                return @field(reg.read(), "ODR" ++ pin.gpio_suffix);
             }
 
             pub inline fn put(self: @This(), value: u1) void {
@@ -57,7 +57,7 @@ pub fn GPIO(comptime pin_name: []const u8, comptime direction: Direction) type {
                 var reg = pin.gpio_port.OUTDR;
                 // var reg = @field(pin.gpio_port, "OUTDR");
                 var temp = reg.read();
-                @field(temp, "ODR" ++ pin.suffix) = value;
+                @field(temp, "ODR" ++ pin.gpio_suffix) = value;
                 pin.gpio_port.OUTDR.write(temp); // sw	a2,-2036(a0)
                 // reg.write(temp); // sw	a2,8(sp)
             }
@@ -66,8 +66,8 @@ pub fn GPIO(comptime pin_name: []const u8, comptime direction: Direction) type {
                 _ = self;
                 var reg = pin.gpio_port.OUTDR;
                 var temp = reg.read();
-                var value = @field(temp, "ODR" ++ pin.suffix);
-                @field(temp, "ODR" ++ pin.suffix) = ~value;
+                var value = @field(temp, "ODR" ++ pin.gpio_suffix);
+                @field(temp, "ODR" ++ pin.gpio_suffix) = ~value;
                 pin.gpio_port.OUTDR.write(temp); // sw  a3,-2036(a0)
                 // reg.write(temp); // sw  a3,12(sp)
             }

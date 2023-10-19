@@ -4,11 +4,18 @@ const comptimePrint = std.fmt.comptimePrint;
 const StructField = std.builtin.Type.StructField;
 
 const microzig = @import("microzig");
-const peripherals = microzig.chip.peripherals;
-// const GPIOS = microzig.chip.peripherals.GPIO;
-
 const gpio = @import("gpio.zig");
 const serial = @import("serial.zig");
+const adc = @import("adc.zig");
+
+const ch32v = microzig.hal;
+const clocks = ch32v.clocks;
+// const GPIOS = microzig.chip.peripherals.GPIO;
+
+const peripherals = microzig.chip.peripherals;
+const ADC1 = peripherals.ADC1;
+const ADC2 = peripherals.ADC2;
+
 // const pwm = @import("pwm.zig");
 // const adc = @import("adc.zig");
 // const resets = @import("resets.zig");
@@ -16,7 +23,7 @@ const serial = @import("serial.zig");
 const Port = enum { A, B, C, D };
 
 pub const Pin = enum {
-    PA0,
+    PA0, // 0
     PA1,
     PA2,
     PA3,
@@ -32,7 +39,7 @@ pub const Pin = enum {
     PA13,
     PA14,
     PA15,
-    PB0,
+    PB0, // 16
     PB1,
     PB2,
     PB3,
@@ -47,7 +54,7 @@ pub const Pin = enum {
     PB12,
     PB13,
     PB14,
-    PB15,
+    PB15, // 31
     PC0,
     PC1,
     PC2,
@@ -63,17 +70,23 @@ pub const Pin = enum {
     PC12,
     PC13,
     PC14,
-    PC15,
+    PC15, // 47
     PD0,
     PD1,
-    PD2,
+    PD2, // 50
+    IN16, // 51: dummy for temp sensor
+    IN17, // 52: Vrefint
 
     pub const Configuration = struct {
         name: ?[]const u8 = null,
         function: Function = .GPIO,
+        // GPIO config
         direction: ?gpio.Direction = null,
         // drive_strength: ?gpio.DriveStrength = null,
         pull: ?gpio.Pull = null,
+        // ADC config
+        adc: ?adc.Port = null,
+        cycles: ?adc.SAMPTR = null,
 
         pub fn get_direction(comptime config: Configuration) gpio.Direction {
             return if (config.direction) |direction|
@@ -94,32 +107,34 @@ pub const Pin = enum {
 
 pub const Function = enum {
     GPIO,
+    ADC,
 };
 
-fn all() [30]u1 {
-    var ret: [30]u1 = undefined;
+fn all() [@typeInfo(Pin).Enum.fields.len]u1 {
+    var ret: [@typeInfo(Pin).Enum.fields.len]u1 = undefined;
     for (&ret) |*elem|
         elem.* = 1;
 
     return ret;
 }
 
-fn list(gpio_list: []const u5) [30]u1 {
-    var ret = std.mem.zeroes([30]u1);
+fn list(gpio_list: []const u6) [@typeInfo(Pin).Enum.fields.len]u1 {
+    var ret = std.mem.zeroes([@typeInfo(Pin).Enum.fields.len]u1);
     for (gpio_list) |num|
         ret[num] = 1;
 
     return ret;
 }
 
-fn single(gpio_num: u5) [30]u1 {
-    var ret = std.mem.zeroes([30]u1);
+fn single(gpio_num: u6) [@typeInfo(Pin).Enum.fields.len]u1 {
+    var ret = std.mem.zeroes([@typeInfo(Pin).Enum.fields.len]u1);
     ret[gpio_num] = 1;
     return ret;
 }
 
-const function_table = [@typeInfo(Function).Enum.fields.len][30]u1{
+const function_table = [@typeInfo(Function).Enum.fields.len][@typeInfo(Pin).Enum.fields.len]u1{
     all(), // GPIO
+    list(&.{ 0, 1, 2, 3, 4, 5, 6, 7, 16, 17, 32, 33, 34, 35, 36, 51, 52 }), // ADC
     // all(), // PIO0
     // all(), // PIO1
     // list(&.{ 0, 4, 16, 20 }), // SPI0_RX
@@ -176,19 +191,46 @@ const function_table = [@typeInfo(Function).Enum.fields.len][30]u1{
 pub fn parse_pin(comptime spec: []const u8) type {
     const invalid_format_msg = "The given pin '" ++ spec ++ "' has an invalid format. Pins must follow the format \"P{Port}{Pin}\" scheme.";
 
-    if (spec[0] != 'P')
-        @compileError(invalid_format_msg);
-    if (spec[1] < 'A' or spec[1] > 'E')
-        @compileError(invalid_format_msg);
+    if ((spec[0] == 'I') and (spec[1] == 'N')) {
+        return struct {
+            // pin_num: global pin number
+            const pin_number: comptime_int = @intFromEnum(@field(Pin, spec));
+            // ADC
+            pub const adc_channel_num: comptime_int = @intFromEnum(@field(adc.Channel, spec));
+            pub const adc_channel = std.fmt.comptimePrint("IN{d}", .{adc_channel_num});
+            pub const adc_suffix = std.fmt.comptimePrint("{d}", .{adc_channel_num});
+            pub const adc_tsvr = switch (adc_channel_num) {
+                16, 17 => true,
+                else => false,
+            };
+        };
+    } else {
+        if (spec[0] != 'P')
+            @compileError(invalid_format_msg);
+        if (spec[1] < 'A' or spec[1] > 'E')
+            @compileError(invalid_format_msg);
 
-    return struct {
-        const pin_number: comptime_int = std.fmt.parseInt(u4, spec[2..], 10) catch @compileError(invalid_format_msg);
-        /// 'A'...'I'
-        pub const gpio_port_name = spec[1..2];
-        pub const gpio_port_num = @intFromEnum(@field(Port, spec[1..2]));
-        pub const gpio_port = @field(peripherals, "GPIO" ++ gpio_port_name);
-        pub const suffix = std.fmt.comptimePrint("{d}", .{pin_number});
-    };
+        return struct {
+            // pin_num: global pin number
+            const pin_number: comptime_int = @intFromEnum(@field(Pin, spec));
+            /// 'A'...'I'
+            pub const gpio_port_name = spec[1..2];
+            pub const gpio_port_num = @intFromEnum(@field(Port, spec[1..2]));
+            pub const gpio_port = @field(peripherals, "GPIO" ++ gpio_port_name);
+            const gpio_port_pin_num: comptime_int = std.fmt.parseInt(u4, spec[2..], 10) catch @compileError(invalid_format_msg);
+            pub const gpio_suffix = std.fmt.comptimePrint("{d}", .{gpio_port_pin_num});
+            // ADC
+            pub const adc_channel_num: comptime_int = @intFromEnum(@field(adc.Channel, spec));
+            pub const adc_channel = std.fmt.comptimePrint("IN{d}", .{adc_channel_num});
+            pub const adc_suffix = std.fmt.comptimePrint("{d}", .{adc_channel_num});
+            pub const adc_tsvr = switch (adc_channel_num) {
+                16, 17 => true,
+                else => false,
+            };
+        };
+    }
+
+    unreachable();
 }
 
 pub fn Pins(comptime config: GlobalConfiguration) type {
@@ -208,7 +250,6 @@ pub fn Pins(comptime config: GlobalConfiguration) type {
 
                 if (pin_config.function == .GPIO) {
                     pin_field.name = pin_config.name orelse field.name;
-                    // pin_field.type = GPIO(@intFromEnum(@field(Pin, field.name)), pin_config.direction orelse .in);
                     pin_field.type = gpio.GPIO(field.name, pin_config.direction orelse .in);
                     // } else if (pin_config.function.is_pwm()) {
                     //     pin_field.name = pin_config.name orelse @tagName(pin_config.function);
@@ -223,6 +264,9 @@ pub fn Pins(comptime config: GlobalConfiguration) type {
                     //         .ADC3 => &adc.Input.ain3,
                     //         else => unreachable,
                     //     }));
+                } else if (pin_config.function == .ADC) {
+                    pin_field.name = pin_config.name orelse field.name;
+                    pin_field.type = adc.ADC(field.name, pin_config.adc orelse adc.Port.ADC1);
                 } else {
                     continue;
                 }
@@ -307,6 +351,8 @@ pub const GlobalConfiguration = struct {
     PD0: ?Pin.Configuration = null,
     PD1: ?Pin.Configuration = null,
     PD2: ?Pin.Configuration = null,
+    IN16: ?Pin.Configuration = null, // dummy for temp sensor
+    IN17: ?Pin.Configuration = null, // dummy for V ref
 
     comptime {
         const pin_field_count = @typeInfo(Pin).Enum.fields.len;
@@ -316,8 +362,15 @@ pub const GlobalConfiguration = struct {
     }
 
     pub fn apply(comptime config: GlobalConfiguration) Pins(config) {
+        // GPIO
         comptime var port_cfg_mask = [_]u32{ 0, 0, 0, 0, 0, 0, 0, 0 };
         comptime var port_cfg_value = [_]u32{ 0, 0, 0, 0, 0, 0, 0, 0 };
+
+        // ADC
+        comptime var samptr1: u32 = 0;
+        comptime var samptr2: u32 = 0;
+        comptime var adc1: bool = false;
+        comptime var adc2: bool = false;
 
         // validate selected function
         comptime {
@@ -357,6 +410,26 @@ pub const GlobalConfiguration = struct {
                                         port_cfg_value[pin.gpio_port_num * 2 + 1] |= 0b11 << shift_num;
                                     },
                                 }
+                            },
+                            else => {},
+                        }
+                    } else if (pin_config.function == .ADC) {
+                        if (pin_config.adc == adc.Port.ADC1) {
+                            adc1 = true;
+                        } else if (pin_config.adc == adc.Port.ADC2) {
+                            adc2 = true;
+                        }
+                        const adc_ch = pin.adc_channel_num;
+                        var val = 0;
+                        if (pin_config.cycles) |cycles| {
+                            val = @intFromEnum(cycles);
+                        }
+                        switch (adc_ch) {
+                            0...9 => {
+                                samptr2 = samptr2 | (val << (adc_ch * 3));
+                            },
+                            10...16 => {
+                                samptr1 = samptr1 | (val << (adc_ch - 10) * 3);
                             },
                             else => {},
                         }
@@ -460,6 +533,37 @@ pub const GlobalConfiguration = struct {
                 }
             }
         }
+
+        // Enable ADC
+        if (adc1 or adc2) {
+            assert(clocks.Clocks_freq.adcclk <= 14_000_000);
+
+            setup_adc_pins(config);
+
+            // @compileLog(samptr1);
+            // @compileLog(samptr2);
+            if (adc1) {
+                // enable ADC
+                // peripherals.RCC.APB2PCENR.raw |= (@as(u32, 1) << 9);
+                peripherals.RCC.APB2PCENR.modify(.{
+                    .ADC1EN = 1,
+                });
+
+                ADC1.SAMPTR1_CHARGE1.write_raw(samptr1);
+                ADC1.SAMPTR2_CHARGE2.write_raw(samptr2);
+            }
+            if (adc2) {
+                // enable ADC
+                // peripherals.RCC.APB2PCENR.raw |= (@as(u32, 1) << 10);
+                peripherals.RCC.APB2PCENR.modify(.{
+                    .ADC2EN = 1,
+                });
+
+                ADC2.SAMPTR1_CHARGE1.write_raw(samptr1);
+                ADC2.SAMPTR2_CHARGE2.write_raw(samptr2);
+            }
+        }
+
         // if (output_gpios != 0)
         //     SIO.GPIO_OE_SET.raw = output_gpios;
 
@@ -538,5 +642,54 @@ pub fn setup_uart_pins(port: serial.Port) void {
         3 => {
             //@compileError("Not implimented");
         },
+    }
+}
+
+pub fn setup_adc_pins(comptime config: GlobalConfiguration) void {
+    comptime var mask_pa: u32 = 0;
+    comptime var mask_pb: u32 = 0;
+    comptime var mask_pc: u32 = 0;
+    const mask: u32 = 0b1111;
+    comptime {
+        inline for (@typeInfo(GlobalConfiguration).Struct.fields) |field| {
+            if (@field(config, field.name)) |channel_config| {
+                _ = channel_config;
+                var ch: u5 = @intFromEnum(@field(adc.Channel, field.name));
+                switch (ch) {
+                    0...7 => {
+                        mask_pa = mask_pa | (mask << (ch * 4));
+                    },
+                    8, 9 => {
+                        mask_pb = mask_pb | (mask << ((ch - 8) * 4));
+                    },
+                    10...15 => {
+                        mask_pc = mask_pc | (mask << ((ch - 10) * 4));
+                    },
+                    16, 17 => {},
+                    else => unreachable,
+                }
+            }
+        }
+    }
+    if (mask_pa > 0) {
+        // Enable GPIOA for changing PIn config.
+        peripherals.RCC.APB2PCENR.modify(.{
+            .IOPAEN = 1,
+        });
+        peripherals.GPIOA.CFGLR.raw = peripherals.GPIOA.CFGLR.raw & ~mask_pa;
+    }
+    if (mask_pb > 0) {
+        // Enable GPIOB for changing PIn config.
+        peripherals.RCC.APB2PCENR.modify(.{
+            .IOPBEN = 1,
+        });
+        peripherals.GPIOA.CFGHR.raw = peripherals.GPIOA.CFGHR.raw & ~mask_pb;
+    }
+    if (mask_pc > 0) {
+        // Enable GPIOC for changing PIn config.
+        peripherals.RCC.APB2PCENR.modify(.{
+            .IOPCEN = 1,
+        });
+        peripherals.GPIOC.CFGLR.raw = peripherals.GPIOC.CFGLR.raw & ~mask_pc;
     }
 }
