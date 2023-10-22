@@ -417,7 +417,7 @@ pub const GlobalConfiguration = struct {
         //     peripherals.GPIOA.CFGHR.raw = (peripherals.GPIOA.CFGHR.raw & ~mask) | portal_cfg_value;
         // }
 
-        // emable clocks
+        // enable clocks
         for (0..4) |i| {
             var masks = port_cfg_mask[i * 2] | port_cfg_mask[i * 2 + 1];
             if (masks != 0) {
