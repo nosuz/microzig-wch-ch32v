@@ -189,7 +189,7 @@ const function_table = [@typeInfo(Function).Enum.fields.len][@typeInfo(Pin).Enum
 };
 
 pub fn parse_pin(comptime spec: []const u8) type {
-    const invalid_format_msg = "The given pin '" ++ spec ++ "' has an invalid format. Pins must follow the format \"P{Port}{Pin}\" scheme.";
+    const invalid_format_msg = "The given pin '" ++ spec ++ "' has an invalid format.";
 
     if ((spec[0] == 'I') and (spec[1] == 'N')) {
         return struct {
@@ -204,12 +204,7 @@ pub fn parse_pin(comptime spec: []const u8) type {
                 else => false,
             };
         };
-    } else {
-        if (spec[0] != 'P')
-            @compileError(invalid_format_msg);
-        if (spec[1] < 'A' or spec[1] > 'E')
-            @compileError(invalid_format_msg);
-
+    } else if ((spec[0] == 'P') and (spec[1] < 'A' or spec[1] > 'E')) {
         return struct {
             // pin_num: global pin number
             const pin_number: comptime_int = @intFromEnum(@field(Pin, spec));
@@ -230,7 +225,8 @@ pub fn parse_pin(comptime spec: []const u8) type {
         };
     }
 
-    unreachable();
+    @compileError(invalid_format_msg);
+    // unreachable();
 }
 
 pub fn Pins(comptime config: GlobalConfiguration) type {
