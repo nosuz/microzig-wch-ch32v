@@ -25,19 +25,19 @@ const pin_config = ch32v.pins.GlobalConfiguration{
         .name = "analog",
         .function = .ADC,
         .adc = .ADC1,
-        .cycles = .CYCLES239_5,
+        .cycles = .cycles239_5,
     },
     .IN16 = .{
         .name = "temp",
         .function = .ADC,
         .adc = .ADC1,
-        .cycles = .CYCLES7_5,
+        .cycles = .cycles7_5,
     },
     .IN17 = .{
         .name = "vref",
         .function = .ADC,
         .adc = .ADC1,
-        .cycles = .CYCLES239_5,
+        .cycles = .cycles239_5,
     },
 };
 

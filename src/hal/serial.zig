@@ -15,26 +15,26 @@ const UART4 = peripherals.UART4;
 const UartRegs = microzig.chip.types.peripherals.USART1;
 
 pub const Stop = enum {
-    ONE,
-    TWO,
+    one,
+    two,
 };
 
 pub const Parity = enum {
-    NONE,
-    EVEN,
-    ODD,
+    none,
+    even,
+    odd,
 };
 
 pub const WordBits = enum {
-    EIGHT,
-    SEVEN,
+    eight,
+    seven,
 };
 
 pub const Config = struct {
     baud_rate: u32,
-    word_bits: WordBits = WordBits.EIGHT,
-    stop: Stop = Stop.ONE,
-    parity: Parity = Parity.NONE,
+    word_bits: WordBits = WordBits.eight,
+    stop: Stop = Stop.one,
+    parity: Parity = Parity.none,
 };
 
 pub const Port = enum {

@@ -10,14 +10,14 @@ const ADC2 = peripherals.ADC2;
 
 // p. 157, p.122
 pub const SAMPTR = enum(u3) {
-    CYCLES1_5 = 0b000, // 1.5 cycles
-    CYCLES7_5 = 0b001, // 7.5 cycles
-    CYCLES13_5 = 0b010, // 13.5 cycles
-    CYCLES28_5 = 0b011, // 28.5 cycles
-    CYCLES41_5 = 0b100, // 41.5 cycles
-    CYCLES55_5 = 0b101, // 55.5 cycles
-    CYCLES71_5 = 0b110, // 71.5 cycles
-    CYCLES239_5 = 0b111, // 239.5 cycles
+    cycles1_5 = 0b000, // 1.5 cycles
+    cycles7_5 = 0b001, // 7.5 cycles
+    cycles13_5 = 0b010, // 13.5 cycles
+    cycles28_5 = 0b011, // 28.5 cycles
+    cycles41_5 = 0b100, // 41.5 cycles
+    cycles55_5 = 0b101, // 55.5 cycles
+    cycles71_5 = 0b110, // 71.5 cycles
+    cycles239_5 = 0b111, // 239.5 cycles
 };
 
 pub const Channel = enum {
