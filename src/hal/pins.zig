@@ -20,8 +20,6 @@ const ADC2 = peripherals.ADC2;
 // const adc = @import("adc.zig");
 // const resets = @import("resets.zig");
 
-const Port = enum { A, B, C, D };
-
 pub const Pin = enum {
     PA0, // 0
     PA1,
@@ -204,13 +202,13 @@ pub fn parse_pin(comptime spec: []const u8) type {
                 else => false,
             };
         };
-    } else if ((spec[0] == 'P') and (spec[1] < 'A' or spec[1] > 'E')) {
+    } else if ((spec[0] == 'P') and (spec[1] >= 'A') and (spec[1] <= 'E')) {
         return struct {
             // pin_num: global pin number
             const pin_number: comptime_int = @intFromEnum(@field(Pin, spec));
             /// 'A'...'I'
             pub const gpio_port_name = spec[1..2];
-            pub const gpio_port_num = @intFromEnum(@field(Port, spec[1..2]));
+            pub const gpio_port_num = @intFromEnum(@field(gpio.Port, spec[0..2]));
             pub const gpio_port = @field(peripherals, "GPIO" ++ gpio_port_name);
             const gpio_port_pin_num: comptime_int = std.fmt.parseInt(u4, spec[2..], 10) catch @compileError(invalid_format_msg);
             pub const gpio_suffix = std.fmt.comptimePrint("{d}", .{gpio_port_pin_num});

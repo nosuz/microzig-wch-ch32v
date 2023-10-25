@@ -22,6 +22,8 @@ const log = std.log.scoped(.gpio);
 //     null = 0x1f,
 // };
 
+pub const Port = enum { PA, PB, PC, PD };
+
 pub const Direction = enum(u1) {
     in,
     out,
