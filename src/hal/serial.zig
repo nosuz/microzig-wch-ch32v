@@ -7,12 +7,11 @@ const clocks = ch32v.clocks;
 const peripherals = microzig.chip.peripherals;
 const RTC = peripherals.RTC;
 
+const UartRegs = microzig.chip.types.peripherals.USART1;
 const USART1 = peripherals.USART1;
 const USART2 = peripherals.USART2;
 const USART3 = peripherals.USART3;
 const UART4 = peripherals.UART4;
-
-const UartRegs = microzig.chip.types.peripherals.USART1;
 
 pub const Stop = enum {
     one,
@@ -30,12 +29,62 @@ pub const WordBits = enum {
     seven,
 };
 
-pub const Config = struct {
-    baud_rate: u32,
-    word_bits: WordBits = WordBits.eight,
-    stop: Stop = Stop.one,
-    parity: Parity = Parity.none,
-};
+pub fn SERIAL(comptime pin_name: []const u8) type {
+    return struct {
+        const pin = pins.parse_pin(pin_name);
+
+        const WriteError = error{};
+        const ReadError = error{};
+
+        pub fn is_readable(self: @This()) bool {
+            _ = self;
+            return (pin.serial_port_regs.STATR.read().RXNE == 1);
+        }
+
+        pub inline fn read_word(self: @This()) u8 {
+            const regs = pin.serial_port_regs;
+            // while (!port.is_readable()) {}
+            while (!self.is_readable()) {
+                asm volatile ("" ::: "memory");
+            }
+
+            return regs.DATAR.read().DATA;
+        }
+
+        pub inline fn is_writeable(self: @This()) bool {
+            _ = self;
+            return (pin.serial_port_regs.STATR.read().TXE == 1);
+        }
+
+        pub inline fn write(self: @This(), payload: []const u8) WriteError!usize {
+            const regs = pin.serial_port_regs;
+            for (payload) |byte| {
+                // while (!port.is_writeable()) {}
+                while (!self.is_writeable()) {
+                    asm volatile ("" ::: "memory");
+                }
+
+                regs.DATAR.raw = byte;
+            }
+
+            return payload.len;
+        }
+
+        pub inline fn write_word(self: @This(), byte: u8) void {
+            const regs = pin.serial_port_regs;
+            while (!self.is_writeable()) {
+                asm volatile ("" ::: "memory");
+            }
+
+            regs.DATAR.raw = byte;
+        }
+
+        pub inline fn get_port(self: @This()) Port {
+            _ = self;
+            return pin.serial_port;
+        }
+    };
+}
 
 pub const Port = enum {
     USART1,
@@ -43,7 +92,14 @@ pub const Port = enum {
     USART3,
     UART4,
 
-    fn get_regs(port: Port) *volatile UartRegs {
+    pub const Configuration = struct {
+        baud_rate: ?u32 = null,
+        word_bits: WordBits = WordBits.eight,
+        stop: Stop = Stop.one,
+        parity: Parity = Parity.none,
+    };
+
+    pub fn get_regs(port: Port) *volatile UartRegs {
         return switch (@intFromEnum(port)) {
             0 => USART1,
             1 => USART2,
@@ -52,85 +108,27 @@ pub const Port = enum {
         };
     }
 
-    pub fn apply(port: Port, comptime config: Config) void {
-        switch (@intFromEnum(port)) {
-            // UART1
-            0 => {
-                peripherals.RCC.APB2PCENR.modify(.{
-                    .USART1EN = 1,
-                });
-            },
-            // UART2
-            1 => {
-                peripherals.RCC.APB1PCENR.modify(.{
-                    .USART2EN = 1,
-                });
-            },
-            else => {},
-        }
-
-        pins.setup_uart_pins(port);
-
-        const regs = get_regs(port);
-
-        if (config.baud_rate == 0) @compileError("Baud rate should greater than 0.");
-        regs.BRR.write_raw(clocks.Clocks_freq.pclk2 / config.baud_rate);
-
-        // Enable USART, Tx, and Rx
-        regs.CTLR1.modify(.{
-            .UE = 1,
-            .TE = 1,
-            .RE = 1,
-        });
-    }
-
     const WriteError = error{};
-    const ReadError = error{};
+    // const ReadError = error{};
 
     pub const Writer = std.io.Writer(Port, WriteError, write);
-    pub const Reader = std.io.Reader(Port, ReadError, read);
+    // pub const Reader = std.io.Reader(Port, ReadError, read);
 
     pub fn writer(port: Port) Writer {
         return .{ .context = port };
     }
 
-    pub fn reader(port: Port) Reader {
-        return .{ .context = port };
-    }
+    // pub fn reader(port: Port) Reader {
+    //     return .{ .context = port };
+    // }
 
-    pub fn is_readable(port: Port) bool {
-        return (port.get_regs().STATR.read().RXNE == 1);
-    }
-
-    pub fn read(port: Port, buffer: []u8) ReadError!usize {
-        const regs = port.get_regs();
-        for (buffer) |*byte| {
-            // while (!port.is_readable()) {}
-            while (!port.is_read_able()) {
-                asm volatile ("" ::: "memory");
-            }
-
-            byte.* = regs.UARTDR.read().DATA;
-        }
-        return buffer.len;
-    }
-
-    pub fn read_word(port: Port) u8 {
-        const regs = port.get_regs();
-        // while (!port.is_readable()) {}
-        while (!port.is_read_able()) {
-            asm volatile ("" ::: "memory");
-        }
-
-        return regs.DATAR.read().DATA;
-    }
-
-    pub fn is_writeable(port: Port) bool {
-        return (port.get_regs().STATR.read().TXE == 1);
+    pub inline fn is_writeable(port: Port) bool {
+        const regs = get_regs(port);
+        return (regs.STATR.read().TXE == 1);
     }
 
     pub fn write(port: Port, payload: []const u8) WriteError!usize {
-        const regs = port.get_regs();
+        const regs = get_regs(port);
         for (payload) |byte| {
             // while (!port.is_writeable()) {}
             while (!port.is_writeable()) {
@@ -142,24 +140,30 @@ pub const Port = enum {
 
         return payload.len;
     }
+};
 
-    pub fn write_word(port: Port, byte: u8) void {
-        const regs = port.get_regs();
-        while (!port.is_writeable()) {
-            asm volatile ("" ::: "memory");
-        }
-
-        regs.DATAR.raw = byte;
-    }
+pub const Configs = struct {
+    pub var USART1 = Port.Configuration{};
+    pub var USART2 = Port.Configuration{};
+    pub var USART3 = Port.Configuration{};
+    pub var UART4 = Port.Configuration{};
 };
 
 // Logger
 var uart_logger: ?Port.Writer = null;
 
 pub fn init_logger(port: Port) void {
-    // bind logger to serail port.
-    uart_logger = port.writer();
-    uart_logger.?.writeAll("\r\n================ STARTING NEW LOGGER ================\r\n") catch {};
+    const port_config = switch (port) {
+        Port.USART1 => Configs.USART1,
+        Port.USART2 => Configs.USART2,
+        Port.USART3 => Configs.USART3,
+        Port.UART4 => Configs.UART4,
+    };
+    // bind logger to serail port if configured.
+    if (port_config.baud_rate) |_| {
+        uart_logger = port.writer();
+        uart_logger.?.writeAll("\r\n================ STARTING NEW LOGGER ================\r\n") catch {};
+    }
 }
 
 pub fn log(

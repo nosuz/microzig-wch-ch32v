@@ -2,8 +2,8 @@ const std = @import("std");
 const microzig = @import("microzig");
 
 const ch32v = microzig.hal;
-const time = ch32v.time;
 const serial = ch32v.serial;
+const time = ch32v.time;
 const clocks = ch32v.clocks;
 
 const clocks_config = clocks.Configuration{
@@ -18,6 +18,15 @@ const pin_config = ch32v.pins.GlobalConfiguration{
         .name = "led",
         .direction = .out,
     },
+    .PA9 = .{
+        .name = "tx",
+        .function = .SERIAL,
+        .baud_rate = 115200,
+    },
+    // .PA10 = .{
+    //     .name = "rx",
+    //     .function = .SERIAL,
+    // },
 };
 
 // set logger
@@ -32,12 +41,8 @@ pub fn main() !void {
 
     const pins = pin_config.apply();
 
-    const usart1 = serial.Port.USART1;
-    usart1.apply(.{
-        .baud_rate = 115200,
-    });
     // start logger
-    serial.init_logger(usart1);
+    serial.init_logger(pins.tx.get_port());
 
     var i: u32 = 0;
     while (true) {

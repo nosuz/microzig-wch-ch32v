@@ -85,6 +85,11 @@ pub const Pin = enum {
         // ADC config
         adc: ?adc.Port = null,
         cycles: ?adc.SAMPTR = null,
+        // Serial
+        baud_rate: ?u32 = null,
+        word_bits: serial.WordBits = serial.WordBits.eight,
+        stop: serial.Stop = serial.Stop.one,
+        parity: serial.Parity = serial.Parity.none,
 
         pub fn get_direction(comptime config: Configuration) gpio.Direction {
             return if (config.direction) |direction|
@@ -106,6 +111,7 @@ pub const Pin = enum {
 pub const Function = enum {
     GPIO,
     ADC,
+    SERIAL,
 };
 
 fn all() [@typeInfo(Pin).Enum.fields.len]u1 {
@@ -133,6 +139,7 @@ fn single(gpio_num: u6) [@typeInfo(Pin).Enum.fields.len]u1 {
 const function_table = [@typeInfo(Function).Enum.fields.len][@typeInfo(Pin).Enum.fields.len]u1{
     all(), // GPIO
     list(&.{ 0, 1, 2, 3, 4, 5, 6, 7, 16, 17, 32, 33, 34, 35, 36, 51, 52 }), // ADC
+    list(&.{ 0, 1, 9, 10, 26, 27, 42, 43 }), // SERIAL
     // all(), // PIO0
     // all(), // PIO1
     // list(&.{ 0, 4, 16, 20 }), // SPI0_RX
@@ -212,6 +219,7 @@ pub fn parse_pin(comptime spec: []const u8) type {
             pub const gpio_port = @field(peripherals, "GPIO" ++ gpio_port_name);
             const gpio_port_pin_num: comptime_int = std.fmt.parseInt(u4, spec[2..], 10) catch @compileError(invalid_format_msg);
             pub const gpio_suffix = std.fmt.comptimePrint("{d}", .{gpio_port_pin_num});
+
             // ADC
             pub const adc_channel_num: comptime_int = @intFromEnum(@field(adc.Channel, spec));
             pub const adc_channel = std.fmt.comptimePrint("IN{d}", .{adc_channel_num});
@@ -219,6 +227,29 @@ pub fn parse_pin(comptime spec: []const u8) type {
             pub const adc_tsvr = switch (adc_channel_num) {
                 16, 17 => true,
                 else => false,
+            };
+
+            // Serial
+            pub const serial_port_regs = switch (pin_number) {
+                9, 10 => peripherals.USART1,
+                0, 1 => peripherals.USART2,
+                26, 27 => peripherals.USART3,
+                42, 43 => peripherals.UART4,
+                else => unreachable,
+            };
+            pub const serial_port_num: comptime_int = switch (pin_number) {
+                9, 10 => 0,
+                0, 1 => 1,
+                26, 27 => 2,
+                42, 43 => 3,
+                else => unreachable,
+            };
+            pub const serial_port = switch (serial_port_num) {
+                0 => serial.Port.USART1,
+                1 => serial.Port.USART2,
+                2 => serial.Port.USART3,
+                3 => serial.Port.UART4,
+                else => unreachable,
             };
         };
     }
@@ -242,8 +273,8 @@ pub fn Pins(comptime config: GlobalConfiguration) type {
                     .alignment = undefined,
                 };
 
+                pin_field.name = pin_config.name orelse field.name;
                 if (pin_config.function == .GPIO) {
-                    pin_field.name = pin_config.name orelse field.name;
                     pin_field.type = gpio.GPIO(field.name, pin_config.direction orelse .in);
                     // } else if (pin_config.function.is_pwm()) {
                     //     pin_field.name = pin_config.name orelse @tagName(pin_config.function);
@@ -259,8 +290,10 @@ pub fn Pins(comptime config: GlobalConfiguration) type {
                     //         else => unreachable,
                     //     }));
                 } else if (pin_config.function == .ADC) {
-                    pin_field.name = pin_config.name orelse field.name;
                     pin_field.type = adc.ADC(field.name, pin_config.adc orelse adc.Port.ADC1);
+                } else if (pin_config.function == .SERIAL) {
+                    pin_field.type = serial.SERIAL(field.name);
+                    //
                 } else {
                     continue;
                 }
@@ -366,6 +399,14 @@ pub const GlobalConfiguration = struct {
         comptime var adc1: bool = false;
         comptime var adc2: bool = false;
 
+        // Serail
+        comptime var uart_cfg = [_]serial.Port.Configuration{
+            serial.Port.Configuration{},
+            serial.Port.Configuration{},
+            serial.Port.Configuration{},
+            serial.Port.Configuration{},
+        };
+
         // validate selected function
         comptime {
             inline for (@typeInfo(GlobalConfiguration).Struct.fields) |field|
@@ -422,6 +463,45 @@ pub const GlobalConfiguration = struct {
                             },
                             else => {},
                         }
+                    } else if (pin_config.function == .SERIAL) {
+                        const index = switch (pin.gpio_port_pin_num) {
+                            0...7 => @as(u3, pin.gpio_port_num) * 2,
+                            8...15 => @as(u3, pin.gpio_port_num) * 2 + 1,
+                            else => unreachable,
+                        };
+                        const shift_num = switch (pin.gpio_port_pin_num) {
+                            0...7 => pin.gpio_port_pin_num * 4,
+                            8...15 => (pin.gpio_port_pin_num - 8) * 4,
+                            else => unreachable,
+                        };
+
+                        port_cfg_mask[index] |= 0b1111 << shift_num;
+                        switch (pin.pin_number) {
+                            // TX
+                            0, 9, 26, 42 => {
+                                // MODE: output max. 10MHz
+                                port_cfg_value[index] |= 0b10 << shift_num;
+                                // CFG: alternative push-pull
+                                port_cfg_value[index] |= 0b10 << (shift_num + 2);
+                            },
+                            //RX
+                            1, 10, 27, 43 => {
+                                // MODE
+                                port_cfg_value[index] |= 0b00 << shift_num;
+                                // CFG
+                                port_cfg_value[index] |= 0b01 << (shift_num + 2);
+                            },
+                            else => unreachable,
+                        }
+
+                        if (pin_config.baud_rate == 0) {
+                            @compileLog(field.name);
+                            @compileError("Baud rate should greater than 0.");
+                        }
+                        uart_cfg[pin.serial_port_num].baud_rate = pin_config.baud_rate;
+                        uart_cfg[pin.serial_port_num].word_bits = pin_config.word_bits;
+                        uart_cfg[pin.serial_port_num].stop = pin_config.stop;
+                        uart_cfg[pin.serial_port_num].parity = pin_config.parity;
                     }
 
                     // if (pin_config.function.is_adc()) {
@@ -553,6 +633,49 @@ pub const GlobalConfiguration = struct {
             }
         }
 
+        // Enable Serial
+        serial.Configs.USART1 = uart_cfg[0];
+        serial.Configs.USART2 = uart_cfg[1];
+        serial.Configs.USART3 = uart_cfg[2];
+        serial.Configs.UART4 = uart_cfg[3];
+        for (0..4) |i| {
+            if (uart_cfg[i].baud_rate) |baud_rate| {
+                switch (i) {
+                    0 => {
+                        peripherals.RCC.APB2PCENR.modify(.{
+                            .USART1EN = 1,
+                        });
+                    },
+                    1 => {
+                        peripherals.RCC.APB1PCENR.modify(.{
+                            .USART2EN = 1,
+                        });
+                    },
+                    2 => {
+                        peripherals.RCC.APB1PCENR.modify(.{
+                            .USART3EN = 1,
+                        });
+                    },
+                    3 => {
+                        peripherals.RCC.APB1PCENR.modify(.{
+                            .UART4EN = 1,
+                        });
+                    },
+                    else => unreachable,
+                }
+
+                const regs = serial.Port.get_regs(@enumFromInt(i));
+                regs.BRR.write_raw(clocks.Clocks_freq.pclk2 / baud_rate);
+
+                // Enable USART, Tx, and Rx
+                regs.CTLR1.modify(.{
+                    .UE = 1,
+                    .TE = 1,
+                    .RE = 1,
+                });
+            }
+        }
+
         // if (output_gpios != 0)
         //     SIO.GPIO_OE_SET.raw = output_gpios;
 
@@ -592,48 +715,6 @@ pub fn get_pins(comptime config: GlobalConfiguration) Pins(config) {
     return ret;
 }
 
-pub fn setup_uart_pins(port: serial.Port) void {
-    switch (@intFromEnum(port)) {
-        // USART1
-        0 => {
-            // Enable GPIOA for changing PIn config.
-            peripherals.RCC.APB2PCENR.modify(.{
-                .IOPAEN = 1,
-            });
-            peripherals.GPIOA.CFGHR.modify(.{
-                // PA9 TX
-                .CNF9 = 0b10,
-                .MODE9 = 0b11,
-                // PA10 RX
-                .CNF10 = 0b01,
-                .MODE10 = 0,
-            });
-        },
-        // USART2
-        1 => {
-            peripherals.RCC.APB2PCENR.modify(.{
-                .IOPAEN = 1,
-            });
-            peripherals.GPIOA.CFGLR.modify(.{
-                // PA2 TX
-                .CNF2 = 0b10,
-                .MODE2 = 0b11,
-                // PA3 RX
-                .CNF3 = 0b01,
-                .MODE3 = 0,
-            });
-        },
-        // USART3
-        2 => {
-            //@compileError("Not implimented");
-        },
-        // UART4
-        3 => {
-            //@compileError("Not implimented");
-        },
-    }
-}
-
 pub fn setup_adc_pins(comptime config: GlobalConfiguration) void {
     comptime var mask_pa: u32 = 0;
     comptime var mask_pb: u32 = 0;
@@ -642,7 +723,9 @@ pub fn setup_adc_pins(comptime config: GlobalConfiguration) void {
     comptime {
         inline for (@typeInfo(GlobalConfiguration).Struct.fields) |field| {
             if (@field(config, field.name)) |channel_config| {
-                _ = channel_config;
+                if (channel_config.function != .ADC) {
+                    continue;
+                }
                 var ch: u5 = @intFromEnum(@field(adc.Channel, field.name));
                 switch (ch) {
                     0...7 => {

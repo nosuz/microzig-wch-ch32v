@@ -70,7 +70,6 @@ const ch32v = microzig.hal;
 const clocks = ch32v.clocks;
 const pins = ch32v.pins;
 const time = ch32v.time;
-const serial = ch32v.serial;
 const interrupt = ch32v.interrupt;
 
 const Capacity = 16;
@@ -85,17 +84,21 @@ const pin_config = ch32v.pins.GlobalConfiguration{
         .name = "sig",
         .direction = .out,
     },
+    .PA9 = .{
+        .name = "tx",
+        .function = .SERIAL,
+        .baud_rate = 115200,
+    },
+    // .PA10 = .{
+    //     .name = "rx",
+    //     .function = .SERIAL,
+    // },
 };
 
 var byte: u8 = 0;
 
 pub fn main() !void {
     const pin = pin_config.apply();
-
-    const usart1 = serial.Port.USART1;
-    usart1.apply(.{
-        .baud_rate = 115200,
-    });
 
     setup_timer();
     interrupt.enable_interrupt();
@@ -107,14 +110,14 @@ pub fn main() !void {
 
         while (true) {
             if (RingBuf.read()) |char| {
-                usart1.write_word(char);
+                pins.tx.write_word(char);
             } else |err| switch (err) {
                 error.Empty => {
-                    _ = usart1.write("\r\n") catch 0;
+                    _ = pins.tx.write("\r\n") catch 0;
                     break;
                 },
                 error.Lock => {
-                    _ = usart1.write(" -- Locked -- ") catch 0;
+                    _ = pins.tx.write(" -- Locked -- ") catch 0;
                 },
             }
         }

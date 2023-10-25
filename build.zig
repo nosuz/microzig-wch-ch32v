@@ -62,9 +62,9 @@ pub const Examples = struct {
     blinky_clocks: *microzig.EmbeddedExecutable,
     serial: *microzig.EmbeddedExecutable,
     serial_log: *microzig.EmbeddedExecutable,
-    timer_interrupt: *microzig.EmbeddedExecutable,
-    ring_buffer: *microzig.EmbeddedExecutable,
-    adc: *microzig.EmbeddedExecutable,
+    // timer_interrupt: *microzig.EmbeddedExecutable,
+    // ring_buffer: *microzig.EmbeddedExecutable,
+    // adc: *microzig.EmbeddedExecutable,
 
     pub fn init(b: *Builder, optimize: std.builtin.OptimizeMode) Examples {
         var ret: Examples = undefined;

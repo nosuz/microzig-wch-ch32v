@@ -39,6 +39,15 @@ const pin_config = ch32v.pins.GlobalConfiguration{
         .adc = .ADC1,
         .cycles = .cycles239_5,
     },
+    .PA9 = .{
+        .name = "tx",
+        .function = .SERIAL,
+        .baud_rate = 115200,
+    },
+    // .PA10 = .{
+    //     .name = "rx",
+    //     .function = .SERIAL,
+    // },
 };
 
 // set logger
@@ -55,12 +64,8 @@ pub fn main() !void {
 
     const pins = pin_config.apply();
 
-    const usart1 = serial.Port.USART1;
-    usart1.apply(.{
-        .baud_rate = 115200,
-    });
     // start logger
-    serial.init_logger(usart1);
+    serial.init_logger(pins.tx);
 
     const adc1 = adc.Port.ADC1;
     const cal = adc1.calibration();
