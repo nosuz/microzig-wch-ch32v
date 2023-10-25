@@ -1,15 +1,9 @@
-const std = @import("std");
-const StructField = std.builtin.Type.StructField;
-const assert = std.debug.assert;
-
 const microzig = @import("microzig");
 const ch32v = microzig.hal;
 const pins = ch32v.pins;
-const clocks = ch32v.clocks;
 const time = ch32v.time;
 
 const peripherals = microzig.chip.peripherals;
-const AdcRegs = microzig.chip.types.peripherals.ADC1;
 
 const ADC1 = peripherals.ADC1;
 const ADC2 = peripherals.ADC2;

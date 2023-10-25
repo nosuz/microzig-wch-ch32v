@@ -1,26 +1,4 @@
-const std = @import("std");
-const assert = std.debug.assert;
-
-const microzig = @import("microzig");
-const peripherals = microzig.chip.peripherals;
-// const GPIO = peripherals.GPIO;
 const pins = @import("pins.zig");
-
-const log = std.log.scoped(.gpio);
-
-// pub const Function = enum(u5) {
-//     xip = 0,
-//     spi,
-//     uart,
-//     i2c,
-//     pwm,
-//     sio,
-//     pio0,
-//     pio1,
-//     gpck,
-//     usb,
-//     null = 0x1f,
-// };
 
 pub const Port = enum { PA, PB, PC, PD };
 
