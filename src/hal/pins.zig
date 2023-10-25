@@ -376,36 +376,31 @@ pub const GlobalConfiguration = struct {
                         @compileError(comptimePrint("{s} cannot be configured for {}", .{ field.name, pin_config.function }));
 
                     if (pin_config.function == .GPIO) {
-                        switch (pin.pin_number) {
-                            0...7 => {
-                                const shift_num = pin.pin_number * 4;
-                                port_cfg_mask[pin.gpio_port_num * 2] |= 0b1111 << shift_num;
-                                switch (pin_config.get_direction()) {
-                                    .in => {
-                                        port_cfg_value[pin.gpio_port_num * 2] |= 0b01 << (shift_num + 2);
-                                        port_cfg_value[pin.gpio_port_num * 2] |= 0b00 << shift_num;
-                                    },
-                                    .out => {
-                                        port_cfg_value[pin.gpio_port_num * 2] |= 0b00 << (shift_num + 2);
-                                        port_cfg_value[pin.gpio_port_num * 2] |= 0b11 << shift_num;
-                                    },
-                                }
+                        const index = switch (pin.gpio_port_pin_num) {
+                            0...7 => @as(u3, pin.gpio_port_num) * 2,
+                            8...15 => @as(u3, pin.gpio_port_num) * 2 + 1,
+                            else => unreachable,
+                        };
+                        const shift_num = switch (pin.gpio_port_pin_num) {
+                            0...7 => pin.gpio_port_pin_num * 4,
+                            8...15 => (pin.gpio_port_pin_num - 8) * 4,
+                            else => unreachable,
+                        };
+
+                        port_cfg_mask[index] |= 0b1111 << shift_num;
+                        switch (pin_config.get_direction()) {
+                            .in => {
+                                // MODE
+                                port_cfg_value[index] |= 0b00 << shift_num;
+                                // CFG
+                                port_cfg_value[index] |= 0b01 << (shift_num + 2);
                             },
-                            8...15 => {
-                                const shift_num = (pin.pin_number - 8) * 4;
-                                port_cfg_mask[pin.gpio_port_num * 2 + 1] |= 0b1111 << shift_num;
-                                switch (pin_config.get_direction()) {
-                                    .in => {
-                                        port_cfg_value[pin.gpio_port_num * 2 + 1] |= 0b01 << (shift_num + 2);
-                                        port_cfg_value[pin.gpio_port_num * 2 + 1] |= 0b00 << shift_num;
-                                    },
-                                    .out => {
-                                        port_cfg_value[pin.gpio_port_num * 2 + 1] |= 0b00 << (shift_num + 2);
-                                        port_cfg_value[pin.gpio_port_num * 2 + 1] |= 0b11 << shift_num;
-                                    },
-                                }
+                            .out => {
+                                // MODE
+                                port_cfg_value[index] |= 0b11 << shift_num;
+                                // CFG
+                                port_cfg_value[index] |= 0b00 << (shift_num + 2);
                             },
-                            else => {},
                         }
                     } else if (pin_config.function == .ADC) {
                         if (pin_config.adc == adc.Port.ADC1) {
