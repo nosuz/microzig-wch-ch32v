@@ -65,7 +65,7 @@ pub fn main() !void {
     const pins = pin_config.apply();
 
     // start logger
-    serial.init_logger(pins.tx);
+    serial.init_logger(pins.tx.get_port());
 
     const adc1 = adc.Port.ADC1;
     const cal = adc1.calibration();

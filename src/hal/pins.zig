@@ -444,6 +444,25 @@ pub const GlobalConfiguration = struct {
                             },
                         }
                     } else if (pin_config.function == .ADC) {
+                        if (pin.adc_channel_num < 16) {
+                            switch (pin.gpio_port_pin_num) {
+                                0...7 => {
+                                    const shift_num = pin.gpio_port_pin_num * 4;
+                                    port_cfg_mask[@as(u3, pin.gpio_port_num) * 2] |= 0b1111 << shift_num;
+                                    port_cfg_value[@as(u3, pin.gpio_port_num) * 2] |= 0b00 << (shift_num + 2);
+                                    port_cfg_value[@as(u3, pin.gpio_port_num) * 2] |= 0b00 << shift_num;
+                                },
+                                8...15 => {
+                                    const shift_num = (pin.gpio_port_pin_num - 8) * 4;
+                                    port_cfg_mask[@as(u3, pin.gpio_port_num) * 2 + 1] |= 0b1111 << shift_num;
+                                    port_cfg_value[@as(u3, pin.gpio_port_num) * 2 + 1] |= 0b00 << (shift_num + 2);
+                                    port_cfg_value[@as(u3, pin.gpio_port_num) * 2 + 1] |= 0b00 << shift_num;
+                                },
+
+                                else => {},
+                            }
+                        }
+
                         if (pin_config.adc == adc.Port.ADC1) {
                             adc1 = true;
                         } else if (pin_config.adc == adc.Port.ADC2) {
@@ -607,8 +626,6 @@ pub const GlobalConfiguration = struct {
         if (adc1 or adc2) {
             assert(clocks.Clocks_freq.adcclk <= 14_000_000);
 
-            setup_adc_pins(config);
-
             // @compileLog(samptr1);
             // @compileLog(samptr2);
             if (adc1) {
@@ -713,55 +730,4 @@ pub fn get_pins(comptime config: GlobalConfiguration) Pins(config) {
     }
 
     return ret;
-}
-
-pub fn setup_adc_pins(comptime config: GlobalConfiguration) void {
-    comptime var mask_pa: u32 = 0;
-    comptime var mask_pb: u32 = 0;
-    comptime var mask_pc: u32 = 0;
-    const mask: u32 = 0b1111;
-    comptime {
-        inline for (@typeInfo(GlobalConfiguration).Struct.fields) |field| {
-            if (@field(config, field.name)) |channel_config| {
-                if (channel_config.function != .ADC) {
-                    continue;
-                }
-                var ch: u5 = @intFromEnum(@field(adc.Channel, field.name));
-                switch (ch) {
-                    0...7 => {
-                        mask_pa = mask_pa | (mask << (ch * 4));
-                    },
-                    8, 9 => {
-                        mask_pb = mask_pb | (mask << ((ch - 8) * 4));
-                    },
-                    10...15 => {
-                        mask_pc = mask_pc | (mask << ((ch - 10) * 4));
-                    },
-                    16, 17 => {},
-                    else => unreachable,
-                }
-            }
-        }
-    }
-    if (mask_pa > 0) {
-        // Enable GPIOA for changing PIn config.
-        peripherals.RCC.APB2PCENR.modify(.{
-            .IOPAEN = 1,
-        });
-        peripherals.GPIOA.CFGLR.raw = peripherals.GPIOA.CFGLR.raw & ~mask_pa;
-    }
-    if (mask_pb > 0) {
-        // Enable GPIOB for changing PIn config.
-        peripherals.RCC.APB2PCENR.modify(.{
-            .IOPBEN = 1,
-        });
-        peripherals.GPIOA.CFGHR.raw = peripherals.GPIOA.CFGHR.raw & ~mask_pb;
-    }
-    if (mask_pc > 0) {
-        // Enable GPIOC for changing PIn config.
-        peripherals.RCC.APB2PCENR.modify(.{
-            .IOPCEN = 1,
-        });
-        peripherals.GPIOC.CFGLR.raw = peripherals.GPIOC.CFGLR.raw & ~mask_pc;
-    }
 }

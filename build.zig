@@ -64,7 +64,7 @@ pub const Examples = struct {
     serial_log: *microzig.EmbeddedExecutable,
     // timer_interrupt: *microzig.EmbeddedExecutable,
     // ring_buffer: *microzig.EmbeddedExecutable,
-    // adc: *microzig.EmbeddedExecutable,
+    adc: *microzig.EmbeddedExecutable,
 
     pub fn init(b: *Builder, optimize: std.builtin.OptimizeMode) Examples {
         var ret: Examples = undefined;
