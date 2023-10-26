@@ -78,33 +78,21 @@ pub const Pin = enum {
     pub const Configuration = struct {
         name: ?[]const u8 = null,
         function: Function = .GPIO,
+
         // GPIO config
-        direction: ?gpio.Direction = null,
+        direction: gpio.Direction = .in,
         // drive_strength: ?gpio.DriveStrength = null,
         pull: ?gpio.Pull = null,
+
         // ADC config
         adc: ?adc.Port = null,
         cycles: ?adc.SAMPTR = null,
-        // Serial
+
+        // Serial config
         baud_rate: ?u32 = null,
         word_bits: serial.WordBits = serial.WordBits.eight,
         stop: serial.Stop = serial.Stop.one,
         parity: serial.Parity = serial.Parity.none,
-
-        pub fn get_direction(comptime config: Configuration) gpio.Direction {
-            return if (config.direction) |direction|
-                direction
-                // else if (comptime config.function.is_pwm())
-                //     .out
-                // else if (comptime config.function.is_uart_tx())
-                //     .out
-                // else if (comptime config.function.is_uart_rx())
-                //     .in
-                // else if (comptime config.function.is_adc())
-                //     .in
-            else
-                @panic("TODO");
-        }
     };
 };
 
@@ -275,7 +263,7 @@ pub fn Pins(comptime config: GlobalConfiguration) type {
 
                 pin_field.name = pin_config.name orelse field.name;
                 if (pin_config.function == .GPIO) {
-                    pin_field.type = gpio.GPIO(field.name, pin_config.direction orelse .in);
+                    pin_field.type = gpio.GPIO(field.name, pin_config.direction);
                     // } else if (pin_config.function.is_pwm()) {
                     //     pin_field.name = pin_config.name orelse @tagName(pin_config.function);
                     //     pin_field.type = pwm.Pwm(pin_config.function.pwm_slice(), pin_config.function.pwm_channel());
@@ -429,7 +417,7 @@ pub const GlobalConfiguration = struct {
                         };
 
                         port_cfg_mask[index] |= 0b1111 << shift_num;
-                        switch (pin_config.get_direction()) {
+                        switch (pin_config.direction) {
                             .in => {
                                 // MODE
                                 port_cfg_value[index] |= 0b00 << shift_num;
