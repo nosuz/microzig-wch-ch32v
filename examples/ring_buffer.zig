@@ -110,14 +110,14 @@ pub fn main() !void {
 
         while (true) {
             if (RingBuf.read()) |char| {
-                pins.tx.write_word(char);
+                pin.tx.write_word(char);
             } else |err| switch (err) {
                 error.Empty => {
-                    _ = pins.tx.write("\r\n") catch 0;
+                    _ = pin.tx.write("\r\n") catch 0;
                     break;
                 },
                 error.Lock => {
-                    _ = pins.tx.write(" -- Locked -- ") catch 0;
+                    _ = pin.tx.write(" -- Locked -- ") catch 0;
                 },
             }
         }
