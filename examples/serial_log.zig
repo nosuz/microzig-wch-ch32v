@@ -32,7 +32,7 @@ const pin_config = ch32v.pins.GlobalConfiguration{
 // set logger
 pub const std_options = struct {
     pub const log_level = .debug;
-    pub const logFn = ch32v.serial.log;
+    pub const logFn = serial.log;
     // pub const logFn = ch32v.serial.log_no_timestamp;
 };
 

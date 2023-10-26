@@ -7,4 +7,5 @@ pub const clocks = @import("hal/clocks.zig");
 pub const time = @import("hal/time.zig");
 pub const serial = @import("hal/serial.zig");
 pub const adc = @import("hal/adc.zig");
+pub const i2c = @import("hal/i2c.zig");
 pub const interrupt = @import("hal/interrupt.zig");

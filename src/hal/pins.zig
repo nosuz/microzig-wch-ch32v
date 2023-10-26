@@ -4,21 +4,16 @@ const comptimePrint = std.fmt.comptimePrint;
 const StructField = std.builtin.Type.StructField;
 
 const microzig = @import("microzig");
-const gpio = @import("gpio.zig");
-const serial = @import("serial.zig");
-const adc = @import("adc.zig");
-
 const ch32v = microzig.hal;
+const gpio = ch32v.gpio;
 const clocks = ch32v.clocks;
-// const GPIOS = microzig.chip.peripherals.GPIO;
+const serial = ch32v.serial;
+const adc = ch32v.adc;
+const i2c = ch32v.i2c;
 
 const peripherals = microzig.chip.peripherals;
 const ADC1 = peripherals.ADC1;
 const ADC2 = peripherals.ADC2;
-
-// const pwm = @import("pwm.zig");
-// const adc = @import("adc.zig");
-// const resets = @import("resets.zig");
 
 pub const Pin = enum {
     PA0, // 0
@@ -93,6 +88,9 @@ pub const Pin = enum {
         word_bits: serial.WordBits = serial.WordBits.eight,
         stop: serial.Stop = serial.Stop.one,
         parity: serial.Parity = serial.Parity.none,
+
+        // I2C config
+        speed: i2c.Speed = .standard,
     };
 };
 
@@ -100,6 +98,7 @@ pub const Function = enum {
     GPIO,
     ADC,
     SERIAL,
+    I2C,
 };
 
 fn all() [@typeInfo(Pin).Enum.fields.len]u1 {
@@ -128,6 +127,7 @@ const function_table = [@typeInfo(Function).Enum.fields.len][@typeInfo(Pin).Enum
     all(), // GPIO
     list(&.{ 0, 1, 2, 3, 4, 5, 6, 7, 16, 17, 32, 33, 34, 35, 36, 51, 52 }), // ADC
     list(&.{ 0, 1, 9, 10, 26, 27, 42, 43 }), // SERIAL
+    list(&.{ 22, 23, 26, 27 }), // I2C
     // all(), // PIO0
     // all(), // PIO1
     // list(&.{ 0, 4, 16, 20 }), // SPI0_RX
@@ -223,21 +223,33 @@ pub fn parse_pin(comptime spec: []const u8) type {
                 0, 1 => peripherals.USART2,
                 26, 27 => peripherals.USART3,
                 42, 43 => peripherals.UART4,
-                else => unreachable,
+                else => undefined,
             };
-            pub const serial_port_num: comptime_int = switch (pin_number) {
+            pub const serial_port_num = switch (pin_number) {
                 9, 10 => 0,
                 0, 1 => 1,
                 26, 27 => 2,
                 42, 43 => 3,
-                else => unreachable,
+                else => undefined,
             };
-            pub const serial_port = switch (serial_port_num) {
-                0 => serial.Port.USART1,
-                1 => serial.Port.USART2,
-                2 => serial.Port.USART3,
-                3 => serial.Port.UART4,
-                else => unreachable,
+            pub const serial_port: serial.Port = switch (serial_port_num) {
+                0 => .USART1,
+                1 => .USART2,
+                2 => .USART3,
+                3 => .UART4,
+                else => undefined,
+            };
+
+            // I2C
+            pub const i2c_port_regs = switch (pin_number) {
+                22, 23 => peripherals.I2C1,
+                26, 27 => peripherals.I2C2,
+                else => undefined,
+            };
+            pub const i2c_port: i2c.Port = switch (pin_number) {
+                22, 23 => .I2C1,
+                26, 27 => .I2C2,
+                else => undefined,
             };
         };
     }
@@ -281,7 +293,8 @@ pub fn Pins(comptime config: GlobalConfiguration) type {
                     pin_field.type = adc.ADC(field.name, pin_config.adc orelse adc.Port.ADC1);
                 } else if (pin_config.function == .SERIAL) {
                     pin_field.type = serial.SERIAL(field.name);
-                    //
+                } else if (pin_config.function == .I2C) {
+                    pin_field.type = i2c.I2C(field.name);
                 } else {
                     continue;
                 }
@@ -395,6 +408,12 @@ pub const GlobalConfiguration = struct {
             serial.Port.Configuration{},
         };
 
+        // I2C
+        comptime var i2c_cfg = [_]i2c.Port.Configuration{
+            i2c.Port.Configuration{},
+            i2c.Port.Configuration{},
+        };
+
         // validate selected function
         comptime {
             inline for (@typeInfo(GlobalConfiguration).Struct.fields) |field|
@@ -451,10 +470,11 @@ pub const GlobalConfiguration = struct {
                             port_cfg_value[index] |= 0b00 << (shift_num + 2);
                         }
 
-                        if (pin_config.adc == adc.Port.ADC1) {
-                            adc1 = true;
-                        } else if (pin_config.adc == adc.Port.ADC2) {
-                            adc2 = true;
+                        if (pin_config.adc) |adc_port| {
+                            switch (adc_port) {
+                                .ADC1 => adc1 = true,
+                                .ADC2 => adc = true,
+                            }
                         }
                         const adc_ch = pin.adc_channel_num;
                         var val = 0;
@@ -509,6 +529,26 @@ pub const GlobalConfiguration = struct {
                         uart_cfg[pin.serial_port_num].word_bits = pin_config.word_bits;
                         uart_cfg[pin.serial_port_num].stop = pin_config.stop;
                         uart_cfg[pin.serial_port_num].parity = pin_config.parity;
+                    } else if (pin_config.function == .I2C) {
+                        const index = switch (pin.gpio_port_pin_num) {
+                            0...7 => @as(u3, pin.gpio_port_num) * 2,
+                            8...15 => @as(u3, pin.gpio_port_num) * 2 + 1,
+                            else => unreachable,
+                        };
+                        const shift_num = switch (pin.gpio_port_pin_num) {
+                            0...7 => pin.gpio_port_pin_num * 4,
+                            8...15 => (pin.gpio_port_pin_num - 8) * 4,
+                            else => unreachable,
+                        };
+
+                        port_cfg_mask[index] |= 0b1111 << shift_num;
+                        // MODE: output max. 10MHz
+                        port_cfg_value[index] |= 0b01 << shift_num;
+                        // CFG: alternative open-drain
+                        port_cfg_value[index] |= 0b11 << (shift_num + 2);
+
+                        i2c_cfg[@intFromEnum(pin.i2c_port)].speed = pin_config.speed;
+                        i2c_cfg[@intFromEnum(pin.i2c_port)].setup = true;
                     }
 
                     // if (pin_config.function.is_adc()) {
@@ -677,6 +717,79 @@ pub const GlobalConfiguration = struct {
                     .UE = 1,
                     .TE = 1,
                     .RE = 1,
+                });
+            }
+        }
+
+        // Enable I2C
+        const i2c_base_freq = clocks.Clocks_freq.pclk1 / 1000_000; // MHz
+        assert((i2c_base_freq >= 2) and (i2c_base_freq <= 36));
+
+        for (0..3) |i| {
+            if (i2c_cfg[i].setup) {
+                // supply clocks.
+                switch (i) {
+                    0 => {
+                        peripherals.RCC.APB1PCENR.modify(.{
+                            .I2C1EN = 1,
+                        });
+                    },
+                    1 => {
+                        peripherals.RCC.APB1PCENR.modify(.{
+                            .I2C2EN = 1,
+                        });
+                    },
+                    else => {},
+                }
+
+                const regs = i2c.Port.get_regs(@enumFromInt(i));
+                regs.CTLR2.modify(.{
+                    .FREQ = @as(u6, @truncate(i2c_base_freq)),
+                });
+
+                // CCR values are referred to STM32F4xx (M0090 Rev 19) datasheet
+                switch (i2c_cfg[i].speed) {
+                    .standard => {
+                        // Thigh = CCR * TPCLK1
+                        // Tlow = CCR * TPCLK1
+                        // (1 / 100kHz) * (1 / 2) = CCR * (1 / PCLK1)
+                        const ccr = 5 * i2c_base_freq;
+                        regs.CKCFGR.modify(.{
+                            .F_S = 0,
+                            .CCR = @as(u12, @truncate(ccr)),
+                        });
+                    },
+                    .fast => {
+                        if (i2c_base_freq < 10) {
+                            // If DUTY = 0:
+                            // Thigh = CCR * TPCLK1
+                            // Tlow = 2 * CCR * TPCLK1
+                            // (1 / 400kHz) * (1 / 3) = CCR * (1 / PCLK1)
+
+                            const ccr = (i2c_base_freq * 10) / 12;
+                            regs.CKCFGR.modify(.{
+                                .F_S = 1,
+                                .DUTY = 0,
+                                .CCR = @as(u12, @truncate(ccr)),
+                            });
+                        } else {
+                            // Thigh = 9 * CCR * TPCLK1
+                            // Tlow = 16 * CCR * TPCLK1
+                            // (1 / 400kHz) * (9 /25) = 9 * CCR * (1 / PCLK1)
+                            // base_freq must be >10HHz
+                            const ccr = (i2c_base_freq * 10) / 12;
+                            regs.CKCFGR.modify(.{
+                                .F_S = 1,
+                                .DUTY = 1,
+                                .CCR = @as(u12, @truncate(ccr)),
+                            });
+                        }
+                    },
+                }
+
+                // enable I2C
+                regs.CTLR1.modify(.{
+                    .PE = 1,
                 });
             }
         }
