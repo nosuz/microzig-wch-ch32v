@@ -43,12 +43,19 @@ pub fn SERIAL(comptime pin_name: []const u8) type {
 
         pub inline fn read_word(self: @This()) u8 {
             const regs = pin.serial_port_regs;
-            // while (!port.is_readable()) {}
+            // while (!self.is_readable()) {}
             while (!self.is_readable()) {
                 asm volatile ("" ::: "memory");
             }
 
-            return regs.DATAR.read().DATA;
+            const char = @as(u8, @truncate(regs.DATAR.read().DR));
+
+            // Clear RXNE
+            regs.STATR.modify(.{
+                .RXNE = 0,
+            });
+
+            return char;
         }
 
         pub inline fn is_writeable(self: @This()) bool {
@@ -59,7 +66,7 @@ pub fn SERIAL(comptime pin_name: []const u8) type {
         pub inline fn write(self: @This(), payload: []const u8) WriteError!usize {
             const regs = pin.serial_port_regs;
             for (payload) |byte| {
-                // while (!port.is_writeable()) {}
+                // while (!self.is_writeable()) {}
                 while (!self.is_writeable()) {
                     asm volatile ("" ::: "memory");
                 }

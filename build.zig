@@ -61,6 +61,7 @@ pub const Examples = struct {
     blinky_sleep: *microzig.EmbeddedExecutable,
     blinky_clocks: *microzig.EmbeddedExecutable,
     serial: *microzig.EmbeddedExecutable,
+    serial_echo: *microzig.EmbeddedExecutable,
     serial_log: *microzig.EmbeddedExecutable,
     timer_interrupt: *microzig.EmbeddedExecutable,
     ring_buffer: *microzig.EmbeddedExecutable,
