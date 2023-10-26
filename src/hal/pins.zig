@@ -216,7 +216,7 @@ pub fn parse_pin(comptime spec: []const u8) type {
             /// 'A'...'I'
             pub const gpio_port_name = spec[1..2];
             pub const gpio_port_num = @intFromEnum(@field(gpio.Port, spec[0..2]));
-            pub const gpio_port = @field(peripherals, "GPIO" ++ gpio_port_name);
+            pub const gpio_port_regs = @field(peripherals, "GPIO" ++ gpio_port_name);
             const gpio_port_pin_num: comptime_int = std.fmt.parseInt(u4, spec[2..], 10) catch @compileError(invalid_format_msg);
             pub const gpio_suffix = std.fmt.comptimePrint("{d}", .{gpio_port_pin_num});
 
