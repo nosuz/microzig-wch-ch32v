@@ -445,22 +445,22 @@ pub const GlobalConfiguration = struct {
                         }
                     } else if (pin_config.function == .ADC) {
                         if (pin.adc_channel_num < 16) {
-                            switch (pin.gpio_port_pin_num) {
-                                0...7 => {
-                                    const shift_num = pin.gpio_port_pin_num * 4;
-                                    port_cfg_mask[@as(u3, pin.gpio_port_num) * 2] |= 0b1111 << shift_num;
-                                    port_cfg_value[@as(u3, pin.gpio_port_num) * 2] |= 0b00 << (shift_num + 2);
-                                    port_cfg_value[@as(u3, pin.gpio_port_num) * 2] |= 0b00 << shift_num;
-                                },
-                                8...15 => {
-                                    const shift_num = (pin.gpio_port_pin_num - 8) * 4;
-                                    port_cfg_mask[@as(u3, pin.gpio_port_num) * 2 + 1] |= 0b1111 << shift_num;
-                                    port_cfg_value[@as(u3, pin.gpio_port_num) * 2 + 1] |= 0b00 << (shift_num + 2);
-                                    port_cfg_value[@as(u3, pin.gpio_port_num) * 2 + 1] |= 0b00 << shift_num;
-                                },
+                            const index = switch (pin.gpio_port_pin_num) {
+                                0...7 => @as(u3, pin.gpio_port_num) * 2,
+                                8...15 => @as(u3, pin.gpio_port_num) * 2 + 1,
+                                else => unreachable,
+                            };
+                            const shift_num = switch (pin.gpio_port_pin_num) {
+                                0...7 => pin.gpio_port_pin_num * 4,
+                                8...15 => (pin.gpio_port_pin_num - 8) * 4,
+                                else => unreachable,
+                            };
 
-                                else => {},
-                            }
+                            port_cfg_mask[index] |= 0b1111 << shift_num;
+                            // MMODE: input
+                            port_cfg_value[index] |= 0b00 << shift_num;
+                            // CFG: analog input
+                            port_cfg_value[index] |= 0b00 << (shift_num + 2);
                         }
 
                         if (pin_config.adc == adc.Port.ADC1) {
