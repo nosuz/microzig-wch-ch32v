@@ -225,18 +225,11 @@ pub fn parse_pin(comptime spec: []const u8) type {
                 42, 43 => peripherals.UART4,
                 else => unreachable,
             };
-            pub const serial_port_num: comptime_int = switch (pin_number) {
-                9, 10 => 0,
-                0, 1 => 1,
-                26, 27 => 2,
-                42, 43 => 3,
-                else => unreachable,
-            };
-            pub const serial_port = switch (serial_port_num) {
-                0 => serial.Port.USART1,
-                1 => serial.Port.USART2,
-                2 => serial.Port.USART3,
-                3 => serial.Port.UART4,
+            pub const serial_port = switch (pin_number) {
+                9, 10 => serial.Port.USART1,
+                0, 1 => serial.Port.USART2,
+                26, 27 => serial.Port.USART3,
+                42, 43 => serial.Port.UART4,
                 else => unreachable,
             };
         };
@@ -505,10 +498,10 @@ pub const GlobalConfiguration = struct {
                             @compileLog(field.name);
                             @compileError("Baud rate should greater than 0.");
                         }
-                        uart_cfg[pin.serial_port_num].baud_rate = pin_config.baud_rate;
-                        uart_cfg[pin.serial_port_num].word_bits = pin_config.word_bits;
-                        uart_cfg[pin.serial_port_num].stop = pin_config.stop;
-                        uart_cfg[pin.serial_port_num].parity = pin_config.parity;
+                        uart_cfg[@intFromEnum(pin.serial_port)].baud_rate = pin_config.baud_rate;
+                        uart_cfg[@intFromEnum(pin.serial_port)].word_bits = pin_config.word_bits;
+                        uart_cfg[@intFromEnum(pin.serial_port)].stop = pin_config.stop;
+                        uart_cfg[@intFromEnum(pin.serial_port)].parity = pin_config.parity;
                     }
 
                     // if (pin_config.function.is_adc()) {
