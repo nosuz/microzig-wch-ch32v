@@ -115,6 +115,6 @@ pub fn main() !void {
         i += 1;
 
         pins.led.toggle();
-        time.sleep_ms(500);
+        time.sleep_ms(1000);
     }
 }
