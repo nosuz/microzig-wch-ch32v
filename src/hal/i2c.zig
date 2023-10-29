@@ -123,7 +123,7 @@ pub fn I2C(comptime pin_name: []const u8) type {
             // make STOP condition
             // STOP condition is generated after current byre transfer.
             regs.CTLR1.modify(.{
-                .START = 0,
+                .STOP = 1,
             });
         }
 
