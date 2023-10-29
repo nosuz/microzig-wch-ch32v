@@ -141,6 +141,8 @@ pub fn I2C(comptime pin_name: []const u8) type {
             });
             // wait start transmitted
             while (true) {
+                asm volatile ("" ::: "memory");
+
                 const stat = regs.STAR1.read();
                 if (stat.SB == 1) break;
 
@@ -155,8 +157,6 @@ pub fn I2C(comptime pin_name: []const u8) type {
                 } else if (stat.BERR == 1) {
                     return I2cError.BusError;
                 }
-
-                asm volatile ("" ::: "memory");
             }
 
             // send ADDRESS with WRITE flag(0)
@@ -166,6 +166,8 @@ pub fn I2C(comptime pin_name: []const u8) type {
             });
             // Wait transmitted ADDR and RW bit.
             while (true) {
+                asm volatile ("" ::: "memory");
+
                 const stat = regs.STAR1.read();
                 if (stat.ADDR == 1) break;
 
@@ -180,14 +182,14 @@ pub fn I2C(comptime pin_name: []const u8) type {
                 } else if (stat.BERR == 1) {
                     return I2cError.BusError;
                 }
-
-                asm volatile ("" ::: "memory");
             }
             _ = regs.STAR2.raw;
 
             // send all data
             for (0..bytes.len) |i| {
                 while (true) {
+                    asm volatile ("" ::: "memory");
+
                     const stat = regs.STAR1.read();
                     if (stat.TxE == 1) break;
 
@@ -202,8 +204,6 @@ pub fn I2C(comptime pin_name: []const u8) type {
                     } else if (stat.BERR == 1) {
                         return I2cError.BusError;
                     }
-
-                    asm volatile ("" ::: "memory");
                 }
 
                 regs.DATAR.write(.{
@@ -214,6 +214,8 @@ pub fn I2C(comptime pin_name: []const u8) type {
 
             // Wait WRITE complete
             while (true) {
+                asm volatile ("" ::: "memory");
+
                 const stat = regs.STAR1.read();
                 if (stat.BTF == 1) break;
 
@@ -228,8 +230,6 @@ pub fn I2C(comptime pin_name: []const u8) type {
                 } else if (stat.BERR == 1) {
                     return I2cError.BusError;
                 }
-
-                asm volatile ("" ::: "memory");
             }
 
             // make START again
@@ -239,6 +239,8 @@ pub fn I2C(comptime pin_name: []const u8) type {
             });
             // wait start transmitted
             while (true) {
+                asm volatile ("" ::: "memory");
+
                 const stat = regs.STAR1.read();
                 if (stat.SB == 1) break;
 
@@ -253,8 +255,6 @@ pub fn I2C(comptime pin_name: []const u8) type {
                 } else if (stat.BERR == 1) {
                     return I2cError.BusError;
                 }
-
-                asm volatile ("" ::: "memory");
             }
 
             // send ADDRESS with WRITE flag(1)
@@ -264,6 +264,8 @@ pub fn I2C(comptime pin_name: []const u8) type {
             });
             // Wait transmitted ADDR and RW bit.
             while (true) {
+                asm volatile ("" ::: "memory");
+
                 const stat = regs.STAR1.read();
                 if (stat.ADDR == 1) break;
 
@@ -281,8 +283,6 @@ pub fn I2C(comptime pin_name: []const u8) type {
                 } else if (stat.BERR == 1) {
                     return I2cError.BusError;
                 }
-
-                asm volatile ("" ::: "memory");
             }
             _ = regs.STAR2.raw;
 
@@ -298,6 +298,8 @@ pub fn I2C(comptime pin_name: []const u8) type {
 
                 // Wait ready to read
                 while (true) {
+                    asm volatile ("" ::: "memory");
+
                     const stat = regs.STAR1.read();
                     if (stat.RxNE == 1) break;
 
@@ -312,8 +314,6 @@ pub fn I2C(comptime pin_name: []const u8) type {
                     } else if (stat.BERR == 1) {
                         return I2cError.BusError;
                     }
-
-                    asm volatile ("" ::: "memory");
                 }
 
                 buffer[i] = regs.DATAR.read().DATAR;
