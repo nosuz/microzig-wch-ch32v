@@ -412,8 +412,7 @@ pub const GlobalConfiguration = struct {
             inline for (@typeInfo(GlobalConfiguration).Struct.fields) |field|
                 if (@field(config, field.name)) |pin_config| {
                     const pin = parse_pin(field.name);
-                    const gpio_num = @intFromEnum(@field(Pin, field.name));
-                    if (0 == function_table[@intFromEnum(pin_config.function)][gpio_num])
+                    if (0 == function_table[@intFromEnum(pin_config.function)][pin.pin_number])
                         @compileError(comptimePrint("{s} cannot be configured for {}", .{ field.name, pin_config.function }));
 
                     if (pin_config.function == .GPIO) {
