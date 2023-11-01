@@ -67,6 +67,7 @@ pub const Examples = struct {
     ring_buffer: *microzig.EmbeddedExecutable,
     adc: *microzig.EmbeddedExecutable,
     i2c: *microzig.EmbeddedExecutable,
+    spi: *microzig.EmbeddedExecutable,
 
     pub fn init(b: *Builder, optimize: std.builtin.OptimizeMode) Examples {
         var ret: Examples = undefined;

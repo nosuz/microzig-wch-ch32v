@@ -59,6 +59,10 @@ i2c: all
 	riscv64-unknown-elf-objcopy -O binary zig-out/bin/i2c zig-out/${BIN_NAME} && \
 	riscv64-unknown-elf-objdump --disassemble-all zig-out/bin/i2c > zig-out/i2c.s
 
+spi: all
+	riscv64-unknown-elf-objcopy -O binary zig-out/bin/spi zig-out/${BIN_NAME} && \
+	riscv64-unknown-elf-objdump --disassemble-all zig-out/bin/spi > zig-out/spi.s
+
 flash:
 	#wchisp flash zig-out/${BIN_NAME}
 	wch-isp -pr flash zig-out/${BIN_NAME}

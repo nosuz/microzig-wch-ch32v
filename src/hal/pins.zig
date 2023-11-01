@@ -10,10 +10,13 @@ const clocks = ch32v.clocks;
 const serial = ch32v.serial;
 const adc = ch32v.adc;
 const i2c = ch32v.i2c;
+const spi = ch32v.spi;
 
 const peripherals = microzig.chip.peripherals;
 const ADC1 = peripherals.ADC1;
 const ADC2 = peripherals.ADC2;
+const SPI1 = peripherals.SPI1;
+const SPI2 = peripherals.SPI2;
 
 pub const Pin = enum {
     PA0, // 0
@@ -91,6 +94,12 @@ pub const Pin = enum {
 
         // I2C config
         speed: i2c.Speed = .standard,
+
+        // SPI
+        cpha: ?u1 = null,
+        cpol: ?u1 = null,
+        clock_div: ?spi.Clock_div = null,
+        bit_order: ?spi.Bit_order = null,
     };
 };
 
@@ -99,6 +108,7 @@ pub const Function = enum {
     ADC,
     SERIAL,
     I2C,
+    SPI,
 };
 
 fn all() [@typeInfo(Pin).Enum.fields.len]u1 {
@@ -128,6 +138,7 @@ const function_table = [@typeInfo(Function).Enum.fields.len][@typeInfo(Pin).Enum
     list(&.{ 0, 1, 2, 3, 4, 5, 6, 7, 16, 17, 32, 33, 34, 35, 36, 51, 52 }), // ADC
     list(&.{ 0, 1, 9, 10, 26, 27, 42, 43 }), // SERIAL
     list(&.{ 22, 23, 26, 27 }), // I2C
+    list(&.{ 5, 6, 7, 29, 30, 31 }), // SPI
     // all(), // PIO0
     // all(), // PIO1
     // list(&.{ 0, 4, 16, 20 }), // SPI0_RX
@@ -244,6 +255,17 @@ pub fn parse_pin(comptime spec: []const u8) type {
                 26, 27 => .I2C2,
                 else => undefined,
             };
+
+            pub const spi_port_regs = switch (pin_number) {
+                5, 6, 7 => peripherals.SPI1,
+                29, 30, 31 => peripherals.SPI2,
+                else => undefined,
+            };
+            pub const spi_port: spi.Port = switch (pin_number) {
+                5, 6, 7 => .SPI1,
+                29, 30, 31 => .SPI2,
+                else => undefined,
+            };
         };
     }
 
@@ -288,6 +310,8 @@ pub fn Pins(comptime config: GlobalConfiguration) type {
                     pin_field.type = serial.SERIAL(field.name);
                 } else if (pin_config.function == .I2C) {
                     pin_field.type = i2c.I2C(field.name);
+                } else if (pin_config.function == .SPI) {
+                    pin_field.type = spi.SPI(field.name);
                 } else {
                     continue;
                 }
@@ -405,6 +429,12 @@ pub const GlobalConfiguration = struct {
         comptime var i2c_cfg = [_]i2c.Port.Configuration{
             i2c.Port.Configuration{},
             i2c.Port.Configuration{},
+        };
+
+        // SPI
+        comptime var spi_cfg = [_]spi.Port.Configuration{
+            spi.Port.Configuration{},
+            spi.Port.Configuration{},
         };
 
         // validate selected function
@@ -542,6 +572,57 @@ pub const GlobalConfiguration = struct {
 
                         i2c_cfg[@intFromEnum(pin.i2c_port)].speed = pin_config.speed;
                         i2c_cfg[@intFromEnum(pin.i2c_port)].setup = true;
+                    } else if (pin_config.function == .SPI) {
+                        const index = switch (pin.gpio_port_pin_num) {
+                            0...7 => @as(u3, pin.gpio_port_num) * 2,
+                            8...15 => @as(u3, pin.gpio_port_num) * 2 + 1,
+                            else => unreachable,
+                        };
+                        const shift_num = switch (pin.gpio_port_pin_num) {
+                            0...7 => pin.gpio_port_pin_num * 4,
+                            8...15 => (pin.gpio_port_pin_num - 8) * 4,
+                            else => unreachable,
+                        };
+
+                        port_cfg_mask[index] |= 0b1111 << shift_num;
+                        switch (pin.pin_number) {
+                            5, 29 => {
+                                // MODE: output max. 50MHz
+                                port_cfg_value[index] |= 0b11 << shift_num;
+                                // CFG: alternative push-pull
+                                port_cfg_value[index] |= 0b10 << (shift_num + 2);
+                            },
+                            6, 30 => {
+                                // MODE: input
+                                port_cfg_value[index] |= 0b00 << shift_num;
+                                // CFG: float input (or pull-up input: 0b10, OUTDR for pull-up)
+                                port_cfg_value[index] |= 0b01 << (shift_num + 2);
+                            },
+                            7, 31 => {
+                                // MODE: output max. 50MHz
+                                port_cfg_value[index] |= 0b11 << shift_num;
+                                // CFG: alternative push-pull
+                                port_cfg_value[index] |= 0b10 << (shift_num + 2);
+                            },
+                            else => unreachable,
+                        }
+
+                        if (pin_config.clock_div) |clock_div| {
+                            spi_cfg[@intFromEnum(pin.spi_port)].clock_div = clock_div;
+                        }
+                        if (pin_config.cpha) |cpha| {
+                            spi_cfg[@intFromEnum(pin.spi_port)].cpha = cpha;
+                        }
+                        if (pin_config.cpol) |cpol| {
+                            spi_cfg[@intFromEnum(pin.spi_port)].cpol = cpol;
+                        }
+                        // if (pin_config.word_length) |word_length| {
+                        //     spi_cfg[@intFromEnum(pin.spi_port)].word_length = word_length;
+                        // }
+                        if (pin_config.bit_order) |bit_order| {
+                            spi_cfg[@intFromEnum(pin.spi_port)].bit_order = bit_order;
+                        }
+                        spi_cfg[@intFromEnum(pin.spi_port)].setup = true;
                     }
 
                     // if (pin_config.function.is_adc()) {
@@ -784,6 +865,56 @@ pub const GlobalConfiguration = struct {
                 regs.CTLR1.modify(.{
                     .PE = 1,
                 });
+            }
+        }
+
+        // SPI
+        for (0..3) |i| {
+            if (spi_cfg[i].setup) {
+                // Why SSI must set 1?
+                // I found good explanation on stack overflow.
+                // Setting nss_soft in Master (SPI)
+                //  https://stackoverflow.com/questions/48849942/setting-nss-soft-in-master-spi
+
+                switch (i) {
+                    0 => {
+                        // supply clocks to SPI.
+                        peripherals.RCC.APB2PCENR.modify(.{
+                            .SPI1EN = 1,
+                        });
+                        SPI1.CTLR1.modify(.{
+                            .BR = @intFromEnum(spi_cfg[0].clock_div),
+                            .CPHA = spi_cfg[i].cpha,
+                            .CPOL = spi_cfg[i].cpol,
+                            // Control CS by software or GPIO
+                            .SSM = 1,
+                            .SSI = 1,
+                            // .DFF = spi_cfg[i].word_length, // 0: 8 bits, 1: 16 bits
+                            .LSBFIRST = @intFromEnum(spi_cfg[0].bit_order), // 0: MSB first, 1: LSB first
+                            .MSTR = 1,
+                            .SPE = 1,
+                        });
+                    },
+                    1 => {
+                        // supply clocks to SPI.
+                        peripherals.RCC.APB1PCENR.modify(.{
+                            .SPI2EN = 1,
+                        });
+                        SPI2.CTLR1.modify(.{
+                            .BR = @intFromEnum(spi_cfg[1].clock_div),
+                            .CPHA = spi_cfg[i].cpha,
+                            .CPOL = spi_cfg[i].cpol,
+                            // Control CS by software or GPIO
+                            .SSM = 1,
+                            .SSI = 1,
+                            // .DFF = spi_cfg[i].word_length, // 0: 8 bits, 1: 16 bits
+                            .LSBFIRST = @intFromEnum(spi_cfg[1].bit_order), // 0: MSB first, 1: LSB first
+                            .MSTR = 1,
+                            .SPE = 1,
+                        });
+                    },
+                    else => {},
+                }
             }
         }
 
