@@ -85,7 +85,8 @@ pub fn main() !void {
     var buffer: [1]u8 = undefined;
     if (pins.i2c.write_read(ADT7410_ADDR, &READ_ID, &buffer)) |_| {
         // https://github.com/ziglang/zig/issues/17611
-        std.log.debug("ID: 0x{s}", .{std.fmt.fmtSliceHexLower(buffer[0..1])});
+        // std.log.debug("ID: 0x{s}", .{std.fmt.fmtSliceHexLower(buffer[0..1])});
+        std.log.debug("ID: 0x{x:0>2}", .{buffer[0]});
     } else |err| {
         std.log.debug("ERROR: {}", .{err});
     }
