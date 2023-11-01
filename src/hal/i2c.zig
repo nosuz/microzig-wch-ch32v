@@ -19,7 +19,6 @@ pub fn I2C(comptime pin_name: []const u8) type {
         const pin = pins.parse_pin(pin_name);
 
         const I2cError = error{
-            //
             // Bus Error (BERR)
             BusError,
             // Acknowledge Failure (AF)
@@ -47,6 +46,8 @@ pub fn I2C(comptime pin_name: []const u8) type {
             });
             // wait start transmitted
             while (true) {
+                asm volatile ("" ::: "memory");
+
                 const stat = regs.STAR1.read();
                 if (stat.SB == 1) break;
 
@@ -61,8 +62,6 @@ pub fn I2C(comptime pin_name: []const u8) type {
                 } else if (stat.BERR == 1) {
                     return I2cError.BusError;
                 }
-
-                asm volatile ("" ::: "memory");
             }
 
             // send ADDRESS with WRITE flag(0)
