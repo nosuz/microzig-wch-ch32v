@@ -100,7 +100,9 @@ pub const Port = enum {
     UART4,
 
     pub const Configuration = struct {
-        baud_rate: ?u32 = null,
+        setup: bool = false,
+
+        baud_rate: u32 = 115200,
         word_bits: WordBits = WordBits.eight,
         stop: Stop = Stop.one,
         parity: Parity = Parity.none,
@@ -167,7 +169,7 @@ pub fn init_logger(port: Port) void {
         Port.UART4 => Configs.UART4,
     };
     // bind logger to serail port if configured.
-    if (port_config.baud_rate) |_| {
+    if (port_config.setup) {
         uart_logger = port.writer();
         uart_logger.?.writeAll("\r\n================ STARTING NEW LOGGER ================\r\n") catch {};
     }

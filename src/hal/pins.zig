@@ -86,14 +86,15 @@ pub const Pin = enum {
         adc: ?adc.Port = null,
         cycles: ?adc.SAMPTR = null,
 
+        // make null for peripherals that use multiple pins.
         // Serial config
         baud_rate: ?u32 = null,
-        word_bits: serial.WordBits = serial.WordBits.eight,
-        stop: serial.Stop = serial.Stop.one,
-        parity: serial.Parity = serial.Parity.none,
+        word_bits: ?serial.WordBits = null,
+        stop: ?serial.Stop = null,
+        parity: ?serial.Parity = null,
 
         // I2C config
-        speed: i2c.Speed = .standard,
+        speed: ?i2c.Speed = null,
 
         // SPI
         cpha: ?u1 = null,
@@ -442,8 +443,7 @@ pub const GlobalConfiguration = struct {
             inline for (@typeInfo(GlobalConfiguration).Struct.fields) |field|
                 if (@field(config, field.name)) |pin_config| {
                     const pin = parse_pin(field.name);
-                    const gpio_num = @intFromEnum(@field(Pin, field.name));
-                    if (0 == function_table[@intFromEnum(pin_config.function)][gpio_num])
+                    if (0 == function_table[@intFromEnum(pin_config.function)][pin.pin_number])
                         @compileError(comptimePrint("{s} cannot be configured for {}", .{ field.name, pin_config.function }));
 
                     if (pin_config.function == .GPIO) {
@@ -548,10 +548,19 @@ pub const GlobalConfiguration = struct {
                             @compileLog(field.name);
                             @compileError("Baud rate should greater than 0.");
                         }
-                        uart_cfg[@intFromEnum(pin.serial_port)].baud_rate = pin_config.baud_rate;
-                        uart_cfg[@intFromEnum(pin.serial_port)].word_bits = pin_config.word_bits;
-                        uart_cfg[@intFromEnum(pin.serial_port)].stop = pin_config.stop;
-                        uart_cfg[@intFromEnum(pin.serial_port)].parity = pin_config.parity;
+                        if (pin_config.baud_rate) |baud_rate| {
+                            uart_cfg[@intFromEnum(pin.serial_port)].baud_rate = baud_rate;
+                        }
+                        if (pin_config.word_bits) |word_bits| {
+                            uart_cfg[@intFromEnum(pin.serial_port)].word_bits = word_bits;
+                        }
+                        if (pin_config.stop) |stop| {
+                            uart_cfg[@intFromEnum(pin.serial_port)].stop = stop;
+                        }
+                        if (pin_config.parity) |parity| {
+                            uart_cfg[@intFromEnum(pin.serial_port)].parity = parity;
+                        }
+                        uart_cfg[@intFromEnum(pin.serial_port)].setup = true;
                     } else if (pin_config.function == .I2C) {
                         const index = switch (pin.gpio_port_pin_num) {
                             0...7 => @as(u3, pin.gpio_port_num) * 2,
@@ -570,7 +579,9 @@ pub const GlobalConfiguration = struct {
                         // CFG: alternative open-drain
                         port_cfg_value[index] |= 0b11 << (shift_num + 2);
 
-                        i2c_cfg[@intFromEnum(pin.i2c_port)].speed = pin_config.speed;
+                        if (pin_config.speed) |speed| {
+                            i2c_cfg[@intFromEnum(pin.i2c_port)].speed = speed;
+                        }
                         i2c_cfg[@intFromEnum(pin.i2c_port)].setup = true;
                     } else if (pin_config.function == .SPI) {
                         const index = switch (pin.gpio_port_pin_num) {
@@ -758,7 +769,7 @@ pub const GlobalConfiguration = struct {
         serial.Configs.USART3 = uart_cfg[2];
         serial.Configs.UART4 = uart_cfg[3];
         for (0..4) |i| {
-            if (uart_cfg[i].baud_rate) |baud_rate| {
+            if (uart_cfg[i].setup) {
                 switch (i) {
                     0 => {
                         peripherals.RCC.APB2PCENR.modify(.{
@@ -784,7 +795,7 @@ pub const GlobalConfiguration = struct {
                 }
 
                 const regs = serial.Port.get_regs(@enumFromInt(i));
-                regs.BRR.write_raw(clocks.Clocks_freq.pclk2 / baud_rate);
+                regs.BRR.write_raw(clocks.Clocks_freq.pclk2 / uart_cfg[i].baud_rate);
 
                 // Enable USART, Tx, and Rx
                 regs.CTLR1.modify(.{
