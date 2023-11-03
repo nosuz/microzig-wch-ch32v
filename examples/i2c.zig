@@ -31,7 +31,7 @@ const pin_config = ch32v.pins.GlobalConfiguration{
         // SCL
         .name = "i2c",
         .function = .I2C,
-        .speed = .standard,
+        .i2c_speed = .standard,
     },
     .PB7 = .{
         //SDA

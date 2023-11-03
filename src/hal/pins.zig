@@ -94,7 +94,7 @@ pub const Pin = enum {
         parity: ?serial.Parity = null,
 
         // I2C config
-        speed: ?i2c.Speed = null,
+        i2c_speed: ?i2c.Speed = null,
 
         // SPI
         cpha: ?u1 = null,
@@ -579,7 +579,7 @@ pub const GlobalConfiguration = struct {
                         // CFG: alternative open-drain
                         port_cfg_value[index] |= 0b11 << (shift_num + 2);
 
-                        if (pin_config.speed) |speed| {
+                        if (pin_config.i2c_speed) |speed| {
                             i2c_cfg[@intFromEnum(pin.i2c_port)].speed = speed;
                         }
                         i2c_cfg[@intFromEnum(pin.i2c_port)].setup = true;
