@@ -11,6 +11,7 @@ const serial = ch32v.serial;
 const adc = ch32v.adc;
 const i2c = ch32v.i2c;
 const spi = ch32v.spi;
+const usbd = ch32v.usbd;
 
 const peripherals = microzig.chip.peripherals;
 const ADC1 = peripherals.ADC1;
@@ -102,6 +103,9 @@ pub const Pin = enum {
         cpol: ?u1 = null,
         clock_div: ?spi.Clock_div = null,
         bit_order: ?spi.Bit_order = null,
+
+        // USBD
+        usbd_speed: ?usbd.Speed = null,
     };
 };
 
@@ -111,6 +115,7 @@ pub const Function = enum {
     SERIAL,
     I2C,
     SPI,
+    USBD,
 };
 
 fn all() [@typeInfo(Pin).Enum.fields.len]u1 {
@@ -141,6 +146,7 @@ const function_table = [@typeInfo(Function).Enum.fields.len][@typeInfo(Pin).Enum
     list(&.{ 0, 1, 9, 10, 26, 27, 42, 43 }), // SERIAL
     list(&.{ 22, 23, 26, 27 }), // I2C
     list(&.{ 5, 6, 7, 29, 30, 31 }), // SPI
+    list(&.{ 11, 12 }), // USBD
     // all(), // PIO0
     // all(), // PIO1
     // list(&.{ 0, 4, 16, 20 }), // SPI0_RX
@@ -314,6 +320,8 @@ pub fn Pins(comptime config: GlobalConfiguration) type {
                     pin_field.type = i2c.I2C(field.name);
                 } else if (pin_config.function == .SPI) {
                     pin_field.type = spi.SPI(field.name);
+                } else if (pin_config.function == .USBD) {
+                    pin_field.type = usbd.USBD();
                 } else {
                     continue;
                 }
@@ -439,6 +447,9 @@ pub const GlobalConfiguration = struct {
             spi.Port.Configuration{},
             spi.Port.Configuration{},
         };
+
+        // USBD
+        comptime var usbd_cfg = usbd.Configuration{};
 
         // validate selected function
         comptime {
@@ -646,6 +657,38 @@ pub const GlobalConfiguration = struct {
                             spi_cfg[@intFromEnum(pin.spi_port)].bit_order = bit_order;
                         }
                         spi_cfg[@intFromEnum(pin.spi_port)].setup = true;
+                    } else if (pin_config.function == .USBD) {
+                        // make sure both PA11 and PA12 are USBD or null
+                        if (config.PA11) |port| {
+                            if (port.function != .USBD) {
+                                @compileError("PA11 is used for USBD. Not available for other functions.");
+                            }
+                        }
+                        if (config.PA12) |port| {
+                            if (port.function != .USBD) {
+                                @compileError("PA12 is used for USBD. Not available for other functions.");
+                            }
+                        }
+
+                        // Set PA11 and PA12 as GPIO out and set 0.
+                        // But there pins are automatically connected to the USBD when the USBD is enabled.
+                        const usbd_gpio_port_index = @intFromEnum(gpio.Port.PA) * 2 + 1; // +1 is for port pins 8-15
+                        const usbd_shift_num_base = (11 - 8) * 4; // PA11 = 11
+                        for (0..2) |i| {
+                            port_cfg_mask[usbd_gpio_port_index] |= 0b1111 << (usbd_shift_num_base + i);
+                            // MODE: output max. 50MHz
+                            port_cfg_value[usbd_gpio_port_index] |= 0b11 << (usbd_shift_num_base + i);
+                            // CFG: general push-pull
+                            port_cfg_value[usbd_gpio_port_index] |= 0b00 << ((usbd_shift_num_base + i) + 2);
+                        }
+                        // set Low level
+                        // default level after reset is Low and accept them.
+                        // port_cfg_default[0] &= ~(0b11 << 11);
+
+                        if (pin_config.usbd_speed) |speed| {
+                            usbd_cfg.speed = speed;
+                        }
+                        usbd_cfg.setup = true;
                     }
 
                     // if (pin_config.function.is_adc()) {
@@ -944,6 +987,17 @@ pub const GlobalConfiguration = struct {
                     else => {},
                 }
             }
+        }
+
+        // Enable USBD
+        if (usbd_cfg.setup) {
+            // supply clocks to USBD.
+            peripherals.RCC.APB1PCENR.modify(.{
+                .USBDEN = 1,
+            });
+            peripherals.EXTEND.EXTEND_CTR.modify(.{
+                .USBDLS = @intFromEnum(usbd_cfg.speed), // 0: full speed, 1: low speed
+            });
         }
 
         // if (output_gpios != 0)
