@@ -58,6 +58,7 @@ fn root() []const u8 {
 pub const Examples = struct {
     blinky: *microzig.EmbeddedExecutable,
     blinky2: *microzig.EmbeddedExecutable,
+    blinky_default: *microzig.EmbeddedExecutable,
     blinky_sleep: *microzig.EmbeddedExecutable,
     blinky_clocks: *microzig.EmbeddedExecutable,
     serial: *microzig.EmbeddedExecutable,

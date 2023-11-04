@@ -81,6 +81,7 @@ pub const Pin = enum {
         direction: gpio.Direction = .in,
         // drive_strength: ?gpio.DriveStrength = null,
         pull: ?gpio.Pull = null,
+        level: ?gpio.Level = null,
 
         // ADC config
         adc: ?adc.Port = null,
@@ -411,6 +412,7 @@ pub const GlobalConfiguration = struct {
         // GPIO
         comptime var port_cfg_mask = [_]u32{ 0, 0, 0, 0, 0, 0, 0, 0 };
         comptime var port_cfg_value = [_]u32{ 0, 0, 0, 0, 0, 0, 0, 0 };
+        comptime var port_cfg_default = [_]u32{ 0, 0, 0, 0 };
 
         // ADC
         comptime var samptr1: u32 = 0;
@@ -465,12 +467,22 @@ pub const GlobalConfiguration = struct {
                                 port_cfg_value[index] |= 0b00 << shift_num;
                                 // CFG
                                 port_cfg_value[index] |= 0b01 << (shift_num + 2);
+                                // OUTDR
+                                if (pin_config.pull) |pull| {
+                                    if (pull == gpio.Pull.up)
+                                        port_cfg_default[pin.gpio_port_num] |= (1 << pin.gpio_port_pin_num);
+                                }
                             },
                             .out => {
                                 // MODE
                                 port_cfg_value[index] |= 0b11 << shift_num;
                                 // CFG
                                 port_cfg_value[index] |= 0b00 << (shift_num + 2);
+                                // OUTDR
+                                if (pin_config.level) |level| {
+                                    if (level == gpio.Level.high)
+                                        port_cfg_default[pin.gpio_port_num] |= (1 << pin.gpio_port_pin_num);
+                                }
                             },
                         }
                     } else if (pin_config.function == .ADC) {
@@ -733,6 +745,11 @@ pub const GlobalConfiguration = struct {
                     else => {},
                 }
             }
+        }
+        // set default value or pull-up/down
+        for (0..4) |i| {
+            if ((port_cfg_mask[i * 2] + port_cfg_mask[i * 2 + 1]) != 0)
+                peripherals.GPIOA.OUTDR.raw = port_cfg_default[i];
         }
 
         // Enable ADC

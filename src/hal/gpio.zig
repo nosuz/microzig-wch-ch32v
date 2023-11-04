@@ -7,9 +7,14 @@ pub const Direction = enum(u1) {
     out,
 };
 
-pub const Pull = enum {
-    up,
-    down,
+pub const Pull = enum(u1) {
+    down = 0,
+    up = 1,
+};
+
+pub const Level = enum(u1) {
+    low = 0,
+    high = 1,
 };
 
 pub fn GPIO(comptime pin_name: []const u8, comptime direction: Direction) type {
