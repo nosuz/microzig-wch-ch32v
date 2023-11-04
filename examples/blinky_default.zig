@@ -5,18 +5,17 @@ const time = ch32v.time;
 
 const pin_config = ch32v.pins.GlobalConfiguration{
     .PA5 = .{
-        .name = "fixed",
-        .direction = .out,
-        .level = .high,
-    },
-    .PA6 = .{
         .name = "led",
         .direction = .out,
+        .level = .high,
+        // .level = .low,
     },
 };
 
 pub fn main() !void {
     const pins = pin_config.apply();
+
+    time.sleep_ms(3000);
 
     while (true) {
         pins.led.toggle();
