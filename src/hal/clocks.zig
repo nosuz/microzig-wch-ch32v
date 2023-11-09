@@ -158,7 +158,11 @@ pub const Configuration = struct {
 
         comptime {
             if (config.sysclk_src == Sysclk_src.HSE) {
-                sysclk_src = if (config.hse_freq == null) Sysclk_src.HSI else Sysclk_src.HSE;
+                if (config.hse_freq) |_| {
+                    sysclk_src = Sysclk_src.HSE;
+                } else {
+                    @compileError("No External clock freq.");
+                }
             } else {
                 sysclk_src = config.sysclk_src;
             }
@@ -189,7 +193,7 @@ pub const Configuration = struct {
             const sysclk_freq = switch (sysclk_src) {
                 .PLL => pllclk_freq,
                 .HSI => config.hsi_freq,
-                .HSE => config.hse_freq orelse @compileError("unreachiable: should checked."),
+                .HSE => config.hse_freq,
             };
             // @compileLog(sysclk_src);
             switch (sysclk_src) {
