@@ -585,6 +585,34 @@ pub const GlobalConfiguration = struct {
                         }
                         uart_cfg[@intFromEnum(pin.serial_port)].setup = true;
                     } else if (pin_config.function == .I2C) {
+                        switch (pin.pin_number) {
+                            22, 23 => {
+                                if (config.PB6) |port| {
+                                    if (port.function != .I2C) {
+                                        @compileError("PB6 is used for SPI. Not available for other functions.");
+                                    }
+                                }
+                                if (config.PB7) |port| {
+                                    if (port.function != .I2C) {
+                                        @compileError("PB7 is used for SPI. Not available for other functions.");
+                                    }
+                                }
+                            },
+                            26, 27 => {
+                                if (config.PB10) |port| {
+                                    if (port.function != .I2C) {
+                                        @compileError("PB10 is used for SPI. Not available for other functions.");
+                                    }
+                                }
+                                if (config.PB11) |port| {
+                                    if (port.function != .I2C) {
+                                        @compileError("PB11 is used for SPI. Not available for other functions.");
+                                    }
+                                }
+                            },
+                            else => unreachable,
+                        }
+
                         const index = switch (pin.gpio_port_pin_num) {
                             0...7 => @as(u3, pin.gpio_port_num) * 2,
                             8...15 => @as(u3, pin.gpio_port_num) * 2 + 1,
@@ -607,6 +635,44 @@ pub const GlobalConfiguration = struct {
                         }
                         i2c_cfg[@intFromEnum(pin.i2c_port)].setup = true;
                     } else if (pin_config.function == .SPI) {
+                        switch (pin.pin_number) {
+                            5, 6, 7 => {
+                                if (config.PA5) |port| {
+                                    if (port.function != .SPI) {
+                                        @compileError("PA5 is used for SPI. Not available for other functions.");
+                                    }
+                                }
+                                if (config.PA6) |port| {
+                                    if (port.function != .SPI) {
+                                        @compileError("PA6 is used for SPI. Not available for other functions.");
+                                    }
+                                }
+                                if (config.PA7) |port| {
+                                    if (port.function != .SPI) {
+                                        @compileError("PA7 is used for SPI. Not available for other functions.");
+                                    }
+                                }
+                            },
+                            29, 30, 31 => {
+                                if (config.PB13) |port| {
+                                    if (port.function != .SPI) {
+                                        @compileError("PB13 is used for SPI. Not available for other functions.");
+                                    }
+                                }
+                                if (config.PB14) |port| {
+                                    if (port.function != .SPI) {
+                                        @compileError("PB14 is used for SPI. Not available for other functions.");
+                                    }
+                                }
+                                if (config.PB15) |port| {
+                                    if (port.function != .SPI) {
+                                        @compileError("PB15 is used for SPI. Not available for other functions.");
+                                    }
+                                }
+                            },
+                            else => unreachable,
+                        }
+
                         const index = switch (pin.gpio_port_pin_num) {
                             0...7 => @as(u3, pin.gpio_port_num) * 2,
                             8...15 => @as(u3, pin.gpio_port_num) * 2 + 1,
