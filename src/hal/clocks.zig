@@ -3,6 +3,8 @@ const peripherals = microzig.chip.peripherals;
 const RCC = peripherals.RCC;
 const RTC = peripherals.RTC;
 
+const root = @import("root");
+
 pub const Sysclk_src = enum(u2) {
     HSI = 0,
     HSE = 0b01,
@@ -112,7 +114,7 @@ pub const Rtcclk_src = enum(u2) {
     HSE_128 = 0b11,
 };
 
-const Rcc = struct {
+const Clocks_freq = struct {
     // config: Configuration = undefined,
     pllclk: u32 = 0,
     hclk: u32 = 8_000_000,
@@ -121,11 +123,13 @@ const Rcc = struct {
     adcclk: u32 = 4_000_000,
     apb1_timclk: u32 = 8_000_000,
     apb2_timclk: u32 = 8_000_000,
-    rtcclk: ?u32 = null,
+    rtcclk: u32 = 40_000,
+    default: bool = true,
 };
 
-// TODO: swtich by CPU series.
-pub var Clocks_freq = Rcc{};
+pub fn Default_clocks_freq() Clocks_freq {
+    return Clocks_freq{};
+}
 
 pub const Configuration = struct {
     sysclk_src: Sysclk_src = Sysclk_src.HSI,
@@ -157,6 +161,8 @@ pub const Configuration = struct {
         comptime var rtcclk_freq = 0;
 
         comptime {
+            if (root.__Clocks_freq.default) @compileError("Missing statement: pub const __Clocks_freq = clocks_config.get_freqs();");
+
             if (config.sysclk_src == Sysclk_src.HSE) {
                 if (config.hse_freq) |_| {
                     sysclk_src = Sysclk_src.HSE;
@@ -313,20 +319,7 @@ pub const Configuration = struct {
             .ADCPRE = @intFromEnum(config.adc_prescale), // ADC
         });
 
-        Clocks_freq = Rcc{
-            // .config = config,
-            .pllclk = pllclk_freq,
-            .hclk = hclk_freq,
-            .pclk1 = pclk1_freq,
-            .apb1_timclk = apb1_timclk_freq,
-            .pclk2 = pclk2_freq,
-            .apb2_timclk = apb2_timclk_freq,
-            .adcclk = adcclk_freq,
-        };
-
         if (config.enable_rtc) {
-            Clocks_freq.rtcclk = rtcclk_freq;
-
             // supply clock to POWER and BACKUP domain.
             RCC.APB1PCENR.modify(.{
                 .PWREN = 1,
@@ -399,5 +392,120 @@ pub const Configuration = struct {
                 .RTCEN = 1,
             });
         }
+    }
+
+    pub fn get_freqs(comptime config: Configuration) Clocks_freq {
+        comptime var sysclk_src = Sysclk_src.HSI;
+        comptime var pllclk_freq = 0;
+        comptime var hclk_freq = 0;
+        comptime var pclk1_freq = 0;
+        comptime var apb1_timclk_freq = 0;
+        comptime var pclk2_freq = 0;
+        comptime var apb2_timclk_freq = 0;
+        comptime var adc_prescale = 0;
+        comptime var adcclk_freq = 0;
+        comptime var rtcclk_freq = 0;
+
+        comptime {
+            if (config.sysclk_src == Sysclk_src.HSE) {
+                if (config.hse_freq) |_| {
+                    sysclk_src = Sysclk_src.HSE;
+                } else {
+                    @compileError("No External clock freq.");
+                }
+            } else {
+                sysclk_src = config.sysclk_src;
+            }
+            // @compileLog(config.sysclk_src);
+            // @compileLog(sysclk_src);
+            const pll_multiplex = @as(u32, @intFromEnum(config.pll_multiplex)) + 2;
+            pllclk_freq = pll_multiplex * switch (config.pll_src) {
+                .HSI => config.hsi_freq,
+                .HSI_div2 => config.hsi_freq / 2,
+                .HSE => config.hse_freq,
+                .HSE_div2 => config.hse_freq / 2,
+            };
+            const sysclk_freq = switch (sysclk_src) {
+                .PLL => pllclk_freq,
+                .HSI => config.hsi_freq,
+                .HSE => config.hse_freq,
+            };
+            // @compileLog(sysclk_src);
+            switch (sysclk_src) {
+                Sysclk_src.HSE => {
+                    if (sysclk_freq > 25_000_000) {
+                        @compileError("HSE freq must lesss than 25MHz.");
+                    } else if (!config.hse_baypass and sysclk_freq < 3_000_000) {
+                        @compileError("HSE freq must greater than 3MHz.");
+                    }
+                },
+                Sysclk_src.PLL => {
+                    if (sysclk_freq > 144_000_000) {
+                        @compileError("Sysclk freq must lesss than 25MHz.");
+                    }
+                },
+                else => {},
+            }
+
+            const ahb_prescale = switch (config.ahb_prescale) {
+                .SYSCLK => 1,
+                .SYSCLK_2 => 2,
+                .SYSCLK_4 => 4,
+                .SYSCLK_8 => 8,
+                .SYSCLK_16 => 16,
+                .SYSCLK_64 => 64,
+                .SYSCLK_128 => 128,
+                .SYSCLK_256 => 256,
+                .SYSCLK_512 => 512,
+            };
+            hclk_freq = sysclk_freq / ahb_prescale;
+
+            const apb1_prescale = switch (config.apb1_prescale) {
+                .HCLK => 1,
+                .HCLK_2 => 2,
+                .HCLK_4 => 4,
+                .HCLK_8 => 8,
+                .HCLK_16 => 16,
+            };
+            pclk1_freq = hclk_freq / apb1_prescale;
+
+            apb1_timclk_freq = pclk1_freq * if (config.apb1_prescale == Apb_prescale.HCLK) 1 else 2;
+
+            const apb2_prescale = switch (config.apb2_prescale) {
+                .HCLK => 1,
+                .HCLK_2 => 2,
+                .HCLK_4 => 4,
+                .HCLK_8 => 8,
+                .HCLK_16 => 16,
+            };
+            pclk2_freq = hclk_freq / apb2_prescale;
+            apb2_timclk_freq = pclk2_freq * if (config.apb1_prescale == Apb_prescale.HCLK) 1 else 2;
+
+            adc_prescale = switch (config.adc_prescale) {
+                .PCLK2_2 => 2,
+                .PCLK2_4 => 4,
+                .PCLK2_6 => 6,
+                .PCLK2_8 => 8,
+            };
+            adcclk_freq = pclk2_freq / adc_prescale;
+
+            rtcclk_freq = switch (config.rtcclk_src) {
+                .LSE => config.lse_freq,
+                .LSI => config.lsi_freq,
+                .HSE_128 => config.hse_freq / 128,
+            };
+        }
+
+        return Clocks_freq{
+            .pllclk = pllclk_freq,
+            .hclk = hclk_freq,
+            .pclk1 = pclk1_freq,
+            .apb1_timclk = apb1_timclk_freq,
+            .pclk2 = pclk2_freq,
+            .apb2_timclk = apb2_timclk_freq,
+            .adcclk = adcclk_freq,
+            .rtcclk = rtcclk_freq,
+            .default = false,
+        };
     }
 };

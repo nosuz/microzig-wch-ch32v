@@ -13,6 +13,9 @@ const clocks_config = clocks.Configuration{
     // .enable_rtc = false, // Disable RTC blocks log with timestam.
 };
 
+pub const __Clocks_freq = clocks_config.get_freqs();
+// pub const __Clocks_freq = clocks.Default_clocks_freq();
+
 const pin_config = ch32v.pins.GlobalConfiguration{
     .PA5 = .{
         .name = "led",

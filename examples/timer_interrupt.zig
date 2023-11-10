@@ -13,8 +13,8 @@ const pin_config = ch32v.pins.GlobalConfiguration{
     },
 };
 
-// var pin: pins.Pins(pin_config) = undefined;
-// const pin = pins.get_pins(pin_config);
+// pub const __Clocks_freq = clocks_config.get_freqs();
+pub const __Clocks_freq = clocks.Default_clocks_freq();
 
 pub fn main() !void {
     // _ = pin_config.apply();
@@ -44,7 +44,7 @@ fn setup_timer() void {
         .TIM1EN = 1,
     });
 
-    const prescale = clocks.Clocks_freq.pclk2 / 1_000_000 * 100 - 1; // count update every 0.1ms.
+    const prescale = __Clocks_freq.pclk2 / 1_000_000 * 100 - 1; // count update every 0.1ms.
     TIM1.PSC.write_raw(prescale);
 
     const count = 1000; // 0.1ms * 1000 = 100ms

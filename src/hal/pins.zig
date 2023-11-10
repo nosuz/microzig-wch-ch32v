@@ -1,5 +1,4 @@
 const std = @import("std");
-const assert = std.debug.assert;
 const comptimePrint = std.fmt.comptimePrint;
 const StructField = std.builtin.Type.StructField;
 
@@ -12,6 +11,8 @@ const adc = ch32v.adc;
 const i2c = ch32v.i2c;
 const spi = ch32v.spi;
 const usbd = ch32v.usbd;
+
+const root = @import("root");
 
 const peripherals = microzig.chip.peripherals;
 const ADC1 = peripherals.ADC1;
@@ -451,6 +452,7 @@ pub const GlobalConfiguration = struct {
         // USBD
         comptime var usbd_cfg = usbd.Configuration{};
 
+        // comptime var adcclk_freq = 0;
         // validate selected function
         comptime {
             inline for (@typeInfo(GlobalConfiguration).Struct.fields) |field|
@@ -497,6 +499,9 @@ pub const GlobalConfiguration = struct {
                             },
                         }
                     } else if (pin_config.function == .ADC) {
+                        if (root.__Clocks_freq.adcclk > 14_000_000)
+                            @compileError(comptimePrint("ADC clock freq. is over 14Mhz.: {}", .{root.__Clocks_freq.adcclk}));
+
                         if (pin.adc_channel_num < 16) {
                             const index = switch (pin.gpio_port_pin_num) {
                                 0...7 => @as(u3, pin.gpio_port_num) * 2,
@@ -585,6 +590,10 @@ pub const GlobalConfiguration = struct {
                         }
                         uart_cfg[@intFromEnum(pin.serial_port)].setup = true;
                     } else if (pin_config.function == .I2C) {
+                        const i2c_base_freq = root.__Clocks_freq.pclk1 / 1000_000; // MHz
+                        if ((i2c_base_freq < 2) or (i2c_base_freq > 36))
+                            @compileError(comptimePrint("PCLK1 freq. should be between 2MHz and 36Mhz.: {}", .{root.__Clocks_freq.pclk1}));
+
                         switch (pin.pin_number) {
                             22, 23 => {
                                 if (config.PB6) |port| {
@@ -863,8 +872,6 @@ pub const GlobalConfiguration = struct {
 
         // Enable ADC
         if (adc1 or adc2) {
-            assert(clocks.Clocks_freq.adcclk <= 14_000_000);
-
             // @compileLog(samptr1);
             // @compileLog(samptr2);
             if (adc1) {
@@ -921,7 +928,7 @@ pub const GlobalConfiguration = struct {
                 }
 
                 const regs = serial.Port.get_regs(@enumFromInt(i));
-                regs.BRR.write_raw(clocks.Clocks_freq.pclk2 / uart_cfg[i].baud_rate);
+                regs.BRR.write_raw(root.__Clocks_freq.pclk2 / uart_cfg[i].baud_rate);
 
                 // Enable USART, Tx, and Rx
                 regs.CTLR1.modify(.{
@@ -933,11 +940,9 @@ pub const GlobalConfiguration = struct {
         }
 
         // Enable I2C
-        const i2c_base_freq = clocks.Clocks_freq.pclk1 / 1000_000; // MHz
+        const i2c_base_freq = root.__Clocks_freq.pclk1 / 1000_000; // MHz
         for (0..3) |i| {
             if (i2c_cfg[i].setup) {
-                assert((i2c_base_freq >= 2) and (i2c_base_freq <= 36));
-
                 // supply clocks.
                 switch (i) {
                     0 => {

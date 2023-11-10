@@ -2,6 +2,8 @@ const microzig = @import("microzig");
 const peripherals = microzig.chip.peripherals;
 const PFIC = peripherals.PFIC;
 
+const root = @import("root");
+
 pub fn sleep_ms(duration: u16) void {
     // STK_CTLR
     PFIC.STK_CTLR.modify(.{
@@ -15,7 +17,7 @@ pub fn sleep_ms(duration: u16) void {
     });
 
     // STK_CNTL STK_CNTH
-    var count: u64 = microzig.hal.clocks.Clocks_freq.hclk / 8 / 1000 * duration;
+    var count: u64 = root.__Clocks_freq.hclk / 8 / 1000 * duration;
     PFIC.STK_CNTL.write_raw(@intCast(count & 0xffff_ffff));
     PFIC.STK_CNTH.write_raw(@intCast(count >> 32));
 

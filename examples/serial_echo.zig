@@ -3,6 +3,7 @@ const microzig = @import("microzig");
 
 const ch32v = microzig.hal;
 const time = ch32v.time;
+const clocks = ch32v.clocks;
 
 const pin_config = ch32v.pins.GlobalConfiguration{
     .PA5 = .{
@@ -19,6 +20,9 @@ const pin_config = ch32v.pins.GlobalConfiguration{
         .baud_rate = 115200,
     },
 };
+
+// pub const __Clocks_freq = clocks_config.get_freqs();
+pub const __Clocks_freq = clocks.Default_clocks_freq();
 
 pub fn main() !void {
     const pins = pin_config.apply();
