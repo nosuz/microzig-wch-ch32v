@@ -72,4 +72,4 @@ flash:
 	wch-isp -pr flash zig-out/${BIN_NAME}
 
 clean:
-	rm -r zig-out zig-cache
+	rm -fr zig-out zig-cache
