@@ -7,9 +7,9 @@ const time = ch32v.time;
 const clocks = ch32v.clocks;
 
 const clocks_config = clocks.Configuration{
-    .sysclk_src = clocks.Sysclk_src.HSI,
+    .sysclk_src = .HSI,
     // .hse_freq = 25_000_000,
-    // .pll_src = clocks.Pll_src.HSI,
+    // .pll_src = .HSI,
     // .enable_rtc = false, // Disable RTC blocks log with timestam.
 };
 

@@ -7,9 +7,15 @@ const time = ch32v.time;
 const clocks = ch32v.clocks;
 
 const clocks_config = clocks.Configuration{
-    // .sysclk_src = clocks.Sysclk_src.HSE,
+    // .sysclk_src = .HSI,
+    // .sysclk_src = .HSE,
     // .hse_freq = 25_000_000,
-    .pll_src = clocks.Pll_src.HSI,
+    .sysclk_src = .PLL,
+    .pll_src = .HSI, // 8MHz
+    .pll_multiplex = .MUL_6, // 48 MHz
+    // .ahb_prescale = .SYSCLK_2,
+    .apb1_prescale = .HCLK_2,
+    // .apb2_prescale = .HCLK_2,
     // .enable_rtc = false, // Disable RTC blocks log with timestam.
 };
 
