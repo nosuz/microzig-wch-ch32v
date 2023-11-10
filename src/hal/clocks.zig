@@ -166,24 +166,9 @@ pub const Configuration = struct {
             } else {
                 sysclk_src = config.sysclk_src;
             }
-            const pll_multiplex = switch (config.pll_multiplex) {
-                .MUL_2 => 2,
-                .MUL_3 => 3,
-                .MUL_4 => 4,
-                .MUL_5 => 5,
-                .MUL_6 => 6,
-                .MUL_7 => 7,
-                .MUL_8 => 8,
-                .MUL_9 => 9,
-                .MUL_10 => 10,
-                .MUL_11 => 11,
-                .MUL_12 => 12,
-                .MUL_13 => 13,
-                .MUL_14 => 14,
-                .MUL_15 => 15,
-                .MUL_16 => 16,
-                .MUL_18 => 18,
-            };
+            // @compileLog(config.sysclk_src);
+            // @compileLog(sysclk_src);
+            const pll_multiplex = @as(u32, @intFromEnum(config.pll_multiplex)) + 2;
             pllclk_freq = pll_multiplex * switch (config.pll_src) {
                 .HSI => config.hsi_freq,
                 .HSI_div2 => config.hsi_freq / 2,
