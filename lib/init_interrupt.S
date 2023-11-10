@@ -39,33 +39,12 @@ _abs_start:
     // set stack pointer
     la sp, _stack_start
 
-/*
 copy_data_section:
     // copy data section to RAM
-    la a0, _sdata_lma
-    la a1, _sdata
-    lw a2, _data_length
-    beqz a2, copy_data_done
-
-copy_data_loop:
-    // copy data
-    lw t0, 0(a0)
-    sw t0, 0(a1)
-
-    addi a0, a0, 4
-    addi a1, a1, 4
-
-    addi a2, a2, -4
-    bnez a2, copy_data_loop
-copy_data_done:
-*/
-
-copy_data_section:
-    // copy data section to RAM
-    la a0, _sdata_lma
-    la a1, _sdata
-    la a2, _edata_lma
-    beq a0, a2, copy_data_done
+    la a0, microzig_data_load_start
+    la a1, microzig_data_start
+    la a2, microzig_data_end
+    beq a1, a2, copy_data_done
 
 copy_data_loop:
     lw t0, 0(a0)
@@ -73,18 +52,35 @@ copy_data_loop:
 
     addi a0, a0, 4
     addi a1, a1, 4
-    bne a0, a2, copy_data_loop
+    bne a1, a2, copy_data_loop
 copy_data_done:
 
-/*
-  Zig: un-initialize variables should fill with 0 as C.
-*/
+// PMA
+copy_data1_section:
+    // copy data1 section to PMA
+    la a0, microzig_data1_load_start
+    la a1, microzig_data1_start
+    la a2, microzig_data1_end
+    beq a1, a2, copy_data1_done
 
+copy_data1_loop:
+    lw t0, 0(a0)
+    sw t0, 0(a1)
+
+    addi a0, a0, 4
+    addi a1, a1, 4
+    bne a1, a2, copy_data1_loop
+copy_data1_done:
+
+
+/*
+  Zig: un-initialize variables should be filled with 0 as C.
+*/
 clear_bss_section:
     # clear data and bss section
     li t0, 0
-    la t1, _sbss
-    la t2, _ebss
+    la t1, microzig_bss_start
+    la t2, microzig_bss_end
     beq t1, t2, clear_bss_done
 clear_bss_loop:
     sw t0, 0(t1)
