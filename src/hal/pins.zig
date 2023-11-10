@@ -934,10 +934,10 @@ pub const GlobalConfiguration = struct {
 
         // Enable I2C
         const i2c_base_freq = clocks.Clocks_freq.pclk1 / 1000_000; // MHz
-        assert((i2c_base_freq >= 2) and (i2c_base_freq <= 36));
-
         for (0..3) |i| {
             if (i2c_cfg[i].setup) {
+                assert((i2c_base_freq >= 2) and (i2c_base_freq <= 36));
+
                 // supply clocks.
                 switch (i) {
                     0 => {

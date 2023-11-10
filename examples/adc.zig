@@ -11,7 +11,10 @@ const clocks_config = clocks.Configuration{
     .sysclk_src = .HSI,
     // .sysclk_src = .HSE,
     // .hse_freq = 25_000_000,
-    // .pll_src = .HSI,
+    .pll_src = .HSI, // 8MHz
+    .pll_multiplex = .MUL_6, // 48 MHz
+    // .sysclk_src = .PLL,
+
     // .enable_rtc = false, // Disable RTC blocks log with timestam.
 };
 
