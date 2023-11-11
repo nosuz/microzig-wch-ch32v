@@ -56,22 +56,21 @@ copy_data_loop:
 copy_data_done:
 
 // PMA
-copy_data1_section:
-    // copy data1 section to PMA
-    la a0, microzig_data1_load_start
-    la a1, microzig_data1_start
-    la a2, microzig_data1_end
-    beq a1, a2, copy_data1_done
+copy_pma_section:
+    // copy pma section to PMA
+    la a0, microzig_pma_load_start
+    la a1, microzig_pma_start
+    la a2, microzig_pma_end
+    beq a1, a2, copy_pma_done
 
-copy_data1_loop:
+copy_pma_loop:
     lw t0, 0(a0)
     sw t0, 0(a1)
 
     addi a0, a0, 4
     addi a1, a1, 4
-    bne a1, a2, copy_data1_loop
-copy_data1_done:
-
+    bne a1, a2, copy_pma_loop
+copy_pma_done:
 
 /*
   Zig: un-initialize variables should be filled with 0 as C.

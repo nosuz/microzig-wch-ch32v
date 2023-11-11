@@ -8,7 +8,7 @@ MEMORY
   */
 	FLASH (rx): ORIGIN = 0x0800 * 0x10000, LENGTH = 64k
 	RAM (rwx) : ORIGIN = 0x2000 * 0x10000, LENGTH = 20k
-	PMA (rwx) : ORIGIN = 0x40006000, LENGTH = 512
+	PMA (rw) : ORIGIN = 0x40006000, LENGTH = 1024 /* valid area is 512 byes */
 }
 
 ENTRY(_start);
@@ -76,18 +76,18 @@ SECTIONS
     . = ABSOLUTE(_stack_start);
   } > REGION_STACK
 
-  .data1 :
+  .pma :
   {
-    microzig_data1_load_start = LOADADDR(.data1);
-    microzig_data1_start = .;
+    microzig_pma_load_start = LOADADDR(.pma);
+    microzig_pma_start = .;
     *(.pma);
     *(.packet_buffer);
     /* make sure the end of section is aligned by 4 bytes. */
     . = ALIGN(4);
-    microzig_data1_end = .;
+    microzig_pma_end = .;
   } > REGION_PMA AT > REGION_ROPMA
 }
 
 ASSERT((microzig_bss_end - microzig_data_start) < 4096, "ERROR(linker): Too many global variables. The total length of data and bss should be less than 4096.");
 
-ASSERT((microzig_data1_end - microzig_data1_start) < 512, "ERROR(linker): Too many variables in packet buffer memory SRAM. The SRAM area should be less than 512.");
+ASSERT((microzig_pma_end - microzig_pma_start) < 1024, "ERROR(linker): Too many variables in packet buffer memory SRAM. The SRAM area should be less than 1024.");
