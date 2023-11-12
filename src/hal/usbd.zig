@@ -26,32 +26,5 @@ pub const Configuration = struct {
 };
 
 pub fn USBD() type {
-    return struct {
-        const UsbdError = error{
-            PllFreqError,
-        };
-
-        pub inline fn init_clocks(self: @This()) UsbdError!void {
-            _ = self;
-
-            switch (root.__Clocks_freq.pllclk) {
-                48_000_000 => {
-                    RCC.CFGR0.modify(.{
-                        .USBPRE = 0b00,
-                    });
-                },
-                96_000_000 => {
-                    RCC.CFGR0.modify(.{
-                        .USBPRE = 0b01,
-                    });
-                },
-                144_000_000 => {
-                    RCC.CFGR0.modify(.{
-                        .USBPRE = 0b10,
-                    });
-                },
-                else => return UsbdError.PllFreqError, // PLL freq must 48, 96, or 144 MHz.
-            }
-        }
-    };
+    return struct {};
 }

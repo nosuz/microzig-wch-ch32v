@@ -734,6 +734,12 @@ pub const GlobalConfiguration = struct {
                         }
                         spi_cfg[@intFromEnum(pin.spi_port)].setup = true;
                     } else if (pin_config.function == .USBD) {
+                        switch (root.__Clocks_freq.pllclk) {
+                            // PLL freq must 48, 96, or 144 MHz.
+                            48_000_000, 96_000_000, 144_000_000 => {},
+                            else => @compileError(comptimePrint("PLL clock freq. should be 48MHz, 96MHz, or 144MHz.: {}", .{root.__Clocks_freq.pllclk})),
+                        }
+
                         // make sure both PA11 and PA12 are USBD or null
                         if (config.PA11) |port| {
                             if (port.function != .USBD) {
