@@ -15,6 +15,7 @@ const usbd = ch32v.usbd;
 const root = @import("root");
 
 const peripherals = microzig.chip.peripherals;
+const RCC = peripherals.RCC;
 const ADC1 = peripherals.ADC1;
 const ADC2 = peripherals.ADC2;
 const SPI1 = peripherals.SPI1;
@@ -826,7 +827,7 @@ pub const GlobalConfiguration = struct {
             var masks = port_cfg_mask[i * 2] | port_cfg_mask[i * 2 + 1];
             if (masks != 0) {
                 const bit = @as(u5, @intCast(i + 2));
-                peripherals.RCC.APB2PCENR.raw |= (@as(u32, 1) << bit);
+                RCC.APB2PCENR.raw |= (@as(u32, 1) << bit);
             }
         }
 
@@ -876,8 +877,8 @@ pub const GlobalConfiguration = struct {
             // @compileLog(samptr2);
             if (adc1) {
                 // enable ADC
-                // peripherals.RCC.APB2PCENR.raw |= (@as(u32, 1) << 9);
-                peripherals.RCC.APB2PCENR.modify(.{
+                // RCC.APB2PCENR.raw |= (@as(u32, 1) << 9);
+                RCC.APB2PCENR.modify(.{
                     .ADC1EN = 1,
                 });
 
@@ -886,8 +887,8 @@ pub const GlobalConfiguration = struct {
             }
             if (adc2) {
                 // enable ADC
-                // peripherals.RCC.APB2PCENR.raw |= (@as(u32, 1) << 10);
-                peripherals.RCC.APB2PCENR.modify(.{
+                // RCC.APB2PCENR.raw |= (@as(u32, 1) << 10);
+                RCC.APB2PCENR.modify(.{
                     .ADC2EN = 1,
                 });
 
@@ -905,22 +906,22 @@ pub const GlobalConfiguration = struct {
             if (uart_cfg[i].setup) {
                 switch (i) {
                     0 => {
-                        peripherals.RCC.APB2PCENR.modify(.{
+                        RCC.APB2PCENR.modify(.{
                             .USART1EN = 1,
                         });
                     },
                     1 => {
-                        peripherals.RCC.APB1PCENR.modify(.{
+                        RCC.APB1PCENR.modify(.{
                             .USART2EN = 1,
                         });
                     },
                     2 => {
-                        peripherals.RCC.APB1PCENR.modify(.{
+                        RCC.APB1PCENR.modify(.{
                             .USART3EN = 1,
                         });
                     },
                     3 => {
-                        peripherals.RCC.APB1PCENR.modify(.{
+                        RCC.APB1PCENR.modify(.{
                             .UART4EN = 1,
                         });
                     },
@@ -946,12 +947,12 @@ pub const GlobalConfiguration = struct {
                 // supply clocks.
                 switch (i) {
                     0 => {
-                        peripherals.RCC.APB1PCENR.modify(.{
+                        RCC.APB1PCENR.modify(.{
                             .I2C1EN = 1,
                         });
                     },
                     1 => {
-                        peripherals.RCC.APB1PCENR.modify(.{
+                        RCC.APB1PCENR.modify(.{
                             .I2C2EN = 1,
                         });
                     },
@@ -1021,7 +1022,7 @@ pub const GlobalConfiguration = struct {
                 switch (i) {
                     0 => {
                         // supply clocks to SPI.
-                        peripherals.RCC.APB2PCENR.modify(.{
+                        RCC.APB2PCENR.modify(.{
                             .SPI1EN = 1,
                         });
                         SPI1.CTLR1.modify(.{
@@ -1039,7 +1040,7 @@ pub const GlobalConfiguration = struct {
                     },
                     1 => {
                         // supply clocks to SPI.
-                        peripherals.RCC.APB1PCENR.modify(.{
+                        RCC.APB1PCENR.modify(.{
                             .SPI2EN = 1,
                         });
                         SPI2.CTLR1.modify(.{
@@ -1063,9 +1064,28 @@ pub const GlobalConfiguration = struct {
         // Enable USBD
         if (usbd_cfg.setup) {
             // supply clocks to USBD.
-            peripherals.RCC.APB1PCENR.modify(.{
+            RCC.APB1PCENR.modify(.{
                 .USBDEN = 1,
             });
+            switch (root.__Clocks_freq.pllclk) {
+                48_000_000 => {
+                    RCC.CFGR0.modify(.{
+                        .USBPRE = 0b00,
+                    });
+                },
+                96_000_000 => {
+                    RCC.CFGR0.modify(.{
+                        .USBPRE = 0b01,
+                    });
+                },
+                144_000_000 => {
+                    RCC.CFGR0.modify(.{
+                        .USBPRE = 0b10,
+                    });
+                },
+                else => unreachable, // PLL freq must 48, 96, or 144 MHz.
+            }
+
             peripherals.EXTEND.EXTEND_CTR.modify(.{
                 .USBDLS = @intFromEnum(usbd_cfg.speed), // 0: full speed, 1: low speed
             });
