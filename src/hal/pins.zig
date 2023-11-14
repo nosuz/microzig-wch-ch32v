@@ -1069,10 +1069,6 @@ pub const GlobalConfiguration = struct {
 
         // Enable USBD
         if (usbd_cfg.setup) {
-            // supply clocks to USBD.
-            RCC.APB1PCENR.modify(.{
-                .USBDEN = 1,
-            });
             switch (root.__Clocks_freq.pllclk) {
                 48_000_000 => {
                     RCC.CFGR0.modify(.{
@@ -1091,6 +1087,10 @@ pub const GlobalConfiguration = struct {
                 },
                 else => unreachable, // PLL freq must 48, 96, or 144 MHz.
             }
+            // supply clocks to USBD.
+            RCC.APB1PCENR.modify(.{
+                .USBDEN = 1,
+            });
 
             peripherals.EXTEND.EXTEND_CTR.modify(.{
                 .USBDLS = @intFromEnum(usbd_cfg.speed), // 0: full speed, 1: low speed
