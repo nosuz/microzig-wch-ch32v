@@ -67,6 +67,10 @@ spi: all
 	riscv64-unknown-elf-objcopy -O binary zig-out/bin/spi zig-out/${BIN_NAME} && \
 	riscv64-unknown-elf-objdump --disassemble-all zig-out/bin/spi > zig-out/spi.s
 
+asciiart: all
+	riscv64-unknown-elf-objcopy -O binary zig-out/bin/asciiart zig-out/${BIN_NAME} && \
+	riscv64-unknown-elf-objdump --disassemble-all zig-out/bin/asciiart > zig-out/asciiart.s
+
 flash:
 	#wchisp flash zig-out/${BIN_NAME}
 	wch-isp -pr flash zig-out/${BIN_NAME}

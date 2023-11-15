@@ -69,6 +69,7 @@ pub const Examples = struct {
     adc: *microzig.EmbeddedExecutable,
     i2c: *microzig.EmbeddedExecutable,
     spi: *microzig.EmbeddedExecutable,
+    asciiart: *microzig.EmbeddedExecutable,
 
     pub fn init(b: *Builder, optimize: std.builtin.OptimizeMode) Examples {
         var ret: Examples = undefined;
