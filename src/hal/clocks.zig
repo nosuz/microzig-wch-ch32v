@@ -116,6 +116,9 @@ pub const Rtcclk_src = enum(u2) {
 
 const Clocks_freq = struct {
     // config: Configuration = undefined,
+    use_pll: bool = false,
+    pll_src: Pll_src = .HSI,
+    pll_multiplex: Pll_multiplex = .MUL_2,
     pllclk: u32 = 0,
     hclk: u32 = 8_000_000,
     pclk1: u32 = 8_000_000,
@@ -405,11 +408,14 @@ pub const Configuration = struct {
         comptime var adc_prescale = 0;
         comptime var adcclk_freq = 0;
         comptime var rtcclk_freq = 0;
+        comptime var use_pll: bool = false;
+        comptime var pll_src: Pll_src = .HSI;
+        comptime var pll_multiplex: Pll_multiplex = .MUL_2;
 
         comptime {
-            if (config.sysclk_src == Sysclk_src.HSE) {
+            if (config.sysclk_src == .HSE) {
                 if (config.hse_freq) |_| {
-                    sysclk_src = Sysclk_src.HSE;
+                    sysclk_src = .HSE;
                 } else {
                     @compileError("No External clock freq.");
                 }
@@ -418,8 +424,12 @@ pub const Configuration = struct {
             }
             // @compileLog(config.sysclk_src);
             // @compileLog(sysclk_src);
-            const pll_multiplex = @as(u32, @intFromEnum(config.pll_multiplex)) + 2;
-            pllclk_freq = pll_multiplex * switch (config.pll_src) {
+            use_pll = if (config.sysclk_src == .PLL) true else false;
+            pll_src = config.pll_src;
+            pll_multiplex = config.pll_multiplex;
+
+            const pll_multiplex_value = @as(u32, @intFromEnum(config.pll_multiplex)) + 2;
+            pllclk_freq = pll_multiplex_value * switch (config.pll_src) {
                 .HSI => config.hsi_freq,
                 .HSI_div2 => config.hsi_freq / 2,
                 .HSE => config.hse_freq,
@@ -431,20 +441,15 @@ pub const Configuration = struct {
                 .HSE => config.hse_freq,
             };
             // @compileLog(sysclk_src);
-            switch (sysclk_src) {
-                Sysclk_src.HSE => {
-                    if (sysclk_freq > 25_000_000) {
-                        @compileError("HSE freq must lesss than 25MHz.");
-                    } else if (!config.hse_baypass and sysclk_freq < 3_000_000) {
-                        @compileError("HSE freq must greater than 3MHz.");
-                    }
-                },
-                Sysclk_src.PLL => {
-                    if (sysclk_freq > 144_000_000) {
-                        @compileError("Sysclk freq must lesss than 25MHz.");
-                    }
-                },
-                else => {},
+            if (sysclk_src == .HSE) {
+                if (sysclk_freq > 25_000_000) {
+                    @compileError("HSE freq must lesss than 25MHz.");
+                } else if (!config.hse_baypass and sysclk_freq < 3_000_000) {
+                    @compileError("HSE freq must greater than 3MHz.");
+                }
+            }
+            if (use_pll and (sysclk_freq > 144_000_000)) {
+                @compileError("Sysclk freq must lesss than 144MHz.");
             }
 
             const ahb_prescale = switch (config.ahb_prescale) {
@@ -497,6 +502,9 @@ pub const Configuration = struct {
         }
 
         return Clocks_freq{
+            .use_pll = use_pll,
+            .pll_src = pll_src,
+            .pll_multiplex = pll_multiplex,
             .pllclk = pllclk_freq,
             .hclk = hclk_freq,
             .pclk1 = pclk1_freq,

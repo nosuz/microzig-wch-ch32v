@@ -1069,6 +1069,28 @@ pub const GlobalConfiguration = struct {
 
         // Enable USBD
         if (usbd_cfg.setup) {
+            if (!root.__Clocks_freq.use_pll) {
+                // PLL start
+                // RCC_CFGR0
+                RCC.CFGR0.modify(.{
+                    .PLLMUL = @intFromEnum(root.__Clocks_freq.pll_multiplex),
+                    .PLLXTPRE = if (root.__Clocks_freq.pll_src == .HSE_div2) 1 else 0,
+                    .PLLSRC = switch (root.__Clocks_freq.pll_src) {
+                        .HSI => 0,
+                        .HSI_div2 => 0,
+                        .HSE => 1,
+                        .HSE_div2 => 1,
+                    },
+                });
+                // RCC_CTLR
+                RCC.CTLR.modify(.{
+                    .PLLON = 1,
+                });
+                // while (RCC.CTLR.read().PLLRDY == 0) {}
+                while (RCC.CTLR.read().PLLRDY == 0) {
+                    asm volatile ("" ::: "memory");
+                }
+            }
             switch (root.__Clocks_freq.pllclk) {
                 48_000_000 => {
                     RCC.CFGR0.modify(.{
