@@ -1,7 +1,7 @@
 const std = @import("std");
 const microzig = @import("microzig");
-const usb = @import("usb_mouse/usbd.zig");
-const mouse = @import("usb_mouse/mouse.zig");
+const usb = @import("usb/hid_mouse/usbd.zig");
+const mouse = @import("usb/hid_mouse/mouse.zig");
 
 const ch32v = microzig.hal;
 const clocks = ch32v.clocks;

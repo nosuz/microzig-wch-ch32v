@@ -67,13 +67,13 @@ spi: all
 	riscv64-unknown-elf-objcopy -O binary zig-out/bin/spi zig-out/${BIN_NAME} && \
 	riscv64-unknown-elf-objdump --disassemble-all zig-out/bin/spi > zig-out/spi.s
 
-usb_mouse: all
-	riscv64-unknown-elf-objcopy -O binary zig-out/bin/usb_mouse zig-out/${BIN_NAME} && \
-	riscv64-unknown-elf-objdump --disassemble-all zig-out/bin/usb_mouse > zig-out/usb_mouse.s
-
 asciiart: all
 	riscv64-unknown-elf-objcopy -O binary zig-out/bin/asciiart zig-out/${BIN_NAME} && \
 	riscv64-unknown-elf-objdump --disassemble-all zig-out/bin/asciiart > zig-out/asciiart.s
+
+usb_mouse: all
+	riscv64-unknown-elf-objcopy -O binary zig-out/bin/usb_mouse zig-out/${BIN_NAME} && \
+	riscv64-unknown-elf-objdump --disassemble-all zig-out/bin/usb_mouse > zig-out/usb_mouse.s
 
 flash:
 	#wchisp flash zig-out/${BIN_NAME}
