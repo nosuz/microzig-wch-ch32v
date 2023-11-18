@@ -54,15 +54,16 @@ pub var btable align(8) linksection(".packet_buffer") = [_]BUFFER_DESC{undefined
 // 0:   0, 1, -, -
 // 4:   2, 3, -, -
 // 8:   4, 5, -, -
-const BUFFER = struct {
+const BUFFER = union {
     tx: [BUFFER_SIZE / 2]u32,
     rx: [BUFFER_SIZE * 2]u8,
 };
 
 pub var ep_buf align(4) linksection(".packet_buffer") = [_]BUFFER{
     BUFFER{
-        .tx = [_]u32{0} ** (BUFFER_SIZE / 2),
-        .rx = [_]u8{0} ** (BUFFER_SIZE * 2),
+        .tx = undefined,
+        // .tx = [_]u32{0} ** (BUFFER_SIZE / 2),
+        // .rx = [_]u8{0} ** (BUFFER_SIZE * 2),
     },
 } ** EP_NUM;
 
