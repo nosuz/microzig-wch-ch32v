@@ -126,15 +126,16 @@ var setup_buffer = [_]u8{0} ** 8;
 // If 0, 0 ^ 0 -> 0 and no flip.
 
 const USB_STATE = enum {
+    none,
     std_get_descriptor,
     std_set_address, // no data transaction
     std_set_configuration, // no data transaction
     cls_get_interface,
 };
 
-var usb_state: USB_STATE = .std_get_descriptor;
+var usb_state: USB_STATE = .none;
 // return STALL if null
-var descriptor: ?descriptors.DescriptorIndex = .device;
+var descriptor: ?descriptors.DescriptorIndex = null;
 
 // momory last sent point
 var next_point: u32 = 0;
@@ -542,7 +543,7 @@ fn EP0_CONTROL_IN() void {
         .cls_get_interface => {
             EP0_expect_IN(0);
         },
-        // else => {},
+        else => unreachable,
     }
 }
 
