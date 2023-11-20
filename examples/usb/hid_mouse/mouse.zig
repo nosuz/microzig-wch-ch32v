@@ -6,13 +6,9 @@ const ch32v = microzig.hal;
 // for debug trigger
 const root = @import("root");
 const pins = ch32v.pins;
-// const rb = ch32v.ring_buffer;
 
 const peripherals = microzig.chip.peripherals;
 const USBD = peripherals.USB;
-
-// const Capacity = 16;
-// pub const RingBuf = rb.RingBuffer([2]i8, Capacity){};
 
 pub fn configure(ep: u8) void {
     switch (ep) {
