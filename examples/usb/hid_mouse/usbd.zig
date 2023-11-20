@@ -126,13 +126,13 @@ var setup_buffer = [_]u8{0} ** 8;
 // If 0, 0 ^ 0 -> 0 and no flip.
 
 const USB_STATE = enum {
-    get_descriptor,
-    set_address, // no data transaction
-    set_configuration, // no data transaction
-    get_interface,
+    std_get_descriptor,
+    std_set_address, // no data transaction
+    std_set_configuration, // no data transaction
+    cls_get_interface,
 };
 
-var usb_state: USB_STATE = .get_descriptor;
+var usb_state: USB_STATE = .std_get_descriptor;
 // return STALL if null
 var descriptor: ?descriptors.DescriptorIndex = .device;
 
@@ -444,7 +444,7 @@ fn EP0_CONTROL_SETUP() void {
         .standard => {
             switch (setup_data.bRequest) {
                 .GET_DESCRIPTOR => {
-                    usb_state = .get_descriptor;
+                    usb_state = .std_get_descriptor;
                     descriptor = switch (setup_data.wValue) {
                         // return device descriptor
                         0x100 => .device, // return configuration descriptor
@@ -463,11 +463,11 @@ fn EP0_CONTROL_SETUP() void {
                     EP0_CONTROL_IN();
                 },
                 .SET_ADDRESS => {
-                    usb_state = .set_address;
+                    usb_state = .std_set_address;
                     EP0_expect_IN(0);
                 },
                 .SET_CONFIGURATION => {
-                    usb_state = .set_configuration;
+                    usb_state = .std_set_configuration;
                     // set Endpoint 1
                     switch (setup_data.wValue) {
                         1 => mouse.configure_ep1(),
@@ -484,7 +484,7 @@ fn EP0_CONTROL_SETUP() void {
         .class => {
             switch (setup_data.bRequest) {
                 .GET_INTERFACE => {
-                    usb_state = .get_interface;
+                    usb_state = .cls_get_interface;
                     EP0_expect_IN(0);
                 },
                 else => {
@@ -504,7 +504,7 @@ fn EP0_CONTROL_IN() void {
 
     const setup_data = @as(DESCRIPTOR_REQUEST, @bitCast(setup_buffer));
     switch (usb_state) {
-        .get_descriptor => {
+        .std_get_descriptor => {
             if (descriptor) |index| {
                 const desc_index = @intFromEnum(index);
                 const desc = descriptors.DESCRIPTORS[desc_index];
@@ -530,16 +530,16 @@ fn EP0_CONTROL_IN() void {
                 EP0_STALL_IN();
             }
         },
-        .set_address => {
+        .std_set_address => {
             USBD.DADDR.modify(.{
                 .ADD = @as(u7, @truncate(setup_data.wValue)), // Set device address
             });
             EP0_expect_IN(0);
         },
-        .set_configuration => {
+        .std_set_configuration => {
             EP0_expect_IN(0);
         },
-        .get_interface => {
+        .cls_get_interface => {
             EP0_expect_IN(0);
         },
         // else => {},
