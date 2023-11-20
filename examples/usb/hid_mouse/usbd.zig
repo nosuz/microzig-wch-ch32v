@@ -467,9 +467,12 @@ fn EP0_CONTROL_SETUP() void {
                     EP0_expect_IN(0);
                 },
                 .SET_CONFIGURATION => {
-                    // set Endpoint 1
                     usb_state = .set_configuration;
-                    mouse.configure(@as(u8, @truncate(setup_data.wValue)));
+                    // set Endpoint 1
+                    switch (setup_data.wValue) {
+                        1 => mouse.configure_ep1(),
+                        else => {},
+                    }
                     EP0_expect_IN(0);
                 },
                 else => {
