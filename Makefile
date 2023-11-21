@@ -75,6 +75,10 @@ usb_mouse: all
 	riscv64-unknown-elf-objcopy -O binary zig-out/bin/usb_mouse zig-out/${BIN_NAME} && \
 	riscv64-unknown-elf-objdump --disassemble-all zig-out/bin/usb_mouse > zig-out/usb_mouse.s
 
+usb_keyboard: all
+	riscv64-unknown-elf-objcopy -O binary zig-out/bin/usb_keyboard zig-out/${BIN_NAME} && \
+	riscv64-unknown-elf-objdump --disassemble-all zig-out/bin/usb_keyboard > zig-out/usb_keyboard.s
+
 flash:
 	#wchisp flash zig-out/${BIN_NAME}
 	wch-isp -pr flash zig-out/${BIN_NAME}
