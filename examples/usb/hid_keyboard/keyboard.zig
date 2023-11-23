@@ -146,12 +146,7 @@ pub fn send_keycodes(key_data: KeyboardData) void {
         }
         EP1_expect_IN(8);
     } else {
-        // push data into buffer
-        while (true) {
-            if (KeyBuffer.write(key_data)) {
-                break;
-            } else |_| {} // busy wait untile write OK
-        }
+        KeyBuffer.write_block(key_data);
     }
 }
 
