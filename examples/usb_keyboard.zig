@@ -1,7 +1,7 @@
 const std = @import("std");
 const microzig = @import("microzig");
 const usb = @import("usb/hid_keyboard/usbd.zig");
-const mouse = @import("usb/hid_keyboard/keyboard.zig");
+const keyboard = @import("usb/hid_keyboard/keyboard.zig");
 
 const ch32v = microzig.hal;
 const clocks = ch32v.clocks;
@@ -78,14 +78,37 @@ pub fn main() !void {
 
     usb.init();
     interrupt.enable_interrupt();
+    pins.led.toggle();
 
     // const raise error: expected type '*rand.Xoshiro256', found '*const rand.Xoshiro256'
     var rand = std.rand.DefaultPrng.init(0);
-    _ = rand;
 
+    // this sleep is mandetoly. short will loose some key-types.
+    time.sleep_ms(1000);
+    const command = "cat > /dev/null\n";
+    for (0..command.len) |i| {
+        pins.led.toggle();
+        type_keyboard(command[i]);
+    }
+    time.sleep_ms(500);
     while (true) {
-        time.sleep_ms(1000);
-        // pins.led.toggle();
-        // const chr = rand.random().int(u8);
+        for (0..20) |_| {
+            // pins.led.toggle();
+            const chr = rand.random().int(u8) & 0x7f;
+            type_keyboard(chr);
+            // time.sleep_ms(100);
+        }
+
+        type_keyboard('\n');
+    }
+}
+
+fn type_keyboard(code: u8) void {
+    if (keyboard.ascii_to_usb_keycode(code)) |key_data| {
+        // std.log.debug("code: 0x{X}", .{key_data.key1});
+        // press key
+        keyboard.send_keycodes(key_data);
+        // release key
+        keyboard.send_keycodes(keyboard.KeyboardData{});
     }
 }

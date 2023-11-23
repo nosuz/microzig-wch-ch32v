@@ -61,5 +61,10 @@ pub fn RingBuffer(comptime T: type, comptime length: usize) type {
                 return error.Lock;
             }
         }
+
+        pub fn is_empty(self: Self) bool {
+            _ = self;
+            return ((write_pos == read_pos) and !full);
+        }
     };
 }
