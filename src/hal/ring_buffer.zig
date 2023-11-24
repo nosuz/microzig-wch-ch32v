@@ -1,6 +1,8 @@
 const std = @import("std");
 
-pub fn RingBuffer(comptime T: type, comptime length: usize) type {
+pub fn RingBuffer(comptime id: usize, comptime T: type, comptime length: usize) type {
+    // FIXME: want to remove specifying id.
+    _ = id;
     if (length < 2) {
         @compileError("buffer size should mimimam 2.");
     }

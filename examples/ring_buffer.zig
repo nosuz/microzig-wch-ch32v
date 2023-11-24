@@ -10,7 +10,7 @@ const rb = ch32v.ring_buffer;
 const peripherals = microzig.chip.peripherals;
 
 const Capacity = 16;
-const RingBuf = rb.RingBuffer(u8, Capacity){};
+const RingBuf = rb.RingBuffer(0, u8, Capacity){};
 
 const pin_config = ch32v.pins.GlobalConfiguration{
     .PA5 = .{

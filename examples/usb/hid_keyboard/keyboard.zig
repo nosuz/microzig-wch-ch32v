@@ -34,7 +34,7 @@ pub const KeyboardData = packed struct(u64) {
 };
 
 const Capacity = 32;
-const KeyBuffer = rb.RingBuffer(KeyboardData, Capacity){};
+const KeyBuffer = rb.RingBuffer(0, KeyboardData, Capacity){};
 
 const LedStatus = packed struct(u8) {
     NumLock: u1 = 0,
