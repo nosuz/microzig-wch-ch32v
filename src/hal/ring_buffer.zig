@@ -74,6 +74,15 @@ pub fn RingBuffer(comptime id: usize, comptime T: type, comptime length: usize) 
             return ((write_pos == read_pos) and full);
         }
 
+        pub fn read_block(self: Self) T {
+            // busy wait untile readable.
+            while (self.is_empty()) {
+                asm volatile ("" ::: "memory");
+            }
+            // return data from buffer. must no error.
+            return self.read() catch 0;
+        }
+
         pub fn write_block(self: Self, value: T) void {
             // busy wait untile writeable.
             while (self.is_full()) {
