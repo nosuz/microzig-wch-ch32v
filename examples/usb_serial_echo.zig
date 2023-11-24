@@ -80,10 +80,10 @@ pub fn main() !void {
 
     while (true) {
         // echo recieved data
-        const chr = usb_serial.Rx_Buffer.read_block();
+        const chr = usb_serial.read();
         // usb_serial.Tx_Buffer.write_block(chr);
         for (0..10) |_| {
-            usb_serial.Tx_Buffer.write_block(chr);
+            usb_serial.write(chr);
         }
     }
 }

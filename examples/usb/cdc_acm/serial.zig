@@ -12,8 +12,8 @@ const peripherals = microzig.chip.peripherals;
 const USBD = peripherals.USB;
 
 const Capacity = 128;
-pub const Tx_Buffer = rb.RingBuffer(0, u8, Capacity){};
-pub const Rx_Buffer = rb.RingBuffer(1, u8, Capacity){};
+const Tx_Buffer = rb.RingBuffer(0, u8, Capacity){};
+const Rx_Buffer = rb.RingBuffer(1, u8, Capacity){};
 
 var IN_TX_TRANSACTION = false;
 
@@ -167,4 +167,20 @@ fn set_ep3_tx_data() void {
         .STAT_TX = set_tx3_stat, // 1: flip
         .EA = 3, // EP1
     });
+}
+
+pub fn read() u8 {
+    return Rx_Buffer.read_block();
+}
+
+pub fn write(chr: u8) void {
+    Tx_Buffer.write_block(chr);
+}
+
+pub fn is_readable() bool {
+    return !Rx_Buffer.is_empty();
+}
+
+pub fn is_writeable() bool {
+    return !Tx_Buffer.is_full();
 }
