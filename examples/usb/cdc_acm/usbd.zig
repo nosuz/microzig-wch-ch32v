@@ -149,7 +149,7 @@ var usb_state: USB_STATE = .none;
 // return STALL if null
 var descriptor: ?descriptors.DescriptorIndex = .device;
 
-// momory last sent point
+// record last sent point
 var next_point: u32 = 0;
 
 pub fn init() void {
@@ -533,6 +533,7 @@ fn EP0_CONTROL_SETUP() void {
                 },
                 .SET_LINE_CODING => {
                     usb_state = .cls_set_line_coding;
+                    EP0_expect_DATA_OUT();
                 },
                 .SET_CONTROL_LINE_STATE => {
                     usb_state = .cls_set_line_control_state;

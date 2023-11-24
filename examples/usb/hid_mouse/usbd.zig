@@ -203,7 +203,7 @@ pub fn init() void {
     // enable interupt
     USBD.CNTR.modify(.{
         .FRES = 0, // release from reset state
-        .CTRM = 1, // enable correct transafer interrup
+        .CTRM = 1, // enable correct transafer interrupt
         .RESETM = 1, // enable reset interrupt
     });
 
