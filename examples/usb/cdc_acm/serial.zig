@@ -7,10 +7,10 @@ const ch32v = microzig.hal;
 const root = @import("root");
 const pins = ch32v.pins;
 const rb = ch32v.ring_buffer;
+const time = ch32v.time;
 
 const peripherals = microzig.chip.peripherals;
 const USBD = peripherals.USB;
-const RTC = peripherals.RTC;
 
 const Capacity = 128;
 const Tx_Buffer = rb.RingBuffer(0, u8, Capacity){};
@@ -231,18 +231,7 @@ pub fn log(
     };
 
     if (CONNECTED) {
-        // wait sync
-        RTC.CTLRL.modify(.{
-            .RSF = 0,
-        });
-        while (RTC.CTLRL.read().RSF == 0) {
-            asm volatile ("" ::: "memory");
-        }
-        var cntl1 = RTC.CNTL.read().CNTL;
-        var cnth = RTC.CNTH.read().CNTH;
-        var cntl2 = RTC.CNTL.read().CNTL;
-        if (cntl2 < cntl1) cnth = RTC.CNTH.read().CNTH;
-        const current_time = (@as(u32, cnth) << 16) + cntl2;
+        const current_time = time.get_uptime();
         const seconds = current_time / 1000;
         const microseconds = current_time % 1000;
 

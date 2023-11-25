@@ -3,9 +3,9 @@ const microzig = @import("microzig");
 const ch32v = microzig.hal;
 const pins = ch32v.pins;
 const clocks = ch32v.clocks;
+const time = ch32v.time;
 
 const peripherals = microzig.chip.peripherals;
-const RTC = peripherals.RTC;
 
 const UartRegs = microzig.chip.types.peripherals.USART1;
 const USART1 = peripherals.USART1;
@@ -189,18 +189,7 @@ pub fn log(
     };
 
     if (uart_logger) |uart| {
-        // wait sync
-        RTC.CTLRL.modify(.{
-            .RSF = 0,
-        });
-        while (RTC.CTLRL.read().RSF == 0) {
-            asm volatile ("" ::: "memory");
-        }
-        var cntl1 = RTC.CNTL.read().CNTL;
-        var cnth = RTC.CNTH.read().CNTH;
-        var cntl2 = RTC.CNTL.read().CNTL;
-        if (cntl2 < cntl1) cnth = RTC.CNTH.read().CNTH;
-        const current_time = (@as(u32, cnth) << 16) + cntl2;
+        const current_time = time.get_uptime();
         const seconds = current_time / 1000;
         const microseconds = current_time % 1000;
 

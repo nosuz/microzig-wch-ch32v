@@ -1,6 +1,7 @@
 const microzig = @import("microzig");
 const peripherals = microzig.chip.peripherals;
 const PFIC = peripherals.PFIC;
+const RTC = peripherals.RTC;
 
 const root = @import("root");
 
@@ -36,4 +37,21 @@ pub fn sleep_ms(duration: u16) void {
     PFIC.STK_CTLR.modify(.{
         .STE = 0,
     });
+}
+
+pub fn get_uptime() u32 {
+    // return ms from power-on
+    // wait sync
+    RTC.CTLRL.modify(.{
+        .RSF = 0,
+    });
+    while (RTC.CTLRL.read().RSF == 0) {
+        asm volatile ("" ::: "memory");
+    }
+    var cntl1 = RTC.CNTL.read().CNTL;
+    var cnth = RTC.CNTH.read().CNTH;
+    var cntl2 = RTC.CNTL.read().CNTL;
+    // check over flow
+    if (cntl2 < cntl1) cnth = RTC.CNTH.read().CNTH;
+    return (@as(u32, cnth) << 16) + cntl2;
 }
