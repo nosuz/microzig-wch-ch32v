@@ -152,6 +152,27 @@ var descriptor: ?descriptors.DescriptorIndex = .device;
 // record last sent point
 var next_point: u32 = 0;
 
+const bCharFormat = enum(u8) {
+    one_stop_bit = 0,
+    one_half_stop_bits = 1,
+    two_stop_bits = 2,
+};
+
+const bParityType = enum(u8) {
+    one = 0,
+    odd = 1,
+    even = 2,
+    mark = 3,
+    space = 4,
+};
+
+const LineCodingFormat = packed struct(u56) {
+    dwDTERate: u32,
+    bCharFormat: bCharFormat,
+    bParityType: bParityType,
+    bDataBits: u8,
+};
+
 pub fn init() void {
     // 21.2.2 Functional configuration
     // 2) Module initialization
@@ -538,6 +559,8 @@ fn EP0_CONTROL_SETUP() void {
                 .SET_CONTROL_LINE_STATE => {
                     usb_state = .cls_set_line_control_state;
                     // SETUP value is flow control
+                    const con_state = if ((setup_data.wValue & 0x01) == 0) false else true;
+                    serial.set_connection_state(con_state);
                     EP0_expect_IN(0);
                 },
                 else => {
@@ -603,6 +626,12 @@ fn EP0_CONTROL_OUT() void {
     switch (usb_state) {
         .cls_set_line_coding => {
             // set serial config
+            // LineCodingFormat is 7 bytes.
+            var _buffer = [_]u8{0} ** 7;
+            for (0..7) |i| {
+                _buffer[i] = read_rx(&ep_buf[0].rx, i);
+            }
+            _ = @as(LineCodingFormat, @bitCast(_buffer));
             EP0_expect_IN(0);
         },
         .cls_set_line_control_state => {

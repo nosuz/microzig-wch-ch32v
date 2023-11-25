@@ -16,6 +16,7 @@ const Tx_Buffer = rb.RingBuffer(0, u8, Capacity){};
 const Rx_Buffer = rb.RingBuffer(1, u8, Capacity){};
 
 var IN_TX_TRANSACTION = false;
+var CONNECTED = false;
 
 pub fn configure_eps() void {
     usb.btable[1].COUNT_TX = 0;
@@ -174,7 +175,8 @@ pub fn read() u8 {
 }
 
 pub fn write(chr: u8) void {
-    Tx_Buffer.write_block(chr);
+    // discard data if connection is closed.
+    if (CONNECTED) Tx_Buffer.write_block(chr);
 }
 
 pub fn is_readable() bool {
@@ -183,4 +185,12 @@ pub fn is_readable() bool {
 
 pub fn is_writeable() bool {
     return !Tx_Buffer.is_full();
+}
+
+pub fn set_connection_state(state: bool) void {
+    CONNECTED = state;
+}
+
+pub fn is_connected() bool {
+    return CONNECTED;
 }
