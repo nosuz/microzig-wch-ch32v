@@ -83,6 +83,10 @@ usb_serial_echo: all
 	riscv64-unknown-elf-objcopy -O binary zig-out/bin/usb_serial_echo zig-out/${BIN_NAME} && \
 	riscv64-unknown-elf-objdump --disassemble-all zig-out/bin/usb_serial_echo > zig-out/usb_serial_echo.s
 
+usb_serial_log: all
+	riscv64-unknown-elf-objcopy -O binary zig-out/bin/usb_serial_log zig-out/${BIN_NAME} && \
+	riscv64-unknown-elf-objdump --disassemble-all zig-out/bin/usb_serial_log > zig-out/usb_serial_log.s
+
 flash:
 	#wchisp flash zig-out/${BIN_NAME}
 	wch-isp -pr flash zig-out/${BIN_NAME}

@@ -10,6 +10,7 @@ const rb = ch32v.ring_buffer;
 
 const peripherals = microzig.chip.peripherals;
 const USBD = peripherals.USB;
+const RTC = peripherals.RTC;
 
 const Capacity = 128;
 const Tx_Buffer = rb.RingBuffer(0, u8, Capacity){};
@@ -17,6 +18,12 @@ const Rx_Buffer = rb.RingBuffer(1, u8, Capacity){};
 
 var IN_TX_TRANSACTION = false;
 var CONNECTED = false;
+
+// Please help: with format a string with numbers or allocator instance in microzig. #132
+// https://github.com/ZigEmbeddedGroup/microzig/issues/132#issuecomment-1662976196
+var fmt_buffer: [1024]u8 = undefined;
+var fba = std.heap.FixedBufferAllocator.init(fmt_buffer[0..]);
+const allocator = fba.allocator();
 
 pub fn configure_eps() void {
     usb.btable[1].COUNT_TX = 0;
@@ -179,6 +186,21 @@ pub fn write(chr: u8) void {
     if (CONNECTED) Tx_Buffer.write_block(chr);
 }
 
+pub fn print(comptime fmt: []const u8, args: anytype) !void {
+    if (CONNECTED) {
+        const string = try std.fmt.allocPrint(
+            allocator,
+            fmt,
+            args,
+        );
+        defer allocator.free(string);
+
+        for (string) |byte| {
+            Tx_Buffer.write_block(byte);
+        }
+    }
+}
+
 pub fn is_readable() bool {
     return !Rx_Buffer.is_empty();
 }
@@ -193,4 +215,54 @@ pub fn set_connection_state(state: bool) void {
 
 pub fn is_connected() bool {
     return CONNECTED;
+}
+
+pub fn log(
+    // RTC required
+    comptime level: std.log.Level,
+    comptime scope: @TypeOf(.EnumLiteral),
+    comptime format: []const u8,
+    args: anytype,
+) void {
+    const level_prefix = comptime "[{}.{:0>3}] " ++ level.asText();
+    const prefix = comptime level_prefix ++ switch (scope) {
+        .default => ": ",
+        else => " (" ++ @tagName(scope) ++ "): ",
+    };
+
+    if (CONNECTED) {
+        // wait sync
+        RTC.CTLRL.modify(.{
+            .RSF = 0,
+        });
+        while (RTC.CTLRL.read().RSF == 0) {
+            asm volatile ("" ::: "memory");
+        }
+        var cntl1 = RTC.CNTL.read().CNTL;
+        var cnth = RTC.CNTH.read().CNTH;
+        var cntl2 = RTC.CNTL.read().CNTL;
+        if (cntl2 < cntl1) cnth = RTC.CNTH.read().CNTH;
+        const current_time = (@as(u32, cnth) << 16) + cntl2;
+        const seconds = current_time / 1000;
+        const microseconds = current_time % 1000;
+
+        print(prefix ++ format ++ "\r\n", .{ seconds, microseconds } ++ args) catch {};
+    }
+}
+
+pub fn log_no_timestamp(
+    comptime level: std.log.Level,
+    comptime scope: @TypeOf(.EnumLiteral),
+    comptime format: []const u8,
+    args: anytype,
+) void {
+    const level_prefix = comptime level.asText();
+    const prefix = comptime level_prefix ++ switch (scope) {
+        .default => ": ",
+        else => " (" ++ @tagName(scope) ++ "): ",
+    };
+
+    if (CONNECTED) {
+        print(prefix ++ format ++ "\r\n", args) catch {};
+    }
 }
