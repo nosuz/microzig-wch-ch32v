@@ -177,7 +177,10 @@ pub const Configuration = struct {
             }
             // @compileLog(config.sysclk_src);
             // @compileLog(sysclk_src);
-            const pll_multiplex = @as(u32, @intFromEnum(config.pll_multiplex)) + 2;
+            const pll_multiplex = switch (config.pll_multiplex) {
+                .MUL_18 => @as(u32, @intFromEnum(config.pll_multiplex)) + 3,
+                else => @as(u32, @intFromEnum(config.pll_multiplex)) + 2,
+            };
             pllclk_freq = pll_multiplex * switch (config.pll_src) {
                 .HSI => config.hsi_freq,
                 .HSI_div2 => config.hsi_freq / 2,
@@ -428,7 +431,10 @@ pub const Configuration = struct {
             pll_src = config.pll_src;
             pll_multiplex = config.pll_multiplex;
 
-            const pll_multiplex_value = @as(u32, @intFromEnum(config.pll_multiplex)) + 2;
+            const pll_multiplex_value = switch (config.pll_multiplex) {
+                .MUL_18 => @as(u32, @intFromEnum(config.pll_multiplex)) + 3,
+                else => @as(u32, @intFromEnum(config.pll_multiplex)) + 2,
+            };
             pllclk_freq = pll_multiplex_value * switch (config.pll_src) {
                 .HSI => config.hsi_freq,
                 .HSI_div2 => config.hsi_freq / 2,
