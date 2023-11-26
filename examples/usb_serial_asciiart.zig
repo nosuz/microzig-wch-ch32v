@@ -77,6 +77,7 @@ pub fn main() !void {
     while (true) {
         for (0..20) |j| {
             std.log.debug("start: {}", .{j});
+            const time_start = time.get_uptime();
             // 10 FOR Y=-12 TO 12
             var y: f32 = -12;
             while (y <= 12) {
@@ -125,7 +126,9 @@ pub fn main() !void {
                 // 230 NEXT Y
                 y += 1;
             }
+            const delta = time.get_uptime() - time_start;
             std.log.debug("end: {}", .{j});
+            std.log.debug("delta: {} ms", .{delta});
         }
         pins.led.toggle();
 

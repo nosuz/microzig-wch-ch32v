@@ -17,8 +17,8 @@ pub const pin_config = ch32v.pins.GlobalConfiguration{
     .PA11 = .{
         .name = "usb",
         .function = .USBD,
-        // .usbd_speed = .Full_speed, // use SOF instead of timer
-        .usbd_speed = .Low_speed, // no BULK transfer; for debugging
+        .usbd_speed = .Full_speed, // use SOF instead of timer
+        // .usbd_speed = .Low_speed, // no BULK transfer; for debugging
     },
 };
 
@@ -62,12 +62,26 @@ pub fn main() !void {
     const pins = pin_config.apply();
 
     usb.init();
-    setup_timer();
+    // setup_timer(); // flow-speed has no SOF packet.
     interrupt.enable_interrupt();
 
+    const count = 10000;
     var i: u32 = 0;
     while (true) {
-        std.log.debug("seq: {}", .{i});
+        std.log.debug("start seq: {}", .{i});
+        const time_start = time.get_uptime();
+        for (0..count) |_| {
+            usb_serial.write('@');
+        }
+        usb_serial.write('\r');
+        usb_serial.write('\n');
+        const delta = time.get_uptime() - time_start;
+        std.log.debug("finish seq: {}", .{i});
+        std.log.debug("count: {} bytes", .{count});
+        std.log.debug("delta: {} ms", .{delta});
+        // makes really large binary
+        // const speed: f32 = count / @as(f32, @floatFromInt(delta)) / 1000;
+        // std.log.debug("speed: {d:.1} byte/sec", .{speed});
         i += 1;
 
         pins.led.toggle();
