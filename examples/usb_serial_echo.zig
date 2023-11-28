@@ -1,13 +1,14 @@
 const std = @import("std");
 const microzig = @import("microzig");
 
-const usb = @import("usb/cdc_acm/usbd.zig");
-const usb_serial = @import("usb/cdc_acm/serial.zig");
+// variable name is fixed for usb device class
+pub const usbd_class = @import("lib/cdc_acm.zig");
 
 const ch32v = microzig.hal;
 const clocks = ch32v.clocks;
 const time = ch32v.time;
 const serial = ch32v.serial;
+const usbd = ch32v.usbd;
 const interrupt = ch32v.interrupt;
 
 pub const pin_config = ch32v.pins.GlobalConfiguration{
@@ -29,6 +30,9 @@ pub const pin_config = ch32v.pins.GlobalConfiguration{
         .function = .USBD,
         // .usbd_speed = .Full_speed, // use SOF instead of timer
         .usbd_speed = .Low_speed, // no BULK transfer; for debugging
+        .usbd_ep_num = 4,
+        // .usbd_buffer_size = .byte_8, // default buffer size
+        // .usbd_handle_sof = false, // genellary no need to handle SOF
     },
 };
 
@@ -51,7 +55,7 @@ pub const __Clocks_freq = clocks_config.get_freqs();
 pub const microzig_options = struct {
     pub const interrupts = struct {
         pub fn USB_LP_CAN1_RX0() void {
-            usb.usbd_handler();
+            usbd.interrupt_handler();
         }
         pub fn TIM1_UP() void {
             tim1_up_handler();
@@ -69,21 +73,21 @@ pub const std_options = struct {
 pub fn main() !void {
     clocks_config.apply();
 
-    const pins = pin_config.apply();
+    const ios = pin_config.apply();
 
-    usb.init();
+    ios.usb.init();
     setup_timer();
     interrupt.enable_interrupt();
 
     // start logger
-    serial.init_logger(pins.tx.get_port());
+    serial.init_logger(ios.tx.get_port());
 
     while (true) {
         // echo recieved data
-        const chr = usb_serial.read();
+        const chr = ios.usb.read();
         // usb_serial.Tx_Buffer.write_block(chr);
         for (0..10) |_| {
-            usb_serial.write(chr);
+            ios.usb.write(chr);
         }
     }
 }
@@ -135,5 +139,5 @@ fn tim1_up_handler() void {
     });
 
     // triger Tx
-    usb_serial.start_tx();
+    usbd_class.start_tx();
 }

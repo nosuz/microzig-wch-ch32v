@@ -108,6 +108,9 @@ pub const Pin = enum {
 
         // USBD
         usbd_speed: ?usbd.Speed = null,
+        usbd_ep_num: ?u3 = null,
+        usbd_buffer_size: ?usbd.BufferSize = null,
+        usbd_handle_sof: ?bool = null,
     };
 };
 
@@ -323,7 +326,19 @@ pub fn Pins(comptime config: GlobalConfiguration) type {
                 } else if (pin_config.function == .SPI) {
                     pin_field.type = spi.SPI(field.name);
                 } else if (pin_config.function == .USBD) {
-                    pin_field.type = usbd.USBD();
+                    // make copy by the name "__usbd__"
+                    const usbd_pin_field = StructField{
+                        .is_comptime = false,
+                        .default_value = null,
+
+                        // initialized below:
+                        .name = "__usbd__",
+                        .type = usbd.USBD(pin_config),
+                        .alignment = @alignOf(field.type),
+                    };
+                    fields = fields ++ &[_]StructField{usbd_pin_field};
+
+                    pin_field.type = usbd.USBD(pin_config);
                 } else {
                     continue;
                 }
@@ -750,6 +765,11 @@ pub const GlobalConfiguration = struct {
                             if (port.function != .USBD) {
                                 @compileError("PA12 is used for USBD. Not available for other functions.");
                             }
+                        }
+
+                        // check bus speed and buffer size.
+                        if ((pin_config.usbd_speed == .Low_speed) and (pin_config.usbd_buffer_size == .byte_64)) {
+                            @compileError("USBD: 8 bytes is enough for low-speed devices buffer size.");
                         }
 
                         // Set PA11 and PA12 as GPIO out and set 0.

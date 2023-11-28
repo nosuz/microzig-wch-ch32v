@@ -1,4 +1,7 @@
-const usbd = @import("usbd.zig");
+const microzig = @import("microzig");
+
+const ch32v = microzig.hal;
+const usbd = ch32v.usbd;
 
 const MAX_LEN = usbd.BUFFER_SIZE;
 

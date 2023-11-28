@@ -1,12 +1,15 @@
 const std = @import("std");
 const microzig = @import("microzig");
-const usb = @import("usb/hid_keyboard/usbd.zig");
-const keyboard = @import("usb/hid_keyboard/keyboard.zig");
+
+// variable name is fixed for usb device class
+pub const usbd_class = @import("lib/hid_keyboard.zig");
 
 const ch32v = microzig.hal;
 const clocks = ch32v.clocks;
 const time = ch32v.time;
 const serial = ch32v.serial;
+const pins = ch32v.pins;
+const usbd = ch32v.usbd;
 const interrupt = ch32v.interrupt;
 
 pub const pin_config = ch32v.pins.GlobalConfiguration{
@@ -28,7 +31,10 @@ pub const pin_config = ch32v.pins.GlobalConfiguration{
         .name = "usb",
         .function = .USBD,
         // .usbd_speed = .Full_speed,
-        .usbd_speed = .Low_speed,
+        // .usbd_speed = .Low_speed,
+        .usbd_ep_num = 2,
+        // .usbd_buffer_size = .byte_8, // default buffer size
+        // .usbd_handle_sof = false, // genellary no need to handle SOF
     },
     // .PA12 = .{
     //     // Using for other than USBD will make error.
@@ -56,7 +62,7 @@ pub const __Clocks_freq = clocks_config.get_freqs();
 pub const microzig_options = struct {
     pub const interrupts = struct {
         pub fn USB_LP_CAN1_RX0() void {
-            usb.usbd_handler();
+            usbd.interrupt_handler();
         }
     };
 };
@@ -71,14 +77,14 @@ pub const std_options = struct {
 pub fn main() !void {
     clocks_config.apply();
 
-    const pins = pin_config.apply();
+    const ios = pin_config.apply();
 
     // start logger
-    serial.init_logger(pins.tx.get_port());
+    serial.init_logger(ios.tx.get_port());
 
-    usb.init();
+    ios.usb.init();
     interrupt.enable_interrupt();
-    pins.led.toggle();
+    ios.led.toggle();
 
     // const raise error: expected type '*rand.Xoshiro256', found '*const rand.Xoshiro256'
     // var rand = std.rand.DefaultPrng.init(0);
@@ -87,7 +93,7 @@ pub fn main() !void {
     time.sleep_ms(1000);
     const command = "cat > /dev/null\n";
     for (0..command.len) |i| {
-        pins.led.toggle();
+        ios.led.toggle();
         type_keyboard(command[i]);
     }
     time.sleep_ms(500);
@@ -107,11 +113,11 @@ pub fn main() !void {
 
     // set Ctrl-D
     // press key
-    var ctrl_d = keyboard.ascii_to_usb_keycode('d').?;
+    var ctrl_d = usbd_class.ascii_to_usb_keycode('d').?;
     ctrl_d.modifier.left_ctrl = 1;
-    keyboard.send_keycodes(ctrl_d);
+    ios.usb.send_keycodes(ctrl_d);
     // release key
-    keyboard.send_keycodes(keyboard.KeyboardData{});
+    ios.usb.send_keycodes(usbd_class.KeyboardData{});
 
     // halt
     while (true) {
@@ -120,12 +126,13 @@ pub fn main() !void {
 }
 
 fn type_keyboard(code: u8) void {
-    if (keyboard.ascii_to_usb_keycode(code)) |key_data| {
+    if (usbd_class.ascii_to_usb_keycode(code)) |key_data| {
+        const ios = pins.get_pins(pin_config);
         // std.log.debug("code: 0x{X}", .{key_data.key1});
         // press key
-        keyboard.send_keycodes(key_data);
+        ios.usb.send_keycodes(key_data);
         // release key
-        keyboard.send_keycodes(keyboard.KeyboardData{});
+        ios.usb.send_keycodes(usbd_class.KeyboardData{});
     }
 }
 

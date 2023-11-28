@@ -1,12 +1,13 @@
 const std = @import("std");
 const microzig = @import("microzig");
 
-const usb = @import("usb/cdc_acm/usbd.zig");
-const usb_serial = @import("usb/cdc_acm/serial.zig");
+// variable name is fixed for usb device class
+pub const usbd_class = @import("lib/cdc_acm.zig");
 
 const ch32v = microzig.hal;
 const clocks = ch32v.clocks;
 const time = ch32v.time;
+const usbd = ch32v.usbd;
 const interrupt = ch32v.interrupt;
 
 pub const pin_config = ch32v.pins.GlobalConfiguration{
@@ -19,6 +20,9 @@ pub const pin_config = ch32v.pins.GlobalConfiguration{
         .function = .USBD,
         .usbd_speed = .Full_speed, // use SOF instead of timer
         // .usbd_speed = .Low_speed, // no BULK transfer; for debugging
+        .usbd_ep_num = 4,
+        // .usbd_buffer_size = .byte_64,
+        .usbd_handle_sof = true,
     },
 };
 
@@ -41,27 +45,27 @@ pub const __Clocks_freq = clocks_config.get_freqs();
 pub const microzig_options = struct {
     pub const interrupts = struct {
         pub fn USB_LP_CAN1_RX0() void {
-            usb.usbd_handler();
+            usbd.interrupt_handler();
         }
-        pub fn TIM1_UP() void {
-            tim1_up_handler();
-        }
+        // pub fn TIM1_UP() void {
+        //     tim1_up_handler();
+        // }
     };
 };
 
 // set logger
 pub const std_options = struct {
     pub const log_level = .debug;
-    pub const logFn = usb_serial.log;
+    pub const logFn = usbd_class.log;
     // pub const logFn = ch32v.serial.log_no_timestamp;
 };
 
 pub fn main() !void {
     clocks_config.apply();
 
-    const pins = pin_config.apply();
+    const ios = pin_config.apply();
 
-    usb.init();
+    ios.usb.init();
     // setup_timer(); // flow-speed has no SOF packet.
     interrupt.enable_interrupt();
 
@@ -71,10 +75,10 @@ pub fn main() !void {
         std.log.debug("start seq: {}", .{i});
         const time_start = time.get_uptime();
         for (0..count) |_| {
-            usb_serial.write('@');
+            ios.usb.write('@');
         }
-        usb_serial.write('\r');
-        usb_serial.write('\n');
+        ios.usb.write('\r');
+        ios.usb.write('\n');
         const delta = time.get_uptime() - time_start;
         std.log.debug("finish seq: {}", .{i});
         std.log.debug("count: {} bytes", .{count});
@@ -84,7 +88,7 @@ pub fn main() !void {
         // std.log.debug("speed: {d:.1} byte/sec", .{speed});
         i += 1;
 
-        pins.led.toggle();
+        ios.led.toggle();
         time.sleep_ms(500);
     }
 }
@@ -136,5 +140,5 @@ fn tim1_up_handler() void {
     });
 
     // triger Tx
-    usb_serial.start_tx();
+    usbd_class.start_tx();
 }

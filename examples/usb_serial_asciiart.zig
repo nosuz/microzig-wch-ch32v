@@ -8,13 +8,14 @@
 const std = @import("std");
 const microzig = @import("microzig");
 
-const usb = @import("usb/cdc_acm/usbd.zig");
-const usb_serial = @import("usb/cdc_acm/serial.zig");
+// variable name is fixed for usb device class
+pub const usbd_class = @import("lib/cdc_acm.zig");
 
 const ch32v = microzig.hal;
 const clocks = ch32v.clocks;
 const interrupt = ch32v.interrupt;
 const time = ch32v.time;
+const usbd = ch32v.usbd;
 
 pub const pin_config = ch32v.pins.GlobalConfiguration{
     .PA5 = .{
@@ -27,6 +28,9 @@ pub const pin_config = ch32v.pins.GlobalConfiguration{
         .function = .USBD,
         .usbd_speed = .Full_speed, // use SOF instead of timer
         // .usbd_speed = .Low_speed, // no BULK transfer; for debugging
+        .usbd_ep_num = 4,
+        .usbd_buffer_size = .byte_64,
+        .usbd_handle_sof = true,
     },
 };
 
@@ -46,7 +50,7 @@ pub const __Clocks_freq = clocks_config.get_freqs();
 pub const microzig_options = struct {
     pub const interrupts = struct {
         pub fn USB_LP_CAN1_RX0() void {
-            usb.usbd_handler();
+            usbd.interrupt_handler();
         }
     };
 };
@@ -54,24 +58,24 @@ pub const microzig_options = struct {
 // set logger
 pub const std_options = struct {
     pub const log_level = .debug;
-    pub const logFn = usb_serial.log;
+    pub const logFn = usbd_class.log;
     // pub const logFn = ch32v.serial.log_no_timestamp;
 };
 
 pub fn main() !void {
     clocks_config.apply();
 
-    const pins = pin_config.apply();
+    const ios = pin_config.apply();
 
-    usb.init();
+    ios.usb.init();
     interrupt.enable_interrupt();
 
     // start logger
-    while (!usb_serial.is_connected()) {
+    while (!ios.usb.is_connected()) {
         asm volatile ("" ::: "memory");
     }
     time.sleep_ms(500);
-    pins.led.toggle();
+    ios.led.toggle();
     std.log.debug("seq:", .{});
 
     while (true) {
@@ -109,20 +113,20 @@ pub fn main() !void {
                     }
                     if (i > 15) {
                         // 130 PRINT " ",
-                        usb_serial.write(' ');
+                        ios.usb.write(' ');
                         // 140 GOTO 210
                     } else {
                         // 200 IF I>9 THEN I=I+7
                         if (i > 9) i += 7;
                         // 205 PRINT CHR(48+I),
-                        usb_serial.write(48 + i);
+                        ios.usb.write(48 + i);
                     }
                     // 210 NEXT X
                     x += 1;
                 }
                 // 220 PRINT
-                usb_serial.write('\r');
-                usb_serial.write('\n');
+                ios.usb.write('\r');
+                ios.usb.write('\n');
                 // 230 NEXT Y
                 y += 1;
             }
@@ -130,10 +134,10 @@ pub fn main() !void {
             std.log.debug("end: {}", .{j});
             std.log.debug("delta: {} ms", .{delta});
         }
-        pins.led.toggle();
+        ios.led.toggle();
 
         // wait until any key
-        _ = usb_serial.read();
+        _ = ios.usb.read();
     }
 
     // // halt

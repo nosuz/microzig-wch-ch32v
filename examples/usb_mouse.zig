@@ -1,12 +1,14 @@
 const std = @import("std");
 const microzig = @import("microzig");
-const usb = @import("usb/hid_mouse/usbd.zig");
-const mouse = @import("usb/hid_mouse/mouse.zig");
+
+// variable name is fixed for usb device class
+pub const usbd_class = @import("lib/hid_mouse.zig");
 
 const ch32v = microzig.hal;
 const clocks = ch32v.clocks;
 const time = ch32v.time;
 const serial = ch32v.serial;
+const usbd = ch32v.usbd;
 const interrupt = ch32v.interrupt;
 
 pub const pin_config = ch32v.pins.GlobalConfiguration{
@@ -28,7 +30,10 @@ pub const pin_config = ch32v.pins.GlobalConfiguration{
         .name = "usb",
         .function = .USBD,
         // .usbd_speed = .Full_speed,
-        .usbd_speed = .Low_speed,
+        // .usbd_speed = .Low_speed, // default speed
+        .usbd_ep_num = 2,
+        // .usbd_buffer_size = .byte_8, // default buffer size
+        // .usbd_handle_sof = false, // genellary no need to handle SOF
     },
     // .PA12 = .{
     //     // Using for other than USBD will make error.
@@ -56,7 +61,7 @@ pub const __Clocks_freq = clocks_config.get_freqs();
 pub const microzig_options = struct {
     pub const interrupts = struct {
         pub fn USB_LP_CAN1_RX0() void {
-            usb.usbd_handler();
+            usbd.interrupt_handler();
         }
     };
 };
@@ -76,7 +81,7 @@ pub fn main() !void {
     // start logger
     serial.init_logger(pins.tx.get_port());
 
-    usb.init();
+    pins.usb.init();
     interrupt.enable_interrupt();
 
     // const raise error: expected type '*rand.Xoshiro256', found '*const rand.Xoshiro256'
@@ -87,6 +92,6 @@ pub fn main() !void {
         // pins.led.toggle();
         const x = rand.random().int(i8);
         const y = rand.random().int(i8);
-        mouse.update(x, y);
+        pins.usb.update(x, y);
     }
 }
