@@ -148,7 +148,7 @@ fn single(gpio_num: u6) [@typeInfo(Pin).Enum.fields.len]u1 {
 const function_table = [@typeInfo(Function).Enum.fields.len][@typeInfo(Pin).Enum.fields.len]u1{
     all(), // GPIO
     list(&.{ 0, 1, 2, 3, 4, 5, 6, 7, 16, 17, 32, 33, 34, 35, 36, 51, 52 }), // ADC
-    list(&.{ 0, 1, 9, 10, 26, 27, 42, 43 }), // SERIAL
+    list(&.{ 2, 3, 9, 10, 26, 27, 42, 43 }), // SERIAL
     list(&.{ 22, 23, 26, 27 }), // I2C
     list(&.{ 5, 6, 7, 29, 30, 31 }), // SPI
     list(&.{ 11, 12 }), // USBD
@@ -221,7 +221,7 @@ pub fn parse_pin(comptime spec: []const u8) type {
                 else => false,
             };
         };
-    } else if ((spec[0] == 'P') and (spec[1] >= 'A') and (spec[1] <= 'E')) {
+    } else if ((spec[0] == 'P') and (spec[1] >= 'A') and (spec[1] <= 'D')) {
         return struct {
             // pin_num: global pin number
             const pin_number: comptime_int = @intFromEnum(@field(Pin, spec));
@@ -244,14 +244,14 @@ pub fn parse_pin(comptime spec: []const u8) type {
             // Serial
             pub const serial_port_regs = switch (pin_number) {
                 9, 10 => peripherals.USART1,
-                0, 1 => peripherals.USART2,
+                2, 3 => peripherals.USART2,
                 26, 27 => peripherals.USART3,
                 42, 43 => peripherals.UART4,
                 else => undefined,
             };
             pub const serial_port = switch (pin_number) {
                 9, 10 => serial.Port.USART1,
-                0, 1 => serial.Port.USART2,
+                2, 3 => serial.Port.USART2,
                 26, 27 => serial.Port.USART3,
                 42, 43 => serial.Port.UART4,
                 else => unreachable,
@@ -572,14 +572,14 @@ pub const GlobalConfiguration = struct {
                         port_cfg_mask[index] |= 0b1111 << shift_num;
                         switch (pin.pin_number) {
                             // TX
-                            0, 9, 26, 42 => {
+                            2, 9, 26, 42 => {
                                 // MODE: output max. 10MHz
                                 port_cfg_value[index] |= 0b10 << shift_num;
                                 // CFG: alternative push-pull
                                 port_cfg_value[index] |= 0b10 << (shift_num + 2);
                             },
                             //RX
-                            1, 10, 27, 43 => {
+                            3, 10, 27, 43 => {
                                 // MODE
                                 port_cfg_value[index] |= 0b00 << shift_num;
                                 // CFG
