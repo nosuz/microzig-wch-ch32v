@@ -195,15 +195,17 @@ pub const Configuration = struct {
             // @compileLog(sysclk_src);
             switch (sysclk_src) {
                 Sysclk_src.HSE => {
-                    if (sysclk_freq > 25_000_000) {
-                        @compileError("HSE freq must lesss than 25MHz.");
-                    } else if (!config.hse_baypass and sysclk_freq < 3_000_000) {
-                        @compileError("HSE freq must greater than 3MHz.");
-                    }
+                    if (sysclk_freq) |freq| {
+                        if (freq > 25_000_000) {
+                            @compileError("HSE freq must lesss than 25MHz.");
+                        } else if (!config.hse_baypass and freq < 3_000_000) {
+                            @compileError("HSE freq must greater than 3MHz.");
+                        }
+                    } else @compileError("no HSE freq is specified.");
                 },
                 Sysclk_src.PLL => {
                     if (sysclk_freq > 144_000_000) {
-                        @compileError("Sysclk freq must lesss than 25MHz.");
+                        @compileError("Sysclk freq must lesss than 144MHz.");
                     }
                 },
                 else => {},
@@ -220,7 +222,12 @@ pub const Configuration = struct {
                 .SYSCLK_256 => 256,
                 .SYSCLK_512 => 512,
             };
-            hclk_freq = sysclk_freq / ahb_prescale;
+            if (sysclk_src == .HSE) {
+                // not null is already checked.
+                hclk_freq = sysclk_freq.? / ahb_prescale;
+            } else {
+                hclk_freq = sysclk_freq / ahb_prescale;
+            }
 
             const apb1_prescale = switch (config.apb1_prescale) {
                 .HCLK => 1,
@@ -250,10 +257,6 @@ pub const Configuration = struct {
                 .PCLK2_8 => 8,
             };
             adcclk_freq = pclk2_freq / adc_prescale;
-            // if (adcclk_freq > 14_000_000) {
-            //     @compileLog("ADC clock = ", adcclk_freq);
-            //     @compileError("ADC clock shall not exceed 14MHz ");
-            // }
 
             rtcclk_freq = switch (config.rtcclk_src) {
                 .LSE => config.lse_freq,
@@ -448,11 +451,13 @@ pub const Configuration = struct {
             };
             // @compileLog(sysclk_src);
             if (sysclk_src == .HSE) {
-                if (sysclk_freq > 25_000_000) {
-                    @compileError("HSE freq must lesss than 25MHz.");
-                } else if (!config.hse_baypass and sysclk_freq < 3_000_000) {
-                    @compileError("HSE freq must greater than 3MHz.");
-                }
+                if (sysclk_freq) |freq| {
+                    if (freq > 25_000_000) {
+                        @compileError("HSE freq must lesss than 25MHz.");
+                    } else if (!config.hse_baypass and freq < 3_000_000) {
+                        @compileError("HSE freq must greater than 3MHz.");
+                    }
+                } else @compileError("no HSE freq is specified.");
             }
             if (use_pll and (sysclk_freq > 144_000_000)) {
                 @compileError("Sysclk freq must lesss than 144MHz.");
@@ -469,7 +474,12 @@ pub const Configuration = struct {
                 .SYSCLK_256 => 256,
                 .SYSCLK_512 => 512,
             };
-            hclk_freq = sysclk_freq / ahb_prescale;
+            if (sysclk_src == .HSE) {
+                // not null is already checked.
+                hclk_freq = sysclk_freq.? / ahb_prescale;
+            } else {
+                hclk_freq = sysclk_freq / ahb_prescale;
+            }
 
             const apb1_prescale = switch (config.apb1_prescale) {
                 .HCLK => 1,
