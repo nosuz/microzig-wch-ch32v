@@ -1,15 +1,18 @@
 const std = @import("std");
 const microzig = @import("microzig");
 
-// variable name is fixed for usb device class
-pub const usbd_class = @import("lib/cdc_acm.zig");
-
 const ch32v = microzig.hal;
 const clocks = ch32v.clocks;
 const time = ch32v.time;
 const serial = ch32v.serial;
 const usbd = ch32v.usbd;
 const interrupt = ch32v.interrupt;
+
+// variable name is fixed for usb device class
+pub const usbd_class = if (ch32v.cpu_type == .ch32v103)
+    @import("lib_ch32v103/cdc_acm.zig")
+else
+    @import("lib_ch32v203/cdc_acm.zig");
 
 pub const pin_config = ch32v.pins.GlobalConfiguration{
     .PA5 = .{
@@ -53,14 +56,26 @@ pub const __Clocks_freq = clocks_config.get_freqs();
 
 // Set interrupt handlers
 pub const microzig_options = struct {
-    pub const interrupts = struct {
-        pub fn USB_LP_CAN1_RX0() void {
-            usbd.interrupt_handler();
+    pub const interrupts = if (ch32v.cpu_type == .ch32v103)
+        struct {
+            // CH32V103
+            pub fn USBHD() void {
+                usbd.interrupt_handler();
+            }
+            pub fn TIM1_UP() void {
+                tim1_up_handler();
+            }
         }
-        pub fn TIM1_UP() void {
-            tim1_up_handler();
-        }
-    };
+    else
+        struct {
+            // CH32V203
+            pub fn USB_LP_CAN1_RX0() void {
+                usbd.interrupt_handler();
+            }
+            pub fn TIM1_UP() void {
+                tim1_up_handler();
+            }
+        };
 };
 
 // set logger
@@ -75,21 +90,21 @@ pub fn main() !void {
 
     const ios = pin_config.apply();
 
-    ios.usb.init();
+    // ios.usb.init();
     setup_timer();
     interrupt.enable_interrupt();
 
     // start logger
     serial.init_logger(ios.tx.get_port());
 
-    while (true) {
-        // echo recieved data
-        const chr = ios.usb.read();
-        // usb_serial.Tx_Buffer.write_block(chr);
-        for (0..10) |_| {
-            ios.usb.write(chr);
-        }
-    }
+    // while (true) {
+    //     // echo recieved data
+    //     const chr = ios.usb.read();
+    //     // usb_serial.Tx_Buffer.write_block(chr);
+    //     for (0..10) |_| {
+    //         ios.usb.write(chr);
+    //     }
+    // }
 }
 
 fn setup_timer() void {
@@ -117,7 +132,7 @@ fn setup_timer() void {
     TIM1.INTFR.modify(.{
         .UIF = 0,
     });
-    PFIC.IPRR2.write_raw(1 << (@intFromEnum(interrupt.Interrupts_ch32v203.TIM1_UP) - 32)); // TIM1_UP = 41
+    PFIC.IPRR2.write_raw(1 << (@intFromEnum(interrupt.Interrupts.TIM1_UP) - 32)); // TIM1_UP = 41
 
     // enable interrupt on Update.
     TIM1.DMAINTENR.modify(.{
@@ -125,7 +140,7 @@ fn setup_timer() void {
     });
     // enable interrupts
     var ienr = PFIC.IENR2.read().INTEN;
-    ienr |= 1 << (@intFromEnum(interrupt.Interrupts_ch32v203.TIM1_UP) - 32);
+    ienr |= 1 << (@intFromEnum(interrupt.Interrupts.TIM1_UP) - 32);
     PFIC.IENR2.write_raw(ienr);
 }
 

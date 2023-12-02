@@ -88,7 +88,7 @@ fn setup_timer() void {
     TIM1.INTFR.modify(.{
         .UIF = 0,
     });
-    PFIC.IPRR2.write_raw(1 << (@intFromEnum(interrupt.Interrupts_ch32v203.TIM1_UP) - 32)); // TIM1_UP = 41
+    PFIC.IPRR2.write_raw(1 << (@intFromEnum(interrupt.Interrupts.TIM1_UP) - 32)); // TIM1_UP = 41
 
     // enable interrupt on Update.
     TIM1.DMAINTENR.modify(.{
@@ -96,7 +96,7 @@ fn setup_timer() void {
     });
     // enable interrupts
     var ienr = PFIC.IENR2.read().INTEN;
-    ienr |= 1 << (@intFromEnum(interrupt.Interrupts_ch32v203.TIM1_UP) - 32);
+    ienr |= 1 << (@intFromEnum(interrupt.Interrupts.TIM1_UP) - 32);
     PFIC.IENR2.write_raw(ienr);
 }
 

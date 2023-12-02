@@ -74,7 +74,7 @@ pub const Adc_prescale = enum(u2) {
 // 1100: PLL input clock x 14;
 // 1101: PLL input clock x 15;
 // 1110: PLL input clock x 16;
-// 1111: PLL input clock x 18;
+// 1111: PLL input clock x 16;
 
 pub const Pll_multiplex = enum(u4) {
     MUL_2 = 0b0000,
@@ -92,7 +92,6 @@ pub const Pll_multiplex = enum(u4) {
     MUL_14 = 0b1100,
     MUL_15 = 0b1101,
     MUL_16 = 0b1110,
-    MUL_18 = 0b1111,
 };
 
 pub const Pll_src = enum {
@@ -177,10 +176,7 @@ pub const Configuration = struct {
             }
             // @compileLog(config.sysclk_src);
             // @compileLog(sysclk_src);
-            const pll_multiplex = switch (config.pll_multiplex) {
-                .MUL_18 => @as(u32, @intFromEnum(config.pll_multiplex)) + 3,
-                else => @as(u32, @intFromEnum(config.pll_multiplex)) + 2,
-            };
+            const pll_multiplex = @as(u32, @intFromEnum(config.pll_multiplex)) + 2;
             pllclk_freq = pll_multiplex * switch (config.pll_src) {
                 .HSI => config.hsi_freq,
                 .HSI_div2 => config.hsi_freq / 2,
@@ -195,15 +191,17 @@ pub const Configuration = struct {
             // @compileLog(sysclk_src);
             switch (sysclk_src) {
                 Sysclk_src.HSE => {
-                    if (sysclk_freq > 25_000_000) {
-                        @compileError("HSE freq must lesss than 25MHz.");
-                    } else if (!config.hse_baypass and sysclk_freq < 3_000_000) {
-                        @compileError("HSE freq must greater than 3MHz.");
-                    }
+                    if (sysclk_freq) |freq| {
+                        if (freq > 16_000_000) {
+                            @compileError("HSE freq must lesss than 16MHz.");
+                        } else if (!config.hse_baypass and freq < 4_000_000) {
+                            @compileError("HSE freq must greater than 4MHz.");
+                        }
+                    } else @compileError("no HSE freq is specified.");
                 },
                 Sysclk_src.PLL => {
-                    if (sysclk_freq > 144_000_000) {
-                        @compileError("Sysclk freq must lesss than 25MHz.");
+                    if (sysclk_freq > 80_000_000) {
+                        @compileError("Sysclk freq must lesss than 80MHz.");
                     }
                 },
                 else => {},
@@ -220,7 +218,12 @@ pub const Configuration = struct {
                 .SYSCLK_256 => 256,
                 .SYSCLK_512 => 512,
             };
-            hclk_freq = sysclk_freq / ahb_prescale;
+            if (sysclk_src == .HSE) {
+                // not null is already checked.
+                hclk_freq = sysclk_freq.? / ahb_prescale;
+            } else {
+                hclk_freq = sysclk_freq / ahb_prescale;
+            }
 
             const apb1_prescale = switch (config.apb1_prescale) {
                 .HCLK => 1,
@@ -250,10 +253,6 @@ pub const Configuration = struct {
                 .PCLK2_8 => 8,
             };
             adcclk_freq = pclk2_freq / adc_prescale;
-            // if (adcclk_freq > 14_000_000) {
-            //     @compileLog("ADC clock = ", adcclk_freq);
-            //     @compileError("ADC clock shall not exceed 14MHz ");
-            // }
 
             rtcclk_freq = switch (config.rtcclk_src) {
                 .LSE => config.lse_freq,
@@ -266,7 +265,7 @@ pub const Configuration = struct {
         // EXTEN_CTR
         // EXTEN reseted only on system reset.
         peripherals.EXTEND.EXTEND_CTR.modify(.{
-            .PLL_HSI_PRE = if (config.pll_src == Pll_src.HSI) 1 else 0,
+            .HSIPRE = if (config.pll_src == Pll_src.HSI) 1 else 0,
         });
 
         switch (sysclk_src) {
@@ -431,10 +430,7 @@ pub const Configuration = struct {
             pll_src = config.pll_src;
             pll_multiplex = config.pll_multiplex;
 
-            const pll_multiplex_value = switch (config.pll_multiplex) {
-                .MUL_18 => @as(u32, @intFromEnum(config.pll_multiplex)) + 3,
-                else => @as(u32, @intFromEnum(config.pll_multiplex)) + 2,
-            };
+            const pll_multiplex_value = @as(u32, @intFromEnum(config.pll_multiplex)) + 2;
             pllclk_freq = pll_multiplex_value * switch (config.pll_src) {
                 .HSI => config.hsi_freq,
                 .HSI_div2 => config.hsi_freq / 2,
@@ -448,14 +444,16 @@ pub const Configuration = struct {
             };
             // @compileLog(sysclk_src);
             if (sysclk_src == .HSE) {
-                if (sysclk_freq > 25_000_000) {
-                    @compileError("HSE freq must lesss than 25MHz.");
-                } else if (!config.hse_baypass and sysclk_freq < 3_000_000) {
-                    @compileError("HSE freq must greater than 3MHz.");
-                }
+                if (sysclk_freq) |freq| {
+                    if (freq > 16_000_000) {
+                        @compileError("HSE freq must lesss than 16MHz.");
+                    } else if (!config.hse_baypass and freq < 4_000_000) {
+                        @compileError("HSE freq must greater than 4MHz.");
+                    }
+                } else @compileError("no HSE freq is specified.");
             }
-            if (use_pll and (sysclk_freq > 144_000_000)) {
-                @compileError("Sysclk freq must lesss than 144MHz.");
+            if (use_pll and (sysclk_freq > 80_000_000)) {
+                @compileError("Sysclk freq must lesss than 80MHz.");
             }
 
             const ahb_prescale = switch (config.ahb_prescale) {
@@ -469,7 +467,12 @@ pub const Configuration = struct {
                 .SYSCLK_256 => 256,
                 .SYSCLK_512 => 512,
             };
-            hclk_freq = sysclk_freq / ahb_prescale;
+            if (sysclk_src == .HSE) {
+                // not null is already checked.
+                hclk_freq = sysclk_freq.? / ahb_prescale;
+            } else {
+                hclk_freq = sysclk_freq / ahb_prescale;
+            }
 
             const apb1_prescale = switch (config.apb1_prescale) {
                 .HCLK => 1,

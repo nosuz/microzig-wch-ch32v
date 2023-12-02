@@ -32,7 +32,7 @@ pub fn main() !void {
 }
 
 fn busyloop() void {
-    const limit = 100_000;
+    const limit = 500_000;
 
     var i: u32 = 0;
     while (i < limit) : (i += 1) {

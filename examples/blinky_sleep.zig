@@ -9,6 +9,9 @@ const pin_config = ch32v.pins.GlobalConfiguration{
     .PA5 = .{
         .name = "led",
         .direction = .out,
+        .level = .high,
+        // .level = .low,
+
     },
 };
 

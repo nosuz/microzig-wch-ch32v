@@ -7,7 +7,6 @@ const root = @import("root");
 
 const ch32v = microzig.hal;
 const pins = ch32v.pins;
-const clocks = ch32v.clocks;
 const interrupt = ch32v.interrupt;
 const time = ch32v.time;
 
@@ -180,7 +179,7 @@ fn default_SOF() void {}
 
 fn addr_by_usbd(value: anytype) u9 {
     // make address seen from USBD
-    return @as(u9, @truncate((@intFromPtr(value) - SRAM_BASE) / 2));
+    return @truncate((@intFromPtr(value) - SRAM_BASE) / 2);
 }
 
 pub fn init() void {
@@ -261,9 +260,9 @@ pub fn init() void {
     // clear status
     USB.ISTR.raw = 0;
     // USB_HP_CAN1_TX = 35
-    // const USB_HP_INT = @intFromEnum(interrupt.Interrupts_ch32v203.USB_HP_CAN1_TX);
+    // const USB_HP_INT = @intFromEnum(interrupt.Interrupts.USB_HP_CAN1_TX);
     // USB_LP_CAN1_RX0 = 36
-    const USB_LP_INT = @intFromEnum(interrupt.Interrupts_ch32v203.USB_LP_CAN1_RX0);
+    const USB_LP_INT = @intFromEnum(interrupt.Interrupts.USB_LP_CAN1_RX0);
     // clear pending interrupt
     PFIC.IPRR2.raw |= (1 << (USB_LP_INT - 32));
     // open interrupt. Enabling global interupt is required.
@@ -288,7 +287,7 @@ pub fn read_tx(ptr: []u32, offset: u32) u8 {
         val = val >> 8;
     }
 
-    return @as(u8, @truncate(val & 0xff));
+    return @truncate(val & 0xff);
 }
 
 // Writing a byte at even address might might write the same value atthe lower odd address.
@@ -535,7 +534,7 @@ fn EP0_CONTROL_SETUP() void {
                     EP0_expect_IN(0);
                 },
                 else => {
-                    pin.led.toggle();
+                    // pin.led.toggle();
 
                     EP0_clear_interupt();
                     std.log.err("USB bReq: {}", .{setup_data.bRequest});

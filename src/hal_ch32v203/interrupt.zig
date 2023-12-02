@@ -12,7 +12,7 @@ pub fn disable_interrupt() void {
     asm volatile ("csrw mstatus, t0" ::: "");
 }
 
-pub const Interrupts_ch32v203 = enum(u7) {
+pub const Interrupts = enum(u7) {
     /// Delived from Rust CH32V203 PAC
     /// https://raw.githubusercontent.com/ch32-rs/ch32-rs-nightlies/main/ch32v2/src/ch32v20x/mod.rs
     ///16 - Window Watchdog interrupt
@@ -165,8 +165,8 @@ export fn microzig_interrupts_handler(mcause: u32) void {
             if (@typeInfo(@TypeOf(handler)) != .Fn)
                 @compileError("Declarations in 'interrupts' namespace must all be functions. '" ++ handler.name ++ "' is not a function");
 
-            if (@hasField(Interrupts_ch32v203, decl.name)) {
-                if (@as(Interrupts_ch32v203, @enumFromInt(mcause)) == @field(Interrupts_ch32v203, decl.name)) handler();
+            if (@hasField(Interrupts, decl.name)) {
+                if (@as(Interrupts, @enumFromInt(mcause)) == @field(Interrupts, decl.name)) handler();
             } else @compileError("No interrupt as " ++ decl.name);
         }
     }

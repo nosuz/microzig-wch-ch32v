@@ -73,7 +73,7 @@ pub fn SPI(comptime pin_name: []const u8) type {
                     asm volatile ("" ::: "memory");
                 }
 
-                buffer[i] = @as(u8, @truncate(regs.DATAR.read().DATAR)); // u16
+                buffer[i] = @truncate(regs.DATAR.read().DATAR); // u16
             }
         }
 
@@ -142,7 +142,7 @@ pub fn SPI(comptime pin_name: []const u8) type {
                     asm volatile ("" ::: "memory");
                 }
 
-                buffer[i] = @as(u8, @truncate(regs.DATAR.read().DATAR)); // u16
+                buffer[i] = @truncate(regs.DATAR.read().DATAR); // u16
             }
         }
 

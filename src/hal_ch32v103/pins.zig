@@ -16,8 +16,7 @@ const root = @import("root");
 
 const peripherals = microzig.chip.peripherals;
 const RCC = peripherals.RCC;
-const ADC1 = peripherals.ADC1;
-const ADC2 = peripherals.ADC2;
+const ADC1 = peripherals.ADC;
 const SPI1 = peripherals.SPI1;
 const SPI2 = peripherals.SPI2;
 
@@ -120,7 +119,7 @@ pub const Function = enum {
     SERIAL,
     I2C,
     SPI,
-    USBD,
+    USBD, // USB Device
 };
 
 fn all() [@typeInfo(Pin).Enum.fields.len]u1 {
@@ -148,10 +147,10 @@ fn single(gpio_num: u6) [@typeInfo(Pin).Enum.fields.len]u1 {
 const function_table = [@typeInfo(Function).Enum.fields.len][@typeInfo(Pin).Enum.fields.len]u1{
     all(), // GPIO
     list(&.{ 0, 1, 2, 3, 4, 5, 6, 7, 16, 17, 32, 33, 34, 35, 36, 51, 52 }), // ADC
-    list(&.{ 0, 1, 9, 10, 26, 27, 42, 43 }), // SERIAL
+    list(&.{ 2, 3, 9, 10, 26, 27 }), // SERIAL
     list(&.{ 22, 23, 26, 27 }), // I2C
     list(&.{ 5, 6, 7, 29, 30, 31 }), // SPI
-    list(&.{ 11, 12 }), // USBD
+    list(&.{ 11, 12 }), // USBHD
     // all(), // PIO0
     // all(), // PIO1
     // list(&.{ 0, 4, 16, 20 }), // SPI0_RX
@@ -221,7 +220,7 @@ pub fn parse_pin(comptime spec: []const u8) type {
                 else => false,
             };
         };
-    } else if ((spec[0] == 'P') and (spec[1] >= 'A') and (spec[1] <= 'E')) {
+    } else if ((spec[0] == 'P') and (spec[1] >= 'A') and (spec[1] <= 'D')) {
         return struct {
             // pin_num: global pin number
             const pin_number: comptime_int = @intFromEnum(@field(Pin, spec));
@@ -244,16 +243,14 @@ pub fn parse_pin(comptime spec: []const u8) type {
             // Serial
             pub const serial_port_regs = switch (pin_number) {
                 9, 10 => peripherals.USART1,
-                0, 1 => peripherals.USART2,
+                2, 3 => peripherals.USART2,
                 26, 27 => peripherals.USART3,
-                42, 43 => peripherals.UART4,
                 else => undefined,
             };
             pub const serial_port = switch (pin_number) {
                 9, 10 => serial.Port.USART1,
-                0, 1 => serial.Port.USART2,
+                2, 3 => serial.Port.USART2,
                 26, 27 => serial.Port.USART3,
-                42, 43 => serial.Port.UART4,
                 else => unreachable,
             };
 
@@ -440,10 +437,9 @@ pub const GlobalConfiguration = struct {
         comptime var port_cfg_default = [_]u32{ 0, 0, 0, 0 };
 
         // ADC
-        comptime var samptr1: u32 = 0;
-        comptime var samptr2: u32 = 0;
-        comptime var adc1: bool = false;
-        comptime var adc2: bool = false;
+        comptime var adc_cfg = [_]adc.Port.Configuration{
+            adc.Port.Configuration{},
+        };
 
         // Serail
         comptime var uart_cfg = [_]serial.Port.Configuration{
@@ -468,7 +464,6 @@ pub const GlobalConfiguration = struct {
         // USBD
         comptime var usbd_cfg = usbd.Configuration{};
 
-        // comptime var adcclk_freq = 0;
         // validate selected function
         comptime {
             inline for (@typeInfo(GlobalConfiguration).Struct.fields) |field|
@@ -537,25 +532,23 @@ pub const GlobalConfiguration = struct {
                             port_cfg_value[index] |= 0b00 << (shift_num + 2);
                         }
 
-                        if (pin_config.adc) |adc_port| {
-                            switch (adc_port) {
-                                .ADC1 => adc1 = true,
-                                .ADC2 => adc = true,
+                        if (pin_config.adc) |_| {
+                            adc_cfg[0].setup = true;
+
+                            const adc_ch = pin.adc_channel_num;
+                            var val = 0;
+                            if (pin_config.cycles) |cycles| {
+                                val = @intFromEnum(cycles);
                             }
-                        }
-                        const adc_ch = pin.adc_channel_num;
-                        var val = 0;
-                        if (pin_config.cycles) |cycles| {
-                            val = @intFromEnum(cycles);
-                        }
-                        switch (adc_ch) {
-                            0...9 => {
-                                samptr2 = samptr2 | (val << (adc_ch * 3));
-                            },
-                            10...16 => {
-                                samptr1 = samptr1 | (val << (adc_ch - 10) * 3);
-                            },
-                            else => {},
+                            switch (adc_ch) {
+                                0...9 => {
+                                    adc_cfg[0].samptr2 |= val << (adc_ch * 3);
+                                },
+                                10...16 => {
+                                    adc_cfg[0].samptr1 |= val << (adc_ch - 10) * 3;
+                                },
+                                else => {},
+                            }
                         }
                     } else if (pin_config.function == .SERIAL) {
                         const index = switch (pin.gpio_port_pin_num) {
@@ -572,14 +565,14 @@ pub const GlobalConfiguration = struct {
                         port_cfg_mask[index] |= 0b1111 << shift_num;
                         switch (pin.pin_number) {
                             // TX
-                            0, 9, 26, 42 => {
+                            2, 9, 26, 42 => {
                                 // MODE: output max. 10MHz
                                 port_cfg_value[index] |= 0b10 << shift_num;
                                 // CFG: alternative push-pull
                                 port_cfg_value[index] |= 0b10 << (shift_num + 2);
                             },
                             //RX
-                            1, 10, 27, 43 => {
+                            3, 10, 27, 43 => {
                                 // MODE
                                 port_cfg_value[index] |= 0b00 << shift_num;
                                 // CFG
@@ -751,25 +744,25 @@ pub const GlobalConfiguration = struct {
                     } else if (pin_config.function == .USBD) {
                         // Ref. 3.3.5.6 USB clock
                         switch (root.__Clocks_freq.pllclk) {
-                            48_000_000, 96_000_000, 144_000_000 => {},
-                            else => @compileError(comptimePrint("PLL clock freq. should be 48MHz or 96MHz or 144MHz.: {}", .{root.__Clocks_freq.pllclk})),
+                            48_000_000, 72_000_000 => {},
+                            else => @compileError(comptimePrint("PLL clock freq. should be 48MHz or 72MHz.: {}", .{root.__Clocks_freq.pllclk})),
                         }
 
                         // make sure both PA11 and PA12 are USBD or null
                         if (config.PA11) |port| {
                             if (port.function != .USBD) {
-                                @compileError("PA11 is used for USBD. Not available for other functions.");
+                                @compileError("PA11 is used for USBHD. Not available for other functions.");
                             }
                         }
                         if (config.PA12) |port| {
                             if (port.function != .USBD) {
-                                @compileError("PA12 is used for USBD. Not available for other functions.");
+                                @compileError("PA12 is used for USBHD. Not available for other functions.");
                             }
                         }
 
                         // check bus speed and buffer size.
                         if ((pin_config.usbd_speed == .Low_speed) and (pin_config.usbd_buffer_size == .byte_64)) {
-                            @compileError("USBD: 8 bytes is enough for low-speed devices buffer size.");
+                            @compileError("USBHD: 8 bytes is enough for low-speed devices buffer size.");
                         }
 
                         // Set PA11 and PA12 as GPIO out and set 0.
@@ -898,36 +891,21 @@ pub const GlobalConfiguration = struct {
         }
 
         // Enable ADC
-        if (adc1 or adc2) {
-            // @compileLog(samptr1);
-            // @compileLog(samptr2);
-            if (adc1) {
-                // enable ADC
-                // RCC.APB2PCENR.raw |= (@as(u32, 1) << 9);
-                RCC.APB2PCENR.modify(.{
-                    .ADC1EN = 1,
-                });
+        if (adc_cfg[0].setup) {
+            // enable ADC
+            // RCC.APB2PCENR.raw |= (@as(u32, 1) << 9);
+            RCC.APB2PCENR.modify(.{
+                .ADCEN = 1,
+            });
 
-                ADC1.SAMPTR1_CHARGE1.write_raw(samptr1);
-                ADC1.SAMPTR2_CHARGE2.write_raw(samptr2);
-            }
-            if (adc2) {
-                // enable ADC
-                // RCC.APB2PCENR.raw |= (@as(u32, 1) << 10);
-                RCC.APB2PCENR.modify(.{
-                    .ADC2EN = 1,
-                });
-
-                ADC2.SAMPTR1_CHARGE1.write_raw(samptr1);
-                ADC2.SAMPTR2_CHARGE2.write_raw(samptr2);
-            }
+            ADC1.SAMPTR1.write_raw(adc_cfg[0].samptr1);
+            ADC1.SAMPTR2.write_raw(adc_cfg[0].samptr2);
         }
 
         // Enable Serial
         serial.Configs.USART1 = uart_cfg[0];
         serial.Configs.USART2 = uart_cfg[1];
         serial.Configs.USART3 = uart_cfg[2];
-        serial.Configs.UART4 = uart_cfg[3];
         for (0..4) |i| {
             if (uart_cfg[i].setup) {
                 switch (i) {
@@ -944,11 +922,6 @@ pub const GlobalConfiguration = struct {
                     2 => {
                         RCC.APB1PCENR.modify(.{
                             .USART3EN = 1,
-                        });
-                    },
-                    3 => {
-                        RCC.APB1PCENR.modify(.{
-                            .UART4EN = 1,
                         });
                     },
                     else => unreachable,
@@ -1114,28 +1087,34 @@ pub const GlobalConfiguration = struct {
             switch (root.__Clocks_freq.pllclk) {
                 48_000_000 => {
                     RCC.CFGR0.modify(.{
-                        .USBPRE = 0b00,
+                        .USBPRE = 1,
                     });
                 },
-                96_000_000 => {
+                72_000_000 => {
                     RCC.CFGR0.modify(.{
-                        .USBPRE = 0b01,
+                        .USBPRE = 0,
                     });
                 },
-                144_000_000 => {
-                    RCC.CFGR0.modify(.{
-                        .USBPRE = 0b10,
-                    });
-                },
-                else => unreachable, // PLL freq must 48, 96, or 144 MHz.
+                else => unreachable, // PLL freq must 48, 72 MHz.
             }
-            // supply clocks to USBD.
-            RCC.APB1PCENR.modify(.{
-                .USBDEN = 1,
+            // supply clocks to USBHD.
+            RCC.AHBPCENR.modify(.{
+                .USBHDEN = 1,
             });
-
+            // reset USBHD
+            RCC.AHBRSTR.modify(.{
+                .USBHDRST = 1,
+            });
+            for (0..50000) |_| {
+                asm volatile ("" ::: "memory");
+            }
+            RCC.AHBRSTR.modify(.{
+                .USBHDRST = 0,
+            });
+            // route USBHD to PA11 and PA12
             peripherals.EXTEND.EXTEND_CTR.modify(.{
-                .USBDLS = @intFromEnum(usbd_cfg.speed), // 0: full speed, 1: low speed
+                .USBHDIO = 1,
+                // .USBDLS // for USBD (CH32F103)
             });
         }
 

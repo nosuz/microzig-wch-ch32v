@@ -8,14 +8,17 @@
 const std = @import("std");
 const microzig = @import("microzig");
 
-// variable name is fixed for usb device class
-pub const usbd_class = @import("lib/cdc_acm.zig");
-
 const ch32v = microzig.hal;
 const clocks = ch32v.clocks;
 const interrupt = ch32v.interrupt;
 const time = ch32v.time;
 const usbd = ch32v.usbd;
+
+// variable name is fixed for usb device class
+pub const usbd_class = if (ch32v.cpu_type == .ch32v103)
+    @import("lib_ch32v103/cdc_acm.zig")
+else
+    @import("lib_ch32v203/cdc_acm.zig");
 
 pub const pin_config = ch32v.pins.GlobalConfiguration{
     .PA5 = .{
@@ -39,8 +42,9 @@ const clocks_config = clocks.Configuration{
     .sysclk_src = .PLL,
     .pll_src = .HSI,
     // .pll_multiplex = .MUL_6, // 48 MHz
+    .pll_multiplex = .MUL_9, // 72 MHz Max. for CH32V103
     // .pll_multiplex = .MUL_12, // 96 MHz
-    .pll_multiplex = .MUL_18, // 144 MHz
+    // .pll_multiplex = .MUL_18, // 144 MHz
 };
 
 pub const __Clocks_freq = clocks_config.get_freqs();
@@ -48,11 +52,20 @@ pub const __Clocks_freq = clocks_config.get_freqs();
 
 // Set interrupt handlers
 pub const microzig_options = struct {
-    pub const interrupts = struct {
-        pub fn USB_LP_CAN1_RX0() void {
-            usbd.interrupt_handler();
+    pub const interrupts = if (ch32v.cpu_type == .ch32v103)
+        struct {
+            // CH32V103
+            pub fn USBHD() void {
+                usbd.interrupt_handler();
+            }
         }
-    };
+    else
+        struct {
+            // CH32V203
+            pub fn USB_LP_CAN1_RX0() void {
+                usbd.interrupt_handler();
+            }
+        };
 };
 
 // set logger
