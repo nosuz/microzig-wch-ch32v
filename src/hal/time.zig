@@ -33,7 +33,7 @@ pub fn sleep_ms(duration: u16) void {
         asm volatile ("" ::: "memory");
     }
 
-    // start SysTick
+    // stop SysTick
     PFIC.STK_CTLR.modify(.{
         .STE = 0,
     });
