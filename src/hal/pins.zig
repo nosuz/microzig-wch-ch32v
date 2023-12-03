@@ -540,7 +540,7 @@ pub const GlobalConfiguration = struct {
                         if (pin_config.adc) |adc_port| {
                             switch (adc_port) {
                                 .ADC1 => adc1 = true,
-                                .ADC2 => adc = true,
+                                .ADC2 => adc2 = true,
                             }
                         }
                         const adc_ch = pin.adc_channel_num;
