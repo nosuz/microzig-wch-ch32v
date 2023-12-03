@@ -153,27 +153,6 @@ var descriptor: ?root.usbd_class.descriptors.DescriptorIndex = .device;
 // record last sent point
 var next_point: u32 = 0;
 
-const bCharFormat = enum(u8) {
-    one_stop_bit = 0,
-    one_half_stop_bits = 1,
-    two_stop_bits = 2,
-};
-
-const bParityType = enum(u8) {
-    one = 0,
-    odd = 1,
-    even = 2,
-    mark = 3,
-    space = 4,
-};
-
-const LineCodingFormat = packed struct(u56) {
-    dwDTERate: u32,
-    bCharFormat: bCharFormat,
-    bParityType: bParityType,
-    bDataBits: u8,
-};
-
 const SOF: fn () void = if (@hasDecl(root.usbd_class, "SOF")) root.usbd_class.SOF else default_SOF;
 
 fn default_SOF() void {}
