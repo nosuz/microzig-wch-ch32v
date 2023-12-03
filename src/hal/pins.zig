@@ -440,10 +440,10 @@ pub const GlobalConfiguration = struct {
         comptime var port_cfg_default = [_]u32{ 0, 0, 0, 0 };
 
         // ADC
-        comptime var samptr1: u32 = 0;
-        comptime var samptr2: u32 = 0;
-        comptime var adc1: bool = false;
-        comptime var adc2: bool = false;
+        comptime var adc_cfg = [_]adc.Port.Configuration{
+            adc.Port.Configuration{},
+            adc.Port.Configuration{},
+        };
 
         // Serail
         comptime var uart_cfg = [_]serial.Port.Configuration{
@@ -538,24 +538,32 @@ pub const GlobalConfiguration = struct {
                         }
 
                         if (pin_config.adc) |adc_port| {
+                            var adc_index = 0;
                             switch (adc_port) {
-                                .ADC1 => adc1 = true,
-                                .ADC2 => adc2 = true,
+                                .ADC1 => {
+                                    adc_cfg[0].setup = true;
+                                    adc_index = 0;
+                                },
+                                .ADC2 => {
+                                    adc_cfg[1].setup = true;
+                                    adc_index = 1;
+                                },
                             }
-                        }
-                        const adc_ch = pin.adc_channel_num;
-                        var val = 0;
-                        if (pin_config.cycles) |cycles| {
-                            val = @intFromEnum(cycles);
-                        }
-                        switch (adc_ch) {
-                            0...9 => {
-                                samptr2 = samptr2 | (val << (adc_ch * 3));
-                            },
-                            10...16 => {
-                                samptr1 = samptr1 | (val << (adc_ch - 10) * 3);
-                            },
-                            else => {},
+
+                            const adc_ch = pin.adc_channel_num;
+                            var val = 0;
+                            if (pin_config.cycles) |cycles| {
+                                val = @intFromEnum(cycles);
+                            }
+                            switch (adc_ch) {
+                                0...9 => {
+                                    adc_cfg[adc_index].samptr2 |= val << (adc_ch * 3);
+                                },
+                                10...16 => {
+                                    adc_cfg[adc_index].samptr1 |= val << (adc_ch - 10) * 3;
+                                },
+                                else => {},
+                            }
                         }
                     } else if (pin_config.function == .SERIAL) {
                         const index = switch (pin.gpio_port_pin_num) {
@@ -898,28 +906,28 @@ pub const GlobalConfiguration = struct {
         }
 
         // Enable ADC
-        if (adc1 or adc2) {
+        if (adc_cfg[0].setup or adc_cfg[1].setup) {
             // @compileLog(samptr1);
             // @compileLog(samptr2);
-            if (adc1) {
+            if (adc_cfg[0].setup) {
                 // enable ADC
                 // RCC.APB2PCENR.raw |= (@as(u32, 1) << 9);
                 RCC.APB2PCENR.modify(.{
                     .ADC1EN = 1,
                 });
 
-                ADC1.SAMPTR1_CHARGE1.write_raw(samptr1);
-                ADC1.SAMPTR2_CHARGE2.write_raw(samptr2);
+                ADC1.SAMPTR1_CHARGE1.write_raw(adc_cfg[0].samptr1);
+                ADC1.SAMPTR2_CHARGE2.write_raw(adc_cfg[0].samptr2);
             }
-            if (adc2) {
+            if (adc_cfg[1].setup) {
                 // enable ADC
                 // RCC.APB2PCENR.raw |= (@as(u32, 1) << 10);
                 RCC.APB2PCENR.modify(.{
                     .ADC2EN = 1,
                 });
 
-                ADC2.SAMPTR1_CHARGE1.write_raw(samptr1);
-                ADC2.SAMPTR2_CHARGE2.write_raw(samptr2);
+                ADC2.SAMPTR1_CHARGE1.write_raw(adc_cfg[1].samptr1);
+                ADC2.SAMPTR2_CHARGE2.write_raw(adc_cfg[1].samptr2);
             }
         }
 

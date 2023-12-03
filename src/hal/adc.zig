@@ -138,6 +138,13 @@ pub const Port = enum {
     ADC1,
     ADC2,
 
+    pub const Configuration = struct {
+        setup: bool = false,
+
+        samptr1: u32 = 0,
+        samptr2: u32 = 0,
+    };
+
     pub fn power_on(port: Port) void {
         switch (@intFromEnum(port)) {
             // ADC1

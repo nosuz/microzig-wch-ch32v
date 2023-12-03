@@ -36,13 +36,13 @@ const pin_config = ch32v.pins.GlobalConfiguration{
     .IN16 = .{
         .name = "temp",
         .function = .ADC,
-        .adc = .ADC1,
+        // .adc = .ADC1,
         .cycles = .cycles7_5,
     },
     .IN17 = .{
         .name = "vref",
         .function = .ADC,
-        .adc = .ADC1,
+        // .adc = .ADC2,
         .cycles = .cycles239_5,
     },
     .PA9 = .{
