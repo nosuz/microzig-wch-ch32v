@@ -36,6 +36,7 @@ pub const pin_config = ch32v.pins.GlobalConfiguration{
         .usbd_ep_num = 4,
         // .usbd_buffer_size = .byte_8, // default buffer size
         // .usbd_handle_sof = false, // genellary no need to handle SOF
+        .usbd_handle_sof = true,
     },
 };
 
@@ -90,21 +91,21 @@ pub fn main() !void {
 
     const ios = pin_config.apply();
 
-    // ios.usb.init();
-    setup_timer();
+    ios.usb.init();
+    setup_timer(); // comment out at full-speed
     interrupt.enable_interrupt();
 
     // start logger
     serial.init_logger(ios.tx.get_port());
 
-    // while (true) {
-    //     // echo recieved data
-    //     const chr = ios.usb.read();
-    //     // usb_serial.Tx_Buffer.write_block(chr);
-    //     for (0..10) |_| {
-    //         ios.usb.write(chr);
-    //     }
-    // }
+    while (true) {
+        // echo recieved data
+        const chr = ios.usb.read();
+        // usb_serial.Tx_Buffer.write_block(chr);
+        for (0..10) |_| {
+            ios.usb.write(chr);
+        }
+    }
 }
 
 fn setup_timer() void {

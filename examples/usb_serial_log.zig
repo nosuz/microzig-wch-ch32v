@@ -52,9 +52,9 @@ pub const microzig_options = struct {
             pub fn USBHD() void {
                 usbd.interrupt_handler();
             }
-            // pub fn TIM1_UP() void {
-            //     tim1_up_handler();
-            // }
+            pub fn TIM1_UP() void {
+                tim1_up_handler();
+            }
         }
     else
         struct {
@@ -62,9 +62,9 @@ pub const microzig_options = struct {
             pub fn USB_LP_CAN1_RX0() void {
                 usbd.interrupt_handler();
             }
-            // pub fn TIM1_UP() void {
-            //     tim1_up_handler();
-            // }
+            pub fn TIM1_UP() void {
+                tim1_up_handler();
+            }
         };
 };
 
@@ -81,12 +81,15 @@ pub fn main() !void {
     const ios = pin_config.apply();
 
     ios.usb.init();
-    // setup_timer(); // flow-speed has no SOF packet.
+    // setup_timer(); // low-speed has no SOF packet.
     interrupt.enable_interrupt();
 
     const count = 10000;
     var i: u32 = 0;
     while (true) {
+        time.sleep_ms(500);
+        ios.led.toggle();
+
         std.log.debug("start seq: {}", .{i});
         const time_start = time.get_uptime();
         for (0..count) |_| {
@@ -102,9 +105,6 @@ pub fn main() !void {
         // const speed: f32 = count / @as(f32, @floatFromInt(delta)) / 1000;
         // std.log.debug("speed: {d:.1} byte/sec", .{speed});
         i += 1;
-
-        ios.led.toggle();
-        time.sleep_ms(500);
     }
 }
 

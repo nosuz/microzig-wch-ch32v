@@ -8,7 +8,7 @@ const pins = ch32v.pins;
 const rb = ch32v.ring_buffer;
 
 const peripherals = microzig.chip.peripherals;
-const USB = peripherals.USBHD;
+const USB = peripherals.USBHD_DEVICE;
 
 // provide device descriptor dat to usbd
 // variable name is fixed.
@@ -86,14 +86,14 @@ pub fn packet_handler(ep_id: u4) void {
 pub fn reset_endpoints() void {
     USB.R8_UEP4_1_MOD.write_raw(0);
 
-    USB.R8_UEP1_CTRL__R8_UH_SETUP.modify(.{
-        .RB_UEP_R_TOG__RB_UH_PRE_PID_EN = 0,
-        .RB_UEP_T_TOG__RB_UH_SOF_EN = 0,
+    USB.R8_UEP1_CTRL.modify(.{
+        .RB_UEP_R_TOG = 0,
+        .RB_UEP_T_TOG = 0,
         .MASK_UEP_R_RES = 0b10, // NAK
         .MASK_UEP_T_RES = 0b10, // NAK
         .RB_UEP_AUTO_TOG = 1,
     });
-    USB.R8_UEP1_T_LEN = 0;
+    USB.R16_UEP1_T_LEN = 0;
 }
 
 // configure device. called by SET_CONFIGURATION request.
@@ -127,10 +127,8 @@ pub fn DISPATCH_DESCRIPTOR(setup_value: u16) ?descriptors.DescriptorIndex {
 // handle device class specific SETUP requests.
 pub fn CLASS_REQUEST() void {
     // device class specific requests
-    const setup_data = @as(usbd.DESCRIPTOR_REQUEST, @bitCast(usbd.setup_buf));
-
-    if (setup_data.bmRequestType.RequestType == .class) {
-        switch (setup_data.bRequest) {
+    if (usbd.setup_data.bmRequestType.RequestType == .class) {
+        switch (usbd.setup_data.bRequest) {
             .GET_INTERFACE => {
                 usbd.usb_request = .get_interface;
                 usbd.EP0_expect_IN(0);
@@ -184,7 +182,7 @@ fn EP1_IN() void {
         break;
     } else |_| {
         // No keyboard data
-        USB.R8_UEP1_CTRL__R8_UH_SETUP.modify(.{
+        USB.R8_UEP1_CTRL.modify(.{
             .MASK_UEP_T_RES = 0b10, // NAK
         });
     }
@@ -192,9 +190,9 @@ fn EP1_IN() void {
 
 fn EP1_expect_IN(length: u8) void {
     // set next data length
-    USB.R8_UEP1_T_LEN = length;
+    USB.R16_UEP1_T_LEN = length;
 
-    USB.R8_UEP1_CTRL__R8_UH_SETUP.modify(.{
+    USB.R8_UEP1_CTRL.modify(.{
         .MASK_UEP_T_RES = 0b00, // ACK
     });
 }

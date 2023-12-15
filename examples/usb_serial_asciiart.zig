@@ -41,8 +41,8 @@ const clocks_config = clocks.Configuration{
     // .sysclk_src = .HSI, // 8MHz
     .sysclk_src = .PLL,
     .pll_src = .HSI,
-    // .pll_multiplex = .MUL_6, // 48 MHz
-    .pll_multiplex = .MUL_9, // 72 MHz Max. for CH32V103
+    .pll_multiplex = .MUL_6, // 48 MHz
+    // .pll_multiplex = .MUL_9, // 72 MHz Max. for CH32V103 but sometime not work at max clock-speed.
     // .pll_multiplex = .MUL_12, // 96 MHz
     // .pll_multiplex = .MUL_18, // 144 MHz
 };

@@ -7,7 +7,7 @@ const usbd = ch32v.usbd;
 const pins = ch32v.pins;
 
 const peripherals = microzig.chip.peripherals;
-const USB = peripherals.USBHD;
+const USB = peripherals.USBHD_DEVICE;
 
 // provide device descriptor dat to usbd
 // variable name is fixed.
@@ -47,17 +47,17 @@ pub fn packet_handler(ep_id: u4) void {
 
 // device specific reset handler
 // called at USB bus is reset state.
-pub fn reset_class_endpoints() void {
+pub fn reset_endpoints() void {
     USB.R8_UEP4_1_MOD.write_raw(0);
 
-    USB.R8_UEP1_CTRL__R8_UH_SETUP.modify(.{
-        .RB_UEP_R_TOG__RB_UH_PRE_PID_EN = 1,
-        .RB_UEP_T_TOG__RB_UH_SOF_EN = 1,
+    USB.R8_UEP1_CTRL.modify(.{
+        .RB_UEP_R_TOG = 0,
+        .RB_UEP_T_TOG = 0,
         .MASK_UEP_R_RES = 0b10, // NAK
         .MASK_UEP_T_RES = 0b10, // NAK
         .RB_UEP_AUTO_TOG = 1,
     });
-    USB.R8_UEP1_T_LEN = 0;
+    USB.R16_UEP1_T_LEN = 0;
 }
 
 // configure device. called by SET_CONFIGURATION request.
@@ -117,9 +117,9 @@ pub fn DISPATCH_DESCRIPTOR(setup_value: u16) ?descriptors.DescriptorIndex {
 // handle device class specific endpoint packets.
 fn EP1_IN() void {
     // sent mouse data
-    USB.R8_UEP1_T_LEN = 0;
+    USB.R16_UEP1_T_LEN = 0;
 
-    USB.R8_UEP1_CTRL__R8_UH_SETUP.modify(.{
+    USB.R8_UEP1_CTRL.modify(.{
         .MASK_UEP_T_RES = 0b10, // NAK
     });
 }
@@ -148,9 +148,9 @@ pub fn USBD(comptime config: pins.Pin.Configuration) type {
             buf[1] = @bitCast(x);
             buf[2] = @bitCast(y);
 
-            USB.R8_UEP1_T_LEN = 3;
+            USB.R16_UEP1_T_LEN = 3;
 
-            USB.R8_UEP1_CTRL__R8_UH_SETUP.modify(.{
+            USB.R8_UEP1_CTRL.modify(.{
                 .MASK_UEP_T_RES = 0b00, // ACK
             });
         }

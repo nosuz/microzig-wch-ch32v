@@ -1060,7 +1060,7 @@ pub const GlobalConfiguration = struct {
             }
         }
 
-        // Enable USBD
+        // Enable USBHD
         if (usbd_cfg.setup) {
             if (!root.__Clocks_freq.use_pll) {
                 // PLL start

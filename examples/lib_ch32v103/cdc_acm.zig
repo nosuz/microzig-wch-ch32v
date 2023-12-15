@@ -9,7 +9,7 @@ const rb = ch32v.ring_buffer;
 const time = ch32v.time;
 
 const peripherals = microzig.chip.peripherals;
-const USB = peripherals.USBHD;
+const USB = peripherals.USBHD_DEVICE;
 
 // provide device descriptor dat to usbd
 // variable name is fixed.
@@ -102,39 +102,39 @@ pub fn reset_endpoints() void {
     // endpoint 1 IN
     USB.R8_UEP4_1_MOD.write_raw(0);
 
-    USB.R8_UEP1_CTRL__R8_UH_SETUP.modify(.{
-        .RB_UEP_R_TOG__RB_UH_PRE_PID_EN = 0,
-        .RB_UEP_T_TOG__RB_UH_SOF_EN = 0,
-        .MASK_UEP_R_RES = 0b10, // NAK
-        .MASK_UEP_T_RES = 0b10, // NAK
-        .RB_UEP_AUTO_TOG = 1,
-    });
-    USB.R8_UEP1_T_LEN = 0;
-
-    // endpoint 2 OUT
-    USB.R8_UEP2_3_MOD__R8_UH_EP_MOD.write_raw(0);
-
-    USB.R8_UEP2_CTRL__R8_UH_RX_CTRL.modify(.{
-        .RB_UEP_R_TOG__RB_UH_R_TOG = 0,
-        .RB_UEP_T_TOG = 0,
-        .MASK_UEP_R_RES = 0b10, // NAK
-        .MASK_UEP_T_RES = 0b10, // NAK
-        .RB_UEP_AUTO_TOG__RB_UH_R_AUTO_TOG = 1,
-    });
-    USB.R8_UEP2_T_LEN__R8_UH_EP_PID.write_raw(0);
-
-    // endpoint 3 IN
-    // already set at endpoint 2
-    // USB.R8_UEP2_3_MOD__R8_UH_EP_MOD.write_raw(0);
-
-    USB.R8_UEP3_CTRL__R8_UH_TX_CTRL.modify(.{
+    USB.R8_UEP1_CTRL.modify(.{
         .RB_UEP_R_TOG = 0,
         .RB_UEP_T_TOG = 0,
         .MASK_UEP_R_RES = 0b10, // NAK
         .MASK_UEP_T_RES = 0b10, // NAK
         .RB_UEP_AUTO_TOG = 1,
     });
-    USB.R8_UEP3_T_LEN__R8_UH_TX_LEN = 0;
+    USB.R16_UEP1_T_LEN = 0;
+
+    // endpoint 2 OUT
+    USB.R8_UEP2_3_MOD.write_raw(0);
+
+    USB.R8_UEP2_CTRL.modify(.{
+        .RB_UEP_R_TOG = 0,
+        .RB_UEP_T_TOG = 0,
+        .MASK_UEP_R_RES = 0b10, // NAK
+        .MASK_UEP_T_RES = 0b10, // NAK
+        .RB_UEP_AUTO_TOG = 1,
+    });
+    USB.R16_UEP2_T_LEN = 0;
+
+    // endpoint 3 IN
+    // already set at endpoint 2
+    // USB.R8_UEP2_3_MOD.write_raw(0);
+
+    USB.R8_UEP3_CTRL.modify(.{
+        .RB_UEP_R_TOG = 0,
+        .RB_UEP_T_TOG = 0,
+        .MASK_UEP_R_RES = 0b10, // NAK
+        .MASK_UEP_T_RES = 0b10, // NAK
+        .RB_UEP_AUTO_TOG = 1,
+    });
+    USB.R16_UEP3_T_LEN = 0;
 }
 
 // configure device. called by SET_CONFIGURATION request.
@@ -152,17 +152,17 @@ pub fn set_configuration(setup_value: u16) void {
     });
 
     // endpoint 2 OUT endpoint 3 IN
-    USB.R16_UEP2_DMA__R16_UH_RX_DMA = @truncate(@intFromPtr(&usbd.ep_buf[2]));
-    USB.R16_UEP3_DMA__R16_UH_TX_DMA = @truncate(@intFromPtr(&usbd.ep_buf[3]));
+    USB.R16_UEP2_DMA = @truncate(@intFromPtr(&usbd.ep_buf[2]));
+    USB.R16_UEP3_DMA = @truncate(@intFromPtr(&usbd.ep_buf[3]));
 
-    USB.R8_UEP2_3_MOD__R8_UH_EP_MOD.modify(.{
-        .RB_UEP2_RX_EN__RB_UH_EP_RX_EN = 1, // IN
+    USB.R8_UEP2_3_MOD.modify(.{
+        .RB_UEP2_RX_EN = 1, // OUT
         .RB_UEP2_TX_EN = 0,
-        .RB_UEP2_BUF_MOD__RB_UH_EP_RBUF_MOD = 0, // Single buffer
+        .RB_UEP2_BUF_MOD = 0, // Single buffer
 
         .RB_UEP3_RX_EN = 0,
-        .RB_UEP3_TX_EN__RB_UH_EP_TX_EN = 1, // OUT
-        .RB_UEP3_BUF_MOD__RB_UH_EP_TBUF_MOD = 0, // Single buffer
+        .RB_UEP3_TX_EN = 1, // IN
+        .RB_UEP3_BUF_MOD = 0, // Single buffer
     });
 }
 
@@ -182,9 +182,7 @@ pub fn SOF() void {
 // handle device class specific SETUP requests.
 pub fn CLASS_REQUEST() void {
     // device class specific requests
-    const setup_data = @as(usbd.DESCRIPTOR_REQUEST, @bitCast(usbd.setup_buf));
-
-    switch (setup_data.bRequest) {
+    switch (usbd.setup_data.bRequest) {
         .GET_INTERFACE => {
             usbd.usb_request = .get_interface;
             usbd.EP0_expect_IN(0);
@@ -200,7 +198,7 @@ pub fn CLASS_REQUEST() void {
         .SET_CONTROL_LINE_STATE => {
             usbd.usb_request = .set_line_control_state;
             // SETUP value is flow control
-            const con_state = if ((setup_data.wValue & 0x01) == 0) false else true;
+            const con_state = if ((usbd.setup_data.wValue & 0x01) == 0) false else true;
             set_connection_state(con_state);
             usbd.EP0_expect_IN(0);
         },
@@ -243,11 +241,11 @@ pub fn EP0_CONTROL_OUT() void {
 
 pub fn EP1_IN() void {
     // set next data length
-    USB.R8_UEP1_T_LEN = 0;
+    // USB.R16_UEP1_T_LEN = 0;
 
-    USB.R8_UEP1_CTRL__R8_UH_SETUP.modify(.{
-        .MASK_UEP_T_RES = 0b00, // ACK
-    });
+    // USB.R8_UEP1_CTRL.modify(.{
+    //     .MASK_UEP_T_RES = 0b00, // ACK
+    // });
 }
 
 pub fn EP3_IN() void {
@@ -260,18 +258,15 @@ pub fn EP2_OUT() void {
     if (!Rx_Buffer.is_full()) {
         const buf = &usbd.ep_buf[2];
         for (0..USB.R16_USB_RX_LEN) |i| {
-            Rx_Buffer.write(buf[i]) catch {};
+            Rx_Buffer.write(buf[i]) catch {
+                break;
+            };
         }
     }
-    USB.R8_UEP2_CTRL__R8_UH_RX_CTRL.modify(.{
-        .MASK_UEP_R_RES = 0b00, // ACK
-    });
 }
 
 fn set_ep3_tx_data() void {
-    const pin = pins.get_pins(root.pin_config);
-    pin.led.toggle();
-    var tx_count: u32 = 0;
+    var tx_count: u8 = 0;
     const buf = &usbd.ep_buf[3];
     for (0..usbd.BUFFER_SIZE) |i| {
         const chr = Tx_Buffer.read() catch {
@@ -281,11 +276,19 @@ fn set_ep3_tx_data() void {
         tx_count += 1;
     }
     // set next data length
-    USB.R8_UEP3_T_LEN__R8_UH_TX_LEN = @truncate(tx_count);
-
-    USB.R8_UEP3_CTRL__R8_UH_TX_CTRL.modify(.{
-        .MASK_UEP_T_RES = 0b00, // ACK
-    });
+    USB.R16_UEP3_T_LEN = tx_count;
+    // USBHD doesn't change to NAK automatically. Without set RES, it will keep RES state.
+    if (tx_count == 0) {
+        // No more data to send
+        USB.R8_UEP3_CTRL.modify(.{
+            .MASK_UEP_T_RES = 0b10, // NAK
+        });
+    } else {
+        USB.R8_UEP3_CTRL.modify(.{
+            .MASK_UEP_T_RES = 0b00, // ACK
+        });
+    }
+    IN_TX_TRANSACTION = if (tx_count > 0) true else false;
 }
 
 pub fn write_str(comptime fmt: []const u8, args: anytype) !void {
@@ -343,6 +346,17 @@ pub fn log_no_timestamp(
 }
 
 fn set_connection_state(state: bool) void {
+    // TODO: enable EP2 and EP3
+    if (state) {
+        USB.R8_UEP2_CTRL.modify(.{
+            .MASK_UEP_R_RES = 0b00, // ACK
+        });
+    } else {
+        USB.R8_UEP2_CTRL.modify(.{
+            .MASK_UEP_R_RES = 0b10, // NAK
+        });
+    }
+
     CONNECTED = state;
 }
 

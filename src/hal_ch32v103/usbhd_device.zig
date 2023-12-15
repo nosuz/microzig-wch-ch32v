@@ -12,7 +12,7 @@ const time = ch32v.time;
 
 const peripherals = microzig.chip.peripherals;
 const RCC = peripherals.RCC;
-const USB = peripherals.USBHD;
+const USB = peripherals.USBHD_DEVICE;
 const PFIC = peripherals.PFIC;
 const EXTEND = peripherals.EXTEND;
 
@@ -43,7 +43,7 @@ const pin = pins.get_pins(root.pin_config);
 // Number of endpoints
 const EP_NUM = pin.__usbd__.ep_num;
 // packet buffer size.
-pub const BUFFER_SIZE = @as(usize, @intFromEnum(pin.__usbd__.buffer_size));
+pub const BUFFER_SIZE: u8 = @intFromEnum(pin.__usbd__.buffer_size);
 
 pub var ep_buf: [EP_NUM][BUFFER_SIZE]u8 align(4) = undefined;
 
@@ -82,7 +82,8 @@ pub const DESCRIPTOR_REQUEST = packed struct(u64) {
     wLength: u16,
 };
 
-pub var setup_buf: [8]u8 = undefined;
+// can copy by WORD from ep0 buffer
+pub var setup_data: DESCRIPTOR_REQUEST align(4) = undefined;
 
 pub var usb_request: root.usbd_class.USB_REQUESTS = .none;
 var usb_standard_request: bool = true;
@@ -105,10 +106,10 @@ pub fn init(speed: Speed) void {
     });
 
     // not work before setting R8_USB_CTRL
-    USB.R8_UDEV_CTRL__R8_UHOST_CTRL.modify(.{
-        .RB_UD_PD_DIS__RB_UH_PD_DIS = 1, // disable pull-down
-        .RB_UD_LOW_SPEED__RB_UH_LOW_SPEED = @intFromEnum(speed),
-        .RB_UD_PORT_EN__RB_UH_PORT_EN = 1,
+    USB.R8_UDEV_CTRL.modify(.{
+        .RB_UD_PD_DIS = 1, // disable pull-down
+        .RB_UD_LOW_SPEED = @intFromEnum(speed),
+        .RB_UD_PORT_EN = 1,
     });
 
     // setup EP0
@@ -118,8 +119,8 @@ pub fn init(speed: Speed) void {
     USB.R8_USB_INT_EN.modify(.{
         // .RB_UIE_SUSPEND = 1,
         .RB_UIE_TRANSFER = 1,
-        .RB_UIE_BUS_RST__RB_UIE_DETECT = 1,
-        // .RB_UIE_DEV_SOF = 1,
+        .RB_UIE_BUS_RST = 1,
+        .RB_UIE_DEV_SOF = @intFromBool(pin.__usbd__.handle_sof), // enable SOF interrupt,
     });
     USB.R8_USB_INT_FG.write_raw(0x1f); // write 1 to clear
 
@@ -136,11 +137,10 @@ pub fn init(speed: Speed) void {
 }
 
 pub fn interrupt_handler() void {
-    // const pin = pins.get_pins(root.pin_config);
     // pin.led.toggle();
 
     const int_flag = USB.R8_USB_INT_FG.read();
-    if (int_flag.RB_UIF_BUS_RST__RB_UIF_DETECT == 1) {
+    if (int_flag.RB_UIF_BUS_RST == 1) {
         // reset
         reset_endpoints();
     } else if (int_flag.RB_UIF_TRANSFER == 1) {
@@ -149,7 +149,7 @@ pub fn interrupt_handler() void {
         if (pid == 0b01) { // SOF
             SOF();
         } else {
-            const ep_num = int_status.MASK_UIS_H_RES__MASK_UIS_ENDP;
+            const ep_num = int_status.MASK_UIS_H_RES;
             switch (ep_num) {
                 0 => {
                     switch (pid) {
@@ -199,9 +199,9 @@ fn reset_endpoints() void {
         .MASK_UEP_T_RES = 0b10, // NAK
         // .RB_UEP_AUTO_TOG = 1,
     });
-    USB.R8_UEP0_T_LEN = 0;
+    USB.R16_UEP0_T_LEN = 0;
 
-    // TODO: call class specific reset endpoints routine
+    // call class specific reset endpoints routine
     reset_class_endpoints();
 }
 
@@ -212,7 +212,7 @@ fn default_reset_class_endpoints() void {}
 pub fn EP0_expect_IN(length: u32) void {
     // pin.led.toggle();
     // set next data length
-    USB.R8_UEP0_T_LEN = @truncate(length);
+    USB.R16_UEP0_T_LEN = @truncate(length);
 
     const ep0_ctrl = USB.R8_UEP0_CTRL.read();
     USB.R8_UEP0_CTRL.modify(.{
@@ -233,7 +233,7 @@ pub fn EP0_expect_OUT() void {
 
 pub fn EP0_STALL_IN() void {
     // set next data length
-    USB.R8_UEP0_T_LEN = 0;
+    USB.R16_UEP0_T_LEN = 0;
 
     const ep0_ctrl = USB.R8_UEP0_CTRL.read();
     USB.R8_UEP0_CTRL.modify(.{
@@ -244,10 +244,8 @@ pub fn EP0_STALL_IN() void {
 }
 
 fn EP0_CONTROL_SETUP() void {
-    for (0..8) |i| {
-        setup_buf[i] = ep_buf[0][i];
-    }
-    const setup_data = @as(DESCRIPTOR_REQUEST, @bitCast(setup_buf));
+    // save setup transaction
+    setup_data = @bitCast(ep_buf[0][0..8].*);
 
     USB.R8_UEP0_CTRL.modify(.{
         .RB_UEP_T_TOG = 0,
@@ -292,7 +290,6 @@ fn EP0_CONTROL_SETUP() void {
                 else => {
                     // pin.led.toggle();
 
-                    // // EP0_clear_interupt();
                     // std.log.err("USB bReq: {}", .{setup_data.bRequest});
                 },
             }
@@ -314,8 +311,6 @@ pub fn default_DISPATCH_DESCRIPTOR(setup_value: u16) ?root.usbd_class.descriptor
 const CLASS_REQUEST: fn () void = if (@hasDecl(root.usbd_class, "CLASS_REQUEST")) root.usbd_class.CLASS_REQUEST else default_CLASS_REQUEST;
 
 fn default_CLASS_REQUEST() void {
-    const setup_data = @as(DESCRIPTOR_REQUEST, @bitCast(setup_buf));
-
     switch (setup_data.bRequest) {
         .GET_INTERFACE => {
             usb_request = .get_interface;
@@ -342,10 +337,6 @@ const class_EP0_CONTROL_OUT: fn () void = if (@hasDecl(root.usbd_class, "EP0_CON
 fn default_class_EP0_CONTROL_OUT() void {}
 
 fn EP0_CONTROL_IN() void {
-    // const pin = pins.get_pins(root.pin_config);
-    // pin.led.toggle();
-
-    const setup_data = @as(DESCRIPTOR_REQUEST, @bitCast(setup_buf));
     switch (usb_request) {
         .get_descriptor => {
             if (descriptor) |index| {

@@ -116,10 +116,10 @@ pub fn DISPATCH_DESCRIPTOR(setup_value: u16) ?descriptors.DescriptorIndex {
 }
 
 // handle device class specific SETUP requests.
-// pub fn CLASS_REQUEST(setup_data: usbd.DESCRIPTOR_REQUEST) void {
+// pub fn CLASS_REQUEST() void {
 //     // device class specific requests
-//     if (setup_data.bmRequestType.RequestType == .class) {
-//         switch (setup_data.bRequest) {
+//     if (usbd.setup_data.bmRequestType.RequestType == .class) {
+//         switch (usbd.setup_data.bRequest) {
 //             .GET_INTERFACE => {
 //                 usbd.usb_request = .get_interface;
 //                 usbd.EP0_expect_IN(0);
