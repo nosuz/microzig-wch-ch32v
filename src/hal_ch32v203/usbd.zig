@@ -591,7 +591,7 @@ fn EP0_CONTROL_IN() void {
     // const pin = pins.get_pins(root.pin_config);
     // pin.led.toggle();
 
-    const setup_data = @as(DESCRIPTOR_REQUEST, @bitCast(setup_buffer));
+    const setup_data: DESCRIPTOR_REQUEST = @bitCast(setup_buffer);
     switch (usb_request) {
         .get_descriptor => {
             if (descriptor) |index| {
