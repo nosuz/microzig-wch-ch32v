@@ -3,14 +3,14 @@ const root = @import("root"); // for debug
 
 const microzig = @import("microzig");
 const ch32v = microzig.hal;
-const usbd = ch32v.usbd;
+const usbhd = ch32v.usbhd;
 const pins = ch32v.pins;
 const rb = ch32v.ring_buffer;
 
 const peripherals = microzig.chip.peripherals;
 const USB = peripherals.USBHD_DEVICE;
 
-// provide device descriptor dat to usbd
+// provide device descriptor dat to usbhd
 // variable name is fixed.
 pub const descriptors = @import("hid_keyboard_descriptors.zig");
 
@@ -101,7 +101,7 @@ pub fn set_configuration(setup_value: u16) void {
     _ = setup_value;
 
     // set DMA buffer for endpoint1
-    USB.R16_UEP1_DMA = @truncate(@intFromPtr(&usbd.ep_buf[1]));
+    USB.R16_UEP1_DMA = @truncate(@intFromPtr(&usbhd.ep_buf[1]));
 
     // enable endpoint1
     USB.R8_UEP4_1_MOD.modify(.{
@@ -127,15 +127,15 @@ pub fn DISPATCH_DESCRIPTOR(setup_value: u16) ?descriptors.DescriptorIndex {
 // handle device class specific SETUP requests.
 pub fn CLASS_REQUEST() void {
     // device class specific requests
-    if (usbd.setup_data.bmRequestType.RequestType == .class) {
-        switch (usbd.setup_data.bRequest) {
+    if (usbhd.setup_data.bmRequestType.RequestType == .class) {
+        switch (usbhd.setup_data.bRequest) {
             .GET_INTERFACE => {
-                usbd.usb_request = .get_interface;
-                usbd.EP0_expect_IN(0);
+                usbhd.usb_request = .get_interface;
+                usbhd.EP0_expect_IN(0);
             },
             .SET_CONFIGURATION => {
-                usbd.usb_request = .set_configuration;
-                usbd.EP0_expect_OUT();
+                usbhd.usb_request = .set_configuration;
+                usbhd.EP0_expect_OUT();
             },
             else => {},
         }
@@ -144,26 +144,26 @@ pub fn CLASS_REQUEST() void {
 
 // handle device class specific EP0 control in packet
 pub fn EP0_CONTROL_IN() void {
-    switch (usbd.usb_request) {
+    switch (usbhd.usb_request) {
         .get_interface => {},
         .set_configuration => {},
         else => unreachable,
     }
     // FIXME: expect IN? or OUT?
-    // usbd.EP0_expect_IN(0);
-    usbd.EP0_expect_OUT();
+    // usbhd.EP0_expect_IN(0);
+    usbhd.EP0_expect_OUT();
 }
 
 // handle device class specific EP0 control out packet
 pub fn EP0_CONTROL_OUT() void {
-    switch (usbd.usb_request) {
+    switch (usbhd.usb_request) {
         .set_configuration => {
-            const ep0_buf = &usbd.ep_buf[0];
+            const ep0_buf = &usbhd.ep_buf[0];
             update_keybaod_led(ep0_buf[0]);
         },
         else => unreachable,
     }
-    usbd.EP0_expect_IN(0);
+    usbhd.EP0_expect_IN(0);
 }
 
 // handle device class specific endpoint packets.
@@ -173,7 +173,7 @@ fn EP1_IN() void {
         if (key_data._reserved > 0) continue;
 
         // set another data
-        const buf = &usbd.ep_buf[1];
+        const buf = &usbhd.ep_buf[1];
         const data: [8]u8 = @bitCast(key_data);
         for (0..8) |i| {
             buf[i] = data[i];
@@ -287,16 +287,16 @@ pub fn ascii_to_usb_keycode(ascii_code: u8) ?KeyboardData {
     };
 }
 
-pub fn USBD(comptime config: pins.Pin.Configuration) type {
+pub fn USBHD(comptime config: pins.Pin.Configuration) type {
     return struct {
-        speed: usbd.Speed = config.usbd_speed orelse .Low_speed,
-        ep_num: u3 = config.usbd_ep_num orelse 1,
-        buffer_size: usbd.BufferSize = config.usbd_buffer_size orelse .byte_8,
-        handle_sof: bool = config.usbd_handle_sof orelse false,
+        speed: usbhd.Speed = config.usbhd_speed orelse .Low_speed,
+        ep_num: u3 = config.usbhd_ep_num orelse 1,
+        buffer_size: usbhd.BufferSize = config.usbhd_buffer_size orelse .byte_8,
+        handle_sof: bool = config.usbhd_handle_sof orelse false,
 
-        // mandatory or call directly usbd.init()
+        // mandatory or call directly usbhd.init()
         pub fn init(self: @This()) void {
-            usbd.init(self.speed);
+            usbhd.init(self.speed);
         }
 
         // device class specific methods
@@ -310,7 +310,7 @@ pub fn USBD(comptime config: pins.Pin.Configuration) type {
                 KeyBuffer.write(dummy) catch {}; // should no fail
 
                 // write data directly into RX buffer
-                const buf = &usbd.ep_buf[1];
+                const buf = &usbhd.ep_buf[1];
                 const data: [8]u8 = @bitCast(key_data);
                 for (0..8) |i| {
                     buf[i] = data[i];

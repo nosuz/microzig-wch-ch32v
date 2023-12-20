@@ -35,15 +35,15 @@ pub const Configuration = struct {
     handle_sof: bool = false,
 };
 
-pub fn USBD(comptime config: pins.Pin.Configuration) type {
-    return root.usbd_class.USBD(config);
+pub fn USBHD(comptime config: pins.Pin.Configuration) type {
+    return root.usbd_class.USBHD(config);
 }
 
 const pin = pins.get_pins(root.pin_config);
 // Number of endpoints
-const EP_NUM = pin.__usbd__.ep_num;
+const EP_NUM = pin.__usbhd__.ep_num;
 // packet buffer size.
-pub const BUFFER_SIZE: u8 = @intFromEnum(pin.__usbd__.buffer_size);
+pub const BUFFER_SIZE: u8 = @intFromEnum(pin.__usbhd__.buffer_size);
 
 pub var ep_buf: [EP_NUM][BUFFER_SIZE]u8 align(4) = undefined;
 
@@ -120,7 +120,7 @@ pub fn init(speed: Speed) void {
         // .RB_UIE_SUSPEND = 1,
         .RB_UIE_TRANSFER = 1,
         .RB_UIE_BUS_RST = 1,
-        .RB_UIE_DEV_SOF = @intFromBool(pin.__usbd__.handle_sof), // enable SOF interrupt,
+        .RB_UIE_DEV_SOF = @intFromBool(pin.__usbhd__.handle_sof), // enable SOF interrupt,
     });
     USB.R8_USB_INT_FG.write_raw(0x1f); // write 1 to clear
 

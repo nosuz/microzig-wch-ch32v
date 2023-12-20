@@ -5,7 +5,7 @@ const ch32v = microzig.hal;
 const clocks = ch32v.clocks;
 const time = ch32v.time;
 const serial = ch32v.serial;
-const usbd = ch32v.usbd;
+const usbd = if (ch32v.cpu_type == .ch32v103) ch32v.usbhd else ch32v.usbd;
 const interrupt = ch32v.interrupt;
 
 // variable name is fixed for usb device class
@@ -14,31 +14,58 @@ pub const usbd_class = if (ch32v.cpu_type == .ch32v103)
 else
     @import("lib_ch32v203/cdc_acm.zig");
 
-pub const pin_config = ch32v.pins.GlobalConfiguration{
-    .PA5 = .{
-        .name = "led",
-        .direction = .out,
-    },
-    .PA9 = .{
-        .name = "tx",
-        .function = .SERIAL,
-        .baud_rate = 115200,
-    },
-    // .PA10 = .{
-    //     // .name = "rx",
-    //     .function = .SERIAL,
-    // },
-    .PA11 = .{
-        .name = "usb",
-        .function = .USBD,
-        // .usbd_speed = .Full_speed, // use SOF instead of timer
-        .usbd_speed = .Low_speed, // no BULK transfer; for debugging
-        .usbd_ep_num = 4,
-        // .usbd_buffer_size = .byte_8, // default buffer size
-        // .usbd_handle_sof = false, // genellary no need to handle SOF
-        .usbd_handle_sof = true,
-    },
-};
+pub const pin_config = if (ch32v.cpu_type == .ch32v103)
+    ch32v.pins.GlobalConfiguration{
+        .PA5 = .{
+            .name = "led",
+            .direction = .out,
+        },
+        .PA9 = .{
+            .name = "tx",
+            .function = .SERIAL,
+            .baud_rate = 115200,
+        },
+        // .PA10 = .{
+        //     // .name = "rx",
+        //     .function = .SERIAL,
+        // },
+        .PA11 = .{
+            .name = "usb",
+            .function = .USBHD,
+            // .usbhd_speed = .Full_speed, // use SOF instead of timer
+            .usbhd_speed = .Low_speed, // no BULK transfer; for debugging
+            .usbhd_ep_num = 4,
+            // .usbhd_buffer_size = .byte_8, // default buffer size
+            // .usbhd_handle_sof = false, // genellary no need to handle SOF
+            .usbhd_handle_sof = true,
+        },
+    }
+else
+    ch32v.pins.GlobalConfiguration{
+        .PA5 = .{
+            .name = "led",
+            .direction = .out,
+        },
+        .PA9 = .{
+            .name = "tx",
+            .function = .SERIAL,
+            .baud_rate = 115200,
+        },
+        // .PA10 = .{
+        //     // .name = "rx",
+        //     .function = .SERIAL,
+        // },
+        .PA11 = .{
+            .name = "usb",
+            .function = .USBD,
+            // .usbd_speed = .Full_speed, // use SOF instead of timer
+            .usbd_speed = .Low_speed, // no BULK transfer; for debugging
+            .usbd_ep_num = 4,
+            // .usbd_buffer_size = .byte_8, // default buffer size
+            // .usbd_handle_sof = false, // genellary no need to handle SOF
+            .usbd_handle_sof = true,
+        },
+    };
 
 const clocks_config = clocks.Configuration{
     // .sysclk_src = .HSI,

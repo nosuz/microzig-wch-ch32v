@@ -12,7 +12,7 @@ const ch32v = microzig.hal;
 const clocks = ch32v.clocks;
 const interrupt = ch32v.interrupt;
 const time = ch32v.time;
-const usbd = ch32v.usbd;
+const usbd = if (ch32v.cpu_type == .ch32v103) ch32v.usbhd else ch32v.usbd;
 
 // variable name is fixed for usb device class
 pub const usbd_class = if (ch32v.cpu_type == .ch32v103)
@@ -29,12 +29,12 @@ pub const pin_config = if (ch32v.cpu_type == .ch32v103)
         },
         .PA11 = .{
             .name = "usb",
-            .function = .USBD,
-            .usbd_speed = .Full_speed, // use SOF instead of timer
-            // .usbd_speed = .Low_speed, // no BULK transfer; for debugging
-            .usbd_ep_num = 4,
-            .usbd_buffer_size = .byte_64,
-            .usbd_handle_sof = true,
+            .function = .USBHD,
+            .usbhd_speed = .Full_speed, // use SOF instead of timer
+            // .usbhd_speed = .Low_speed, // no BULK transfer; for debugging
+            .usbhd_ep_num = 4,
+            .usbhd_buffer_size = .byte_64,
+            .usbhd_handle_sof = true,
         },
     }
 else

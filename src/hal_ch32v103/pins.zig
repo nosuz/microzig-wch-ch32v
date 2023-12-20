@@ -10,7 +10,7 @@ const serial = ch32v.serial;
 const adc = ch32v.adc;
 const i2c = ch32v.i2c;
 const spi = ch32v.spi;
-const usbd = ch32v.usbd;
+const usbhd = ch32v.usbhd;
 
 const root = @import("root");
 
@@ -105,11 +105,11 @@ pub const Pin = enum {
         clock_div: ?spi.Clock_div = null,
         bit_order: ?spi.Bit_order = null,
 
-        // USBD
-        usbd_speed: ?usbd.Speed = null,
-        usbd_ep_num: ?u3 = null,
-        usbd_buffer_size: ?usbd.BufferSize = null,
-        usbd_handle_sof: ?bool = null,
+        // USBHD
+        usbhd_speed: ?usbhd.Speed = null,
+        usbhd_ep_num: ?u3 = null,
+        usbhd_buffer_size: ?usbhd.BufferSize = null,
+        usbhd_handle_sof: ?bool = null,
     };
 };
 
@@ -119,7 +119,7 @@ pub const Function = enum {
     SERIAL,
     I2C,
     SPI,
-    USBD, // USB Device
+    USBHD, // USBHD Device
 };
 
 fn all() [@typeInfo(Pin).Enum.fields.len]u1 {
@@ -322,20 +322,20 @@ pub fn Pins(comptime config: GlobalConfiguration) type {
                     pin_field.type = i2c.I2C(field.name);
                 } else if (pin_config.function == .SPI) {
                     pin_field.type = spi.SPI(field.name);
-                } else if (pin_config.function == .USBD) {
-                    // make copy by the name "__usbd__"
-                    const usbd_pin_field = StructField{
+                } else if (pin_config.function == .USBHD) {
+                    // make copy by the name "__usbhd__"
+                    const usbhd_pin_field = StructField{
                         .is_comptime = false,
                         .default_value = null,
 
                         // initialized below:
-                        .name = "__usbd__",
-                        .type = usbd.USBD(pin_config),
+                        .name = "__usbhd__",
+                        .type = usbhd.USBHD(pin_config),
                         .alignment = @alignOf(field.type),
                     };
-                    fields = fields ++ &[_]StructField{usbd_pin_field};
+                    fields = fields ++ &[_]StructField{usbhd_pin_field};
 
-                    pin_field.type = usbd.USBD(pin_config);
+                    pin_field.type = usbhd.USBHD(pin_config);
                 } else {
                     continue;
                 }
@@ -461,8 +461,8 @@ pub const GlobalConfiguration = struct {
             spi.Port.Configuration{},
         };
 
-        // USBD
-        comptime var usbd_cfg = usbd.Configuration{};
+        // USBHD
+        comptime var usbhd_cfg = usbhd.Configuration{};
 
         // validate selected function
         comptime {
@@ -741,49 +741,49 @@ pub const GlobalConfiguration = struct {
                             spi_cfg[@intFromEnum(pin.spi_port)].bit_order = bit_order;
                         }
                         spi_cfg[@intFromEnum(pin.spi_port)].setup = true;
-                    } else if (pin_config.function == .USBD) {
+                    } else if (pin_config.function == .USBHD) {
                         // Ref. 3.3.5.6 USB clock
                         switch (root.__Clocks_freq.pllclk) {
                             48_000_000, 72_000_000 => {},
                             else => @compileError(comptimePrint("PLL clock freq. should be 48MHz or 72MHz.: {}", .{root.__Clocks_freq.pllclk})),
                         }
 
-                        // make sure both PA11 and PA12 are USBD or null
+                        // make sure both PA11 and PA12 are USBHD or null
                         if (config.PA11) |port| {
-                            if (port.function != .USBD) {
+                            if (port.function != .USBHD) {
                                 @compileError("PA11 is used for USBHD. Not available for other functions.");
                             }
                         }
                         if (config.PA12) |port| {
-                            if (port.function != .USBD) {
+                            if (port.function != .USBHD) {
                                 @compileError("PA12 is used for USBHD. Not available for other functions.");
                             }
                         }
 
                         // check bus speed and buffer size.
-                        if ((pin_config.usbd_speed == .Low_speed) and (pin_config.usbd_buffer_size == .byte_64)) {
+                        if ((pin_config.usbhd_speed == .Low_speed) and (pin_config.usbhd_buffer_size == .byte_64)) {
                             @compileError("USBHD: 8 bytes is enough for low-speed devices buffer size.");
                         }
 
                         // Set PA11 and PA12 as GPIO out and set 0.
-                        // But there pins are automatically connected to the USBD when the USBD is enabled.
-                        const usbd_gpio_port_index = @intFromEnum(gpio.Port.PA) * 2 + 1; // +1 is for port pins 8-15
-                        const usbd_shift_num_base = (11 - 8) * 4; // PA11 = 11
+                        // But there pins are automatically connected to the USBHD when the USBHD is enabled.
+                        const usbhd_gpio_port_index = @intFromEnum(gpio.Port.PA) * 2 + 1; // +1 is for port pins 8-15
+                        const usbhd_shift_num_base = (11 - 8) * 4; // PA11 = 11
                         for (0..2) |i| {
-                            port_cfg_mask[usbd_gpio_port_index] |= 0b1111 << (usbd_shift_num_base + i);
+                            port_cfg_mask[usbhd_gpio_port_index] |= 0b1111 << (usbhd_shift_num_base + i);
                             // MODE: output max. 50MHz
-                            port_cfg_value[usbd_gpio_port_index] |= 0b11 << (usbd_shift_num_base + i);
+                            port_cfg_value[usbhd_gpio_port_index] |= 0b11 << (usbhd_shift_num_base + i);
                             // CFG: general push-pull
-                            port_cfg_value[usbd_gpio_port_index] |= 0b00 << ((usbd_shift_num_base + i) + 2);
+                            port_cfg_value[usbhd_gpio_port_index] |= 0b00 << ((usbhd_shift_num_base + i) + 2);
                         }
                         // set Low level
                         // default level after reset is Low and accept them.
                         // port_cfg_default[0] &= ~(0b11 << 11);
 
-                        if (pin_config.usbd_speed) |speed| {
-                            usbd_cfg.speed = speed;
+                        if (pin_config.usbhd_speed) |speed| {
+                            usbhd_cfg.speed = speed;
                         }
-                        usbd_cfg.setup = true;
+                        usbhd_cfg.setup = true;
                     }
 
                     // if (pin_config.function.is_adc()) {
@@ -1061,7 +1061,7 @@ pub const GlobalConfiguration = struct {
         }
 
         // Enable USBHD
-        if (usbd_cfg.setup) {
+        if (usbhd_cfg.setup) {
             if (!root.__Clocks_freq.use_pll) {
                 // PLL start
                 // RCC_CFGR0
@@ -1114,7 +1114,7 @@ pub const GlobalConfiguration = struct {
             // route USBHD to PA11 and PA12
             peripherals.EXTEND.EXTEND_CTR.modify(.{
                 .USBHDIO = 1,
-                // .USBDLS // for USBD (CH32F103)
+                // .USBDLS // for USBHD (CH32F103)
             });
         }
 

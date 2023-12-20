@@ -6,7 +6,7 @@ const clocks = ch32v.clocks;
 const time = ch32v.time;
 const serial = ch32v.serial;
 const pins = ch32v.pins;
-const usbd = ch32v.usbd;
+const usbd = if (ch32v.cpu_type == .ch32v103) ch32v.usbhd else ch32v.usbd;
 const interrupt = ch32v.interrupt;
 
 // variable name is fixed for usb device class
@@ -15,36 +15,68 @@ pub const usbd_class = if (ch32v.cpu_type == .ch32v103)
 else
     @import("lib_ch32v203/hid_keyboard.zig");
 
-pub const pin_config = ch32v.pins.GlobalConfiguration{
-    .PA5 = .{
-        .name = "led",
-        .direction = .out,
-        .level = .low,
-    },
-    .PA9 = .{
-        .name = "tx",
-        .function = .SERIAL,
-        .baud_rate = 115200,
-    },
-    // .PA10 = .{
-    //     // .name = "rx",
-    //     .function = .SERIAL,
-    // },
-    .PA11 = .{
-        .name = "usb",
-        .function = .USBD,
-        // .usbd_speed = .Full_speed,
-        // .usbd_speed = .Low_speed,
-        .usbd_ep_num = 2,
-        // .usbd_buffer_size = .byte_8, // default buffer size
-        // .usbd_handle_sof = false, // genellary no need to handle SOF
-    },
-    // .PA12 = .{
-    //     // Using for other than USBD will make error.
-    //     .name = "dummy",
-    //     .function = .GPIO,
-    // },
-};
+pub const pin_config = if (ch32v.cpu_type == .ch32v103)
+    ch32v.pins.GlobalConfiguration{
+        .PA5 = .{
+            .name = "led",
+            .direction = .out,
+            .level = .low,
+        },
+        .PA9 = .{
+            .name = "tx",
+            .function = .SERIAL,
+            .baud_rate = 115200,
+        },
+        // .PA10 = .{
+        //     // .name = "rx",
+        //     .function = .SERIAL,
+        // },
+        .PA11 = .{
+            .name = "usb",
+            .function = .USBHD,
+            // .usbhd_speed = .Full_speed,
+            // .usbhd_speed = .Low_speed,
+            .usbhd_ep_num = 2,
+            // .usbhd_buffer_size = .byte_8, // default buffer size
+            // .usbhd_handle_sof = false, // genellary no need to handle SOF
+        },
+        // .PA12 = .{
+        //     // Using for other than USBD will make error.
+        //     .name = "dummy",
+        //     .function = .GPIO,
+        // },
+    }
+else
+    ch32v.pins.GlobalConfiguration{
+        .PA5 = .{
+            .name = "led",
+            .direction = .out,
+            .level = .low,
+        },
+        .PA9 = .{
+            .name = "tx",
+            .function = .SERIAL,
+            .baud_rate = 115200,
+        },
+        // .PA10 = .{
+        //     // .name = "rx",
+        //     .function = .SERIAL,
+        // },
+        .PA11 = .{
+            .name = "usb",
+            .function = .USBD,
+            // .usbd_speed = .Full_speed,
+            // .usbd_speed = .Low_speed,
+            .usbd_ep_num = 2,
+            // .usbd_buffer_size = .byte_8, // default buffer size
+            // .usbd_handle_sof = false, // genellary no need to handle SOF
+        },
+        // .PA12 = .{
+        //     // Using for other than USBD will make error.
+        //     .name = "dummy",
+        //     .function = .GPIO,
+        // },
+    };
 
 const clocks_config = clocks.Configuration{
     .sysclk_src = .HSI,

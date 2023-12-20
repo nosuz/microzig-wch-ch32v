@@ -3,7 +3,7 @@ const root = @import("root"); // for debug
 
 const microzig = @import("microzig");
 const ch32v = microzig.hal;
-const usbd = ch32v.usbd;
+const usbhd = ch32v.usbhd;
 const pins = ch32v.pins;
 const rb = ch32v.ring_buffer;
 const time = ch32v.time;
@@ -11,7 +11,7 @@ const time = ch32v.time;
 const peripherals = microzig.chip.peripherals;
 const USB = peripherals.USBHD_DEVICE;
 
-// provide device descriptor dat to usbd
+// provide device descriptor dat to usbhd
 // variable name is fixed.
 pub const descriptors = @import("cdc_acm_descriptors.zig");
 
@@ -142,7 +142,7 @@ pub fn set_configuration(setup_value: u16) void {
     _ = setup_value;
 
     // endpoint 1 IN
-    USB.R16_UEP1_DMA = @truncate(@intFromPtr(&usbd.ep_buf[1]));
+    USB.R16_UEP1_DMA = @truncate(@intFromPtr(&usbhd.ep_buf[1]));
 
     USB.R8_UEP4_1_MOD.modify(.{
         .RB_UEP1_RX_EN = 0,
@@ -152,8 +152,8 @@ pub fn set_configuration(setup_value: u16) void {
     });
 
     // endpoint 2 OUT endpoint 3 IN
-    USB.R16_UEP2_DMA = @truncate(@intFromPtr(&usbd.ep_buf[2]));
-    USB.R16_UEP3_DMA = @truncate(@intFromPtr(&usbd.ep_buf[3]));
+    USB.R16_UEP2_DMA = @truncate(@intFromPtr(&usbhd.ep_buf[2]));
+    USB.R16_UEP3_DMA = @truncate(@intFromPtr(&usbhd.ep_buf[3]));
 
     USB.R8_UEP2_3_MOD.modify(.{
         .RB_UEP2_RX_EN = 1, // OUT
@@ -182,25 +182,25 @@ pub fn SOF() void {
 // handle device class specific SETUP requests.
 pub fn CLASS_REQUEST() void {
     // device class specific requests
-    switch (usbd.setup_data.bRequest) {
+    switch (usbhd.setup_data.bRequest) {
         .GET_INTERFACE => {
-            usbd.usb_request = .get_interface;
-            usbd.EP0_expect_IN(0);
+            usbhd.usb_request = .get_interface;
+            usbhd.EP0_expect_IN(0);
         },
         .SET_CONFIGURATION => {
-            usbd.usb_request = .set_configuration;
-            usbd.EP0_expect_OUT();
+            usbhd.usb_request = .set_configuration;
+            usbhd.EP0_expect_OUT();
         },
         .SET_LINE_CODING => {
-            usbd.usb_request = .set_line_coding;
-            usbd.EP0_expect_OUT();
+            usbhd.usb_request = .set_line_coding;
+            usbhd.EP0_expect_OUT();
         },
         .SET_CONTROL_LINE_STATE => {
-            usbd.usb_request = .set_line_control_state;
+            usbhd.usb_request = .set_line_control_state;
             // SETUP value is flow control
-            const con_state = if ((usbd.setup_data.wValue & 0x01) == 0) false else true;
+            const con_state = if ((usbhd.setup_data.wValue & 0x01) == 0) false else true;
             set_connection_state(con_state);
-            usbd.EP0_expect_IN(0);
+            usbhd.EP0_expect_IN(0);
         },
         else => {},
     }
@@ -209,22 +209,22 @@ pub fn CLASS_REQUEST() void {
 // handle device class specific EP0 control in packet
 // define if custom EP0_CONTROL_IN packet handler is required.
 // pub fn EP0_CONTROL_IN() void {
-//     switch (usbd.usb_request) {
+//     switch (usbhd.usb_request) {
 //         .get_interface => {},
 //         else => unreachable,
 //     }
-//     usbd.EP0_expect_IN(0);
+//     usbhd.EP0_expect_IN(0);
 // }
 
 // handle device class specific EP0 control out packet
 // define if custom EP0_CONTROL_OUT packet handler is required.
 pub fn EP0_CONTROL_OUT() void {
-    switch (usbd.usb_request) {
+    switch (usbhd.usb_request) {
         .set_line_coding => {
             // set serial config
             // LineCodingFormat is 7 bytes.
             var _buffer = [_]u8{0} ** 7;
-            const ep0_buf = &usbd.ep_buf[0];
+            const ep0_buf = &usbhd.ep_buf[0];
             for (0..7) |i| {
                 _buffer[i] = ep0_buf[i];
             }
@@ -236,7 +236,7 @@ pub fn EP0_CONTROL_OUT() void {
         else => unreachable,
     }
 
-    usbd.EP0_expect_IN(0);
+    usbhd.EP0_expect_IN(0);
 }
 
 pub fn EP1_IN() void {
@@ -256,7 +256,7 @@ pub fn EP2_OUT() void {
     // FIXME: need to respose NAK before full to avoid loose data
     // response NAK if buffer full
     if (!Rx_Buffer.is_full()) {
-        const buf = &usbd.ep_buf[2];
+        const buf = &usbhd.ep_buf[2];
         for (0..USB.R16_USB_RX_LEN) |i| {
             Rx_Buffer.write(buf[i]) catch {
                 break;
@@ -267,8 +267,8 @@ pub fn EP2_OUT() void {
 
 fn set_ep3_tx_data() void {
     var tx_count: u8 = 0;
-    const buf = &usbd.ep_buf[3];
-    for (0..usbd.BUFFER_SIZE) |i| {
+    const buf = &usbhd.ep_buf[3];
+    for (0..usbhd.BUFFER_SIZE) |i| {
         const chr = Tx_Buffer.read() catch {
             break;
         };
@@ -366,16 +366,16 @@ pub fn start_tx() void {
     set_ep3_tx_data();
 }
 
-pub fn USBD(comptime config: pins.Pin.Configuration) type {
+pub fn USBHD(comptime config: pins.Pin.Configuration) type {
     return struct {
-        speed: usbd.Speed = config.usbd_speed orelse .Low_speed,
-        ep_num: u3 = config.usbd_ep_num orelse 1,
-        buffer_size: usbd.BufferSize = config.usbd_buffer_size orelse .byte_8,
-        handle_sof: bool = config.usbd_handle_sof orelse false,
+        speed: usbhd.Speed = config.usbhd_speed orelse .Low_speed,
+        ep_num: u3 = config.usbhd_ep_num orelse 1,
+        buffer_size: usbhd.BufferSize = config.usbhd_buffer_size orelse .byte_8,
+        handle_sof: bool = config.usbhd_handle_sof orelse false,
 
-        // mandatory or call directly usbd.init()
+        // mandatory or call directly usbhd.init()
         pub fn init(self: @This()) void {
-            usbd.init(self.speed);
+            usbhd.init(self.speed);
         }
 
         pub fn read(self: @This()) u8 {
