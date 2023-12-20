@@ -64,7 +64,8 @@ pub const devices = struct {
             ///  CRC calculation unit
             pub const CRC = @as(*volatile types.peripherals.CRC, @ptrFromInt(0x40023000));
             ///  USB register
-            pub const USBHD = @as(*volatile types.peripherals.USBHD, @ptrFromInt(0x40023400));
+            pub const USBHD_DEVICE = @as(*volatile types.peripherals.USBHD_DEVICE, @ptrFromInt(0x40023400));
+            pub const USBHD_HOST = @as(*volatile types.peripherals.USBHD_HOST, @ptrFromInt(0x40023400));
             ///  extension configuration
             pub const EXTEND = @as(*volatile types.peripherals.EXTEND, @ptrFromInt(0x40023800));
             ///  Programmable Fast Interrupt Controller
@@ -1197,8 +1198,28 @@ pub const types = struct {
             ///  STK_CTLR Register
             STK_CTLR: mmio.Mmio(packed struct(u32) {
                 ///  STE
-                STE: u28,
-                padding: u4,
+                STE: u1,
+                padding: u31,
+            }),
+            ///  System counter low register; modify only each 8-bits.
+            STK_CNTL: mmio.Mmio(packed struct(u32) {
+                ///  CNTL
+                CNTL: u32,
+            }),
+            ///  System counter high register; modify only each 8-bits.
+            STK_CNTH: mmio.Mmio(packed struct(u32) {
+                ///  CNTH
+                CNTH: u32,
+            }),
+            ///  System compare low register; modify only each 8-bits.
+            STK_CMPLR: mmio.Mmio(packed struct(u32) {
+                ///  CMPL
+                CMPL: u32,
+            }),
+            ///  System compare high register; modify only each 8-bits.
+            STK_CMPHR: mmio.Mmio(packed struct(u32) {
+                ///  CMPH
+                CMPH: u32,
             }),
         };
 
@@ -2974,7 +2995,7 @@ pub const types = struct {
         };
 
         ///  USB register
-        pub const USBHD = extern struct {
+        pub const USBHD_DEVICE = extern struct {
             ///  USB base control
             R8_USB_CTRL: mmio.Mmio(packed struct(u8) {
                 ///  DMA enable and DMA interrupt enable for USB
@@ -2993,26 +3014,26 @@ pub const types = struct {
                 RB_UC_HOST_MODE: u1,
             }),
             ///  USB device physical prot control
-            R8_UDEV_CTRL__R8_UHOST_CTRL: mmio.Mmio(packed struct(u8) {
+            R8_UDEV_CTRL: mmio.Mmio(packed struct(u8) {
                 ///  enable USB physical port I/O: 0=disable, 1=enable;enable USB port: 0=disable, 1=enable port, automatic disabled if USB device detached
-                RB_UD_PORT_EN__RB_UH_PORT_EN: u1,
-                ///  general purpose bit;control USB bus reset: 0=normal, 1=force bus reset
-                RB_UD_GP_BIT__RB_UH_BUS_RESET: u1,
-                ///  enable USB physical port low speed: 0=full speed, 1=low speed;enable USB port low speed: 0=full speed, 1=low speed
-                RB_UD_LOW_SPEED__RB_UH_LOW_SPEED: u1,
+                RB_UD_PORT_EN: u1,
+                ///  general purpose bit
+                RB_UD_GP_BIT: u1,
+                ///  enable USB physical port low speed: 0=full speed, 1=low speed
+                RB_UD_LOW_SPEED: u1,
                 reserved4: u1,
                 ///  ReadOnly: indicate current UDM pin level
-                RB_UD_DM_PIN__RB_UH_DM_PIN: u1,
+                RB_UD_DM_PIN: u1,
                 ///  ReadOnly: indicate current UDP pin level
-                RB_UD_DP_PIN__RB_UH_DP_PIN: u1,
+                RB_UD_DP_PIN: u1,
                 reserved7: u1,
                 ///  disable USB UDP/UDM pulldown resistance: 0=enable pulldown, 1=disable
-                RB_UD_PD_DIS__RB_UH_PD_DIS: u1,
+                RB_UD_PD_DIS: u1,
             }),
             ///  USB interrupt enable
             R8_USB_INT_EN: mmio.Mmio(packed struct(u8) {
-                ///  enable interrupt for USB bus reset event for USB device mode;enable interrupt for USB device detected event for USB host mode
-                RB_UIE_BUS_RST__RB_UIE_DETECT: u1,
+                ///  enable interrupt for USB bus reset event for USB device mode
+                RB_UIE_BUS_RST: u1,
                 ///  enable interrupt for USB transfer completion
                 RB_UIE_TRANSFER: u1,
                 ///  enable interrupt for USB suspend or resume event
@@ -3056,8 +3077,8 @@ pub const types = struct {
             }),
             ///  USB interrupt flag
             R8_USB_INT_FG: mmio.Mmio(packed struct(u8) {
-                ///  bus reset event interrupt flag for USB device mode, direct bit address clear or write 1 to clear;device detected event interrupt flag for USB host mode, direct bit address clear or write 1 to clear
-                RB_UIF_BUS_RST__RB_UIF_DETECT: u1,
+                ///  bus reset event interrupt flag for USB device mode, direct bit address clear or write 1 to clear
+                RB_UIF_BUS_RST: u1,
                 ///  USB transfer completion interrupt flag, direct bit address clear or write 1 to clear
                 RB_UIF_TRANSFER: u1,
                 ///  USB suspend or resume event interrupt flag, direct bit address clear or write 1 to clear
@@ -3075,8 +3096,8 @@ pub const types = struct {
             }),
             ///  USB interrupt status
             R8_USB_INT_ST: mmio.Mmio(packed struct(u8) {
-                ///  RO, bit mask of current transfer handshake response for USB host mode: 0000=no response, time out from device, others=handshake response PID received;RO, bit mask of current transfer endpoint number for USB device mode
-                MASK_UIS_H_RES__MASK_UIS_ENDP: u4,
+                ///  RO, bit mask of current transfer handshake response for USB host mode: 0000=no response, time out from device, others=handshake response PID received
+                MASK_UIS_H_RES: u4,
                 ///  RO, bit mask of current token PID code received for USB device mode
                 MASK_UIS_TOKEN: u2,
                 ///  RO, indicate current USB transfer toggle is OK
@@ -3085,8 +3106,10 @@ pub const types = struct {
                 RB_UIS_IS_NAK: u1,
             }),
             ///  USB receiving length
-            R8_USB_RX_LEN: u8,
-            reserved12: [3]u8,
+            /// V103 is u10
+            R16_USB_RX_LEN: u16,
+            // reserved12: [3]u8, for F103
+            reserved12: [2]u8,
             ///  endpoint 4/1 mode
             R8_UEP4_1_MOD: mmio.Mmio(packed struct(u8) {
                 reserved2: u2,
@@ -3102,39 +3125,77 @@ pub const types = struct {
                 ///  enable USB endpoint 1 receiving (OUT)
                 RB_UEP1_RX_EN: u1,
             }),
-            ///  endpoint 2/3 mode;host endpoint mode
-            R8_UEP2_3_MOD__R8_UH_EP_MOD: mmio.Mmio(packed struct(u8) {
-                ///  buffer mode of USB endpoint 2;buffer mode of USB host IN endpoint
-                RB_UEP2_BUF_MOD__RB_UH_EP_RBUF_MOD: u1,
+            ///  endpoint 2/3 mode
+            R8_UEP2_3_MOD: mmio.Mmio(packed struct(u8) {
+                ///  buffer mode of USB endpoint 2
+                RB_UEP2_BUF_MOD: u1,
                 reserved2: u1,
                 ///  enable USB endpoint 2 transmittal (IN)
                 RB_UEP2_TX_EN: u1,
-                ///  enable USB endpoint 2 receiving (OUT);enable USB host IN endpoint receiving
-                RB_UEP2_RX_EN__RB_UH_EP_RX_EN: u1,
-                ///  buffer mode of USB endpoint 3;buffer mode of USB host OUT endpoint
-                RB_UEP3_BUF_MOD__RB_UH_EP_TBUF_MOD: u1,
+                ///  enable USB endpoint 2 receiving (OUT)
+                RB_UEP2_RX_EN: u1,
+                ///  buffer mode of USB endpoint 3
+                RB_UEP3_BUF_MOD: u1,
                 reserved6: u1,
-                ///  enable USB endpoint 3 transmittal (IN);enable USB host OUT endpoint transmittal
-                RB_UEP3_TX_EN__RB_UH_EP_TX_EN: u1,
+                ///  enable USB endpoint 3 transmittal (IN)
+                RB_UEP3_TX_EN: u1,
                 ///  enable USB endpoint 3 receiving (OUT)
                 RB_UEP3_RX_EN: u1,
             }),
-            reserved16: [2]u8,
+            ///  endpoint 5/6 mode
+            R8_UEP5_6_MOD: mmio.Mmio(packed struct(u8) {
+                ///  buffer mode of USB endpoint 2
+                RB_UEP5_BUF_MOD: u1,
+                reserved2: u1,
+                ///  enable USB endpoint 2 transmittal (IN)
+                RB_UEP5_TX_EN: u1,
+                ///  enable USB endpoint 2 receiving (OUT)
+                RB_UEP5_RX_EN: u1,
+                ///  buffer mode of USB endpoint 3
+                RB_UEP6_BUF_MOD: u1,
+                reserved6: u1,
+                ///  enable USB endpoint 3 transmittal (IN)
+                RB_UEP6_TX_EN: u1,
+                ///  enable USB endpoint 3 receiving (OUT)
+                RB_UEP6_RX_EN: u1,
+            }),
+            ///  endpoint 7 mode
+            R8_UEP7_MOD: mmio.Mmio(packed struct(u8) {
+                ///  buffer mode of USB endpoint 7
+                RB_UEP7_BUF_MOD: u1,
+                reserved2: u1,
+                ///  enable USB endpoint 7 transmittal (IN)
+                RB_UEP7_TX_EN: u1,
+                ///  enable USB endpoint 7 receiving (OUT)
+                RB_UEP7_RX_EN: u1,
+                reserved8: u4,
+            }),
             ///  endpoint 0 DMA buffer address
             R16_UEP0_DMA: u16,
             reserved20: [2]u8,
             ///  endpoint 1 DMA buffer address
             R16_UEP1_DMA: u16,
             reserved24: [2]u8,
-            ///  endpoint 2 DMA buffer address;host rx endpoint buffer high address
-            R16_UEP2_DMA__R16_UH_RX_DMA: u16,
+            ///  endpoint 2 DMA buffer address
+            R16_UEP2_DMA: u16,
             reserved28: [2]u8,
-            ///  endpoint 3 DMA buffer address;host tx endpoint buffer high address
-            R16_UEP3_DMA__R16_UH_TX_DMA: u16,
+            ///  endpoint 3 DMA buffer address
+            R16_UEP3_DMA: u16,
             reserved32: [2]u8,
+            ///  endpoint 4 DMA buffer address
+            R16_UEP4_DMA: u16,
+            reserved36: [2]u8,
+            ///  endpoint 5 DMA buffer address
+            R16_UEP5_DMA: u16,
+            reserved40: [2]u8,
+            ///  endpoint 6 DMA buffer address
+            R16_UEP6_DMA: u16,
+            reserved44: [2]u8,
+            ///  endpoint 7 DMA buffer address
+            R16_UEP7_DMA: u16,
+            reserved48: [2]u8,
             ///  endpoint 0 transmittal length
-            R8_UEP0_T_LEN: u8,
-            reserved34: [1]u8,
+            R16_UEP0_T_LEN: u16,
             ///  endpoint 0 control
             R8_UEP0_CTRL: mmio.Mmio(packed struct(u8) {
                 ///  bit mask of handshake response type for USB endpoint X transmittal (IN)
@@ -3149,12 +3210,11 @@ pub const types = struct {
                 ///  expected data toggle flag of USB endpoint X receiving (OUT): 0=DATA0, 1=DATA1
                 RB_UEP_R_TOG: u1,
             }),
-            reserved36: [1]u8,
+            reserved53: [1]u8,
             ///  endpoint 1 transmittal length
-            R8_UEP1_T_LEN: u8,
-            reserved38: [1]u8,
-            ///  endpoint 1 control;host aux setup
-            R8_UEP1_CTRL__R8_UH_SETUP: mmio.Mmio(packed struct(u8) {
+            R16_UEP1_T_LEN: u16,
+            ///  endpoint 1 control
+            R8_UEP1_CTRL: mmio.Mmio(packed struct(u8) {
                 ///  bit mask of handshake response type for USB endpoint X transmittal (IN)
                 MASK_UEP_T_RES: u2,
                 ///  bit mask of handshake response type for USB endpoint X receiving (OUT)
@@ -3162,40 +3222,16 @@ pub const types = struct {
                 ///  enable automatic toggle after successful transfer completion on endpoint 1/2/3: 0=manual toggle, 1=automatic toggle
                 RB_UEP_AUTO_TOG: u1,
                 reserved6: u1,
-                ///  prepared data toggle flag of USB endpoint X transmittal (IN): 0=DATA0, 1=DATA1;USB host automatic SOF enable
-                RB_UEP_T_TOG__RB_UH_SOF_EN: u1,
-                ///  expected data toggle flag of USB endpoint X receiving (OUT): 0=DATA0, 1=DATA1;RB_UH_PRE_PID_EN;USB host PRE PID enable for low speed device via hub
-                RB_UEP_R_TOG__RB_UH_PRE_PID_EN: u1,
-            }),
-            reserved40: [1]u8,
-            ///  endpoint 2 transmittal length;host endpoint and PID
-            R8_UEP2_T_LEN__R8_UH_EP_PID: mmio.Mmio(packed struct(u8) {
-                ///  bit mask of endpoint number for USB host transfer
-                MASK_UH_ENDP: u4,
-                ///  bit mask of token PID for USB host transfer
-                MASK_UH_TOKEN: u4,
-            }),
-            reserved42: [1]u8,
-            ///  endpoint 2 control;host receiver endpoint control
-            R8_UEP2_CTRL__R8_UH_RX_CTRL: mmio.Mmio(packed struct(u8) {
-                ///  bit mask of handshake response type for USB endpoint X transmittal (IN)
-                MASK_UEP_T_RES: u2,
-                ///  bit mask of handshake response type for USB endpoint X receiving (OUT)
-                MASK_UEP_R_RES: u2,
-                ///  enable automatic toggle after successful transfer completion on endpoint 1/2/3: 0=manual toggle, 1=automatic toggle;enable automatic toggle after successful transfer completion: 0=manual toggle, 1=automatic toggle
-                RB_UEP_AUTO_TOG__RB_UH_R_AUTO_TOG: u1,
-                reserved6: u1,
                 ///  prepared data toggle flag of USB endpoint X transmittal (IN): 0=DATA0, 1=DATA1
                 RB_UEP_T_TOG: u1,
-                ///  expected data toggle flag of USB endpoint X receiving (OUT): 0=DATA0, 1=DATA1;expected data toggle flag of host receiving (IN): 0=DATA0, 1=DATA1
-                RB_UEP_R_TOG__RB_UH_R_TOG: u1,
+                ///  expected data toggle flag of USB endpoint X receiving (OUT): 0=DATA0, 1=DATA1;RB_UH_PRE_PID_EN
+                RB_UEP_R_TOG: u1,
             }),
-            reserved44: [1]u8,
-            ///  endpoint 3 transmittal length;host transmittal endpoint transmittal length
-            R8_UEP3_T_LEN__R8_UH_TX_LEN: u8,
-            reserved46: [1]u8,
-            ///  endpoint 3 control;host transmittal endpoint control
-            R8_UEP3_CTRL__R8_UH_TX_CTRL: mmio.Mmio(packed struct(u8) {
+            reserved57: [1]u8,
+            ///  endpoint 2 transmittal length
+            R16_UEP2_T_LEN: u16,
+            ///  endpoint 2 control
+            R8_UEP2_CTRL: mmio.Mmio(packed struct(u8) {
                 ///  bit mask of handshake response type for USB endpoint X transmittal (IN)
                 MASK_UEP_T_RES: u2,
                 ///  bit mask of handshake response type for USB endpoint X receiving (OUT)
@@ -3208,10 +3244,26 @@ pub const types = struct {
                 ///  expected data toggle flag of USB endpoint X receiving (OUT): 0=DATA0, 1=DATA1
                 RB_UEP_R_TOG: u1,
             }),
-            reserved48: [1]u8,
+            reserved61: [1]u8,
+            ///  endpoint 3 transmittal length
+            R16_UEP3_T_LEN: u16,
+            ///  endpoint 3 control
+            R8_UEP3_CTRL: mmio.Mmio(packed struct(u8) {
+                ///  bit mask of handshake response type for USB endpoint X transmittal (IN)
+                MASK_UEP_T_RES: u2,
+                ///  bit mask of handshake response type for USB endpoint X receiving (OUT)
+                MASK_UEP_R_RES: u2,
+                ///  enable automatic toggle after successful transfer completion on endpoint 1/2/3: 0=manual toggle, 1=automatic toggle
+                RB_UEP_AUTO_TOG: u1,
+                reserved6: u1,
+                ///  prepared data toggle flag of USB endpoint X transmittal (IN): 0=DATA0, 1=DATA1
+                RB_UEP_T_TOG: u1,
+                ///  expected data toggle flag of USB endpoint X receiving (OUT): 0=DATA0, 1=DATA1
+                RB_UEP_R_TOG: u1,
+            }),
+            reserved65: [1]u8,
             ///  endpoint 4 transmittal length
-            R8_UEP4_T_LEN: u8,
-            reserved50: [1]u8,
+            R16_UEP4_T_LEN: u16,
             ///  endpoint 4 control
             R8_UEP4_CTRL: mmio.Mmio(packed struct(u8) {
                 ///  bit mask of handshake response type for USB endpoint X transmittal (IN)
@@ -3226,21 +3278,251 @@ pub const types = struct {
                 ///  expected data toggle flag of USB endpoint X receiving (OUT): 0=DATA0, 1=DATA1
                 RB_UEP_R_TOG: u1,
             }),
-            reserved56: [5]u8,
-            ///  USB type-C control
-            R8_USB_TYPE_C_CTRL: mmio.Mmio(packed struct(u8) {
-                ///  USB CC1 pullup resistance control
-                RB_UCC1_PU_EN: u2,
-                ///  USB CC1 5.1K pulldown resistance: 0=disable, 1=enable pulldown
-                RB_UCC1_PD_EN: u1,
-                ///  USB VBUS 10K pulldown resistance: 0=disable, 1=enable pullup
-                RB_VBUS_PD_EN: u1,
-                ///  USB CC2 pullup resistance control
-                RB_UCC2_PU_EN: u2,
-                ///  USB CC2 5.1K pulldown resistance: 0=disable, 1=enable pulldown
-                RB_UCC2_PD_EN: u1,
-                ///  USB general purpose bit
-                RB_UTCC_GP_BIT: u1,
+            reserved68: [1]u8,
+            ///  endpoint 5 transmittal length
+            R16_UEP5_T_LEN: u16,
+            ///  endpoint 5 control
+            R8_UEP5_CTRL: mmio.Mmio(packed struct(u8) {
+                ///  bit mask of handshake response type for USB endpoint X transmittal (IN)
+                MASK_UEP_T_RES: u2,
+                ///  bit mask of handshake response type for USB endpoint X receiving (OUT)
+                MASK_UEP_R_RES: u2,
+                ///  enable automatic toggle after successful transfer completion on endpoint 1/2/3: 0=manual toggle, 1=automatic toggle
+                RB_UEP_AUTO_TOG: u1,
+                reserved6: u1,
+                ///  prepared data toggle flag of USB endpoint X transmittal (IN): 0=DATA0, 1=DATA1
+                RB_UEP_T_TOG: u1,
+                ///  expected data toggle flag of USB endpoint X receiving (OUT): 0=DATA0, 1=DATA1
+                RB_UEP_R_TOG: u1,
+            }),
+            reserved72: [1]u8,
+            ///  endpoint 6 transmittal length
+            R16_UEP6_T_LEN: u16,
+            ///  endpoint 6 control
+            R8_UEP6_CTRL: mmio.Mmio(packed struct(u8) {
+                ///  bit mask of handshake response type for USB endpoint X transmittal (IN)
+                MASK_UEP_T_RES: u2,
+                ///  bit mask of handshake response type for USB endpoint X receiving (OUT)
+                MASK_UEP_R_RES: u2,
+                ///  enable automatic toggle after successful transfer completion on endpoint 1/2/3: 0=manual toggle, 1=automatic toggle
+                RB_UEP_AUTO_TOG: u1,
+                reserved6: u1,
+                ///  prepared data toggle flag of USB endpoint X transmittal (IN): 0=DATA0, 1=DATA1
+                RB_UEP_T_TOG: u1,
+                ///  expected data toggle flag of USB endpoint X receiving (OUT): 0=DATA0, 1=DATA1
+                RB_UEP_R_TOG: u1,
+            }),
+            reserved76: [1]u8,
+            ///  endpoint 7 transmittal length
+            R16_UEP7_T_LEN: u16,
+            ///  endpoint 7 control
+            R8_UEP7_CTRL: mmio.Mmio(packed struct(u8) {
+                ///  bit mask of handshake response type for USB endpoint X transmittal (IN)
+                MASK_UEP_T_RES: u2,
+                ///  bit mask of handshake response type for USB endpoint X receiving (OUT)
+                MASK_UEP_R_RES: u2,
+                ///  enable automatic toggle after successful transfer completion on endpoint 1/2/3: 0=manual toggle, 1=automatic toggle
+                RB_UEP_AUTO_TOG: u1,
+                reserved6: u1,
+                ///  prepared data toggle flag of USB endpoint X transmittal (IN): 0=DATA0, 1=DATA1
+                RB_UEP_T_TOG: u1,
+                ///  expected data toggle flag of USB endpoint X receiving (OUT): 0=DATA0, 1=DATA1
+                RB_UEP_R_TOG: u1,
+            }),
+        };
+
+        pub const USBHD_HOST = extern struct {
+            ///  USB base control
+            R8_USB_CTRL: mmio.Mmio(packed struct(u8) {
+                ///  DMA enable and DMA interrupt enable for USB
+                RB_UC_DMA_EN: u1,
+                ///  force clear FIFO and count of USB
+                RB_UC_CLR_ALL: u1,
+                ///  force reset USB SIE, need software clear
+                RB_UC_RESET_SIE: u1,
+                ///  enable automatic responding busy for device mode or automatic pause for host mode during interrupt flag UIF_TRANSFER valid
+                RB_UC_INT_BUSY: u1,
+                ///  bit mask of USB system control
+                MASK_UC_SYS_CTRL: u2,
+                ///  enable USB low speed: 0=12Mbps, 1=1.5Mbps
+                RB_UC_LOW_SPEED: u1,
+                ///  enable USB host mode: 0=device mode, 1=host mode
+                RB_UC_HOST_MODE: u1,
+            }),
+            ///  USB device physical prot control
+            R8_UHOST_CTRL: mmio.Mmio(packed struct(u8) {
+                ///  enable USB port: 0=disable, 1=enable port, automatic disabled if USB device detached
+                RB_UH_PORT_EN: u1,
+                ///  control USB bus reset: 0=normal, 1=force bus reset
+                RB_UH_BUS_RESET: u1,
+                ///  enable USB port low speed: 0=full speed, 1=low speed
+                RB_UH_LOW_SPEED: u1,
+                reserved4: u1,
+                ///  ReadOnly: indicate current UDM pin level
+                RB_UH_DM_PIN: u1,
+                ///  ReadOnly: indicate current UDP pin level
+                RB_UH_DP_PIN: u1,
+                reserved7: u1,
+                ///  disable USB UDP/UDM pulldown resistance: 0=enable pulldown, 1=disable
+                RB_UH_PD_DIS: u1,
+            }),
+            ///  USB interrupt enable
+            R8_USB_INT_EN: mmio.Mmio(packed struct(u8) {
+                ///  enable interrupt for USB device detected event for USB host mode
+                RB_UIE_DETECT: u1,
+                ///  enable interrupt for USB transfer completion
+                RB_UIE_TRANSFER: u1,
+                ///  enable interrupt for USB suspend or resume event
+                RB_UIE_SUSPEND: u1,
+                ///  enable interrupt for host SOF timer action for USB host mode
+                RB_UIE_HST_SOF: u1,
+                ///  enable interrupt for FIFO overflow
+                RB_UIE_FIFO_OV: u1,
+                reserved6: u1,
+                ///  enable interrupt for NAK responded for USB device mode
+                RB_UIE_DEV_NAK: u1,
+                ///  enable interrupt for SOF received for USB device mode
+                RB_UIE_DEV_SOF: u1,
+            }),
+            ///  USB device address
+            R8_USB_DEV_AD: mmio.Mmio(packed struct(u8) {
+                ///  bit mask for USB device address
+                MASK_USB_ADDR: u7,
+                ///  general purpose bit
+                RB_UDA_GP_BIT: u1,
+            }),
+            reserved5: [1]u8,
+            ///  USB miscellaneous status
+            R8_USB_MIS_ST: mmio.Mmio(packed struct(u8) {
+                ///  RO, indicate device attached status on USB host
+                RB_UMS_DEV_ATTACH: u1,
+                ///  RO, indicate UDM level saved at device attached to USB host
+                RB_UMS_DM_LEVEL: u1,
+                ///  RO, indicate USB suspend status
+                RB_UMS_SUSPEND: u1,
+                ///  RO, indicate USB bus reset status
+                RB_UMS_BUS_RESET: u1,
+                ///  RO, indicate USB receiving FIFO ready status (not empty)
+                RB_UMS_R_FIFO_RDY: u1,
+                ///  RO, indicate USB SIE free status
+                RB_UMS_SIE_FREE: u1,
+                ///  RO, indicate host SOF timer action status for USB host
+                RB_UMS_SOF_ACT: u1,
+                ///  RO, indicate host SOF timer presage status
+                RB_UMS_SOF_PRES: u1,
+            }),
+            ///  USB interrupt flag
+            R8_USB_INT_FG: mmio.Mmio(packed struct(u8) {
+                ///  device detected event interrupt flag for USB host mode, direct bit address clear or write 1 to clear
+                RB_UIF_DETECT: u1,
+                ///  USB transfer completion interrupt flag, direct bit address clear or write 1 to clear
+                RB_UIF_TRANSFER: u1,
+                ///  USB suspend or resume event interrupt flag, direct bit address clear or write 1 to clear
+                RB_UIF_SUSPEND: u1,
+                ///  host SOF timer interrupt flag for USB host, direct bit address clear or write 1 to clear
+                RB_UIF_HST_SOF: u1,
+                ///  FIFO overflow interrupt flag for USB, direct bit address clear or write 1 to clear
+                RB_UIF_FIFO_OV: u1,
+                ///  RO, indicate USB SIE free status
+                RB_U_SIE_FREE: u1,
+                ///  RO, indicate current USB transfer toggle is OK
+                RB_U_TOG_OK: u1,
+                ///  RO, indicate current USB transfer is NAK received
+                RB_U_IS_NAK: u1,
+            }),
+            ///  USB interrupt status
+            R8_USB_INT_ST: mmio.Mmio(packed struct(u8) {
+                ///  RO, bit mask of current transfer endpoint number for USB device mode
+                MASK_UIS_ENDP: u4,
+                ///  RO, bit mask of current token PID code received for USB device mode
+                MASK_UIS_TOKEN: u2,
+                ///  RO, indicate current USB transfer toggle is OK
+                RB_UIS_TOG_OK: u1,
+                ///  RO, indicate current USB transfer is NAK received for USB device mode
+                RB_UIS_IS_NAK: u1,
+            }),
+            ///  USB receiving length
+            /// V103 is u10
+            R16_USB_RX_LEN: u16,
+            // reserved12: [3]u8, for F103
+            reserved14: [3]u8,
+            ///  host endpoint mode
+            R8_UH_EP_MOD: mmio.Mmio(packed struct(u8) {
+                ///  buffer mode of USB host IN endpoint
+                RB_UH_EP_RBUF_MOD: u1,
+                reserved2: u1,
+                ///  enable USB endpoint 2 transmittal (IN)
+                RB_UEP2_TX_EN: u1,
+                ///  enable USB host IN endpoint receiving
+                RB_UH_EP_RX_EN: u1,
+                ///  buffer mode of USB host OUT endpoint
+                RB_UH_EP_TBUF_MOD: u1,
+                reserved6: u1,
+                ///  enable USB host OUT endpoint transmittal
+                RB_UH_EP_TX_EN: u1,
+                ///  enable USB endpoint 3 receiving (OUT)
+                RB_UEP3_RX_EN: u1,
+            }),
+            reserved24: [10]u8,
+            ///  host rx endpoint buffer high address
+            R16_UH_RX_DMA: u16,
+            reserved28: [2]u8,
+            ///  host tx endpoint buffer high address
+            R16_UH_TX_DMA: u16,
+            reserved55: [24]u8,
+            ///  host aux setup
+            R8_UH_SETUP: mmio.Mmio(packed struct(u8) {
+                ///  bit mask of handshake response type for USB endpoint X transmittal (IN)
+                MASK_UEP_T_RES: u2,
+                ///  bit mask of handshake response type for USB endpoint X receiving (OUT)
+                MASK_UEP_R_RES: u2,
+                ///  enable automatic toggle after successful transfer completion on endpoint 1/2/3: 0=manual toggle, 1=automatic toggle
+                RB_UEP_AUTO_TOG: u1,
+                reserved6: u1,
+                ///  USB host automatic SOF enable
+                RB_UH_SOF_EN: u1,
+                ///  USB host PRE PID enable for low speed device via hub
+                RB_UH_PRE_PID_EN: u1,
+            }),
+            reserved57: [1]u8,
+            ///  host endpoint and PID
+            R8_UH_EP_PID: mmio.Mmio(packed struct(u8) {
+                ///  bit mask of endpoint number for USB host transfer
+                MASK_UH_ENDP: u4,
+                ///  bit mask of token PID for USB host transfer
+                MASK_UH_TOKEN: u4,
+            }),
+            reserved59: [1]u8,
+            ///  host receiver endpoint control
+            R8_UH_RX_CTRL: mmio.Mmio(packed struct(u8) {
+                ///  bit mask of handshake response type for USB endpoint X transmittal (IN)
+                MASK_UEP_T_RES: u2,
+                ///  bit mask of handshake response type for USB endpoint X receiving (OUT)
+                MASK_UEP_R_RES: u2,
+                ///  enable automatic toggle after successful transfer completion: 0=manual toggle, 1=automatic toggle
+                RB_UH_R_AUTO_TOG: u1,
+                reserved6: u1,
+                ///  prepared data toggle flag of USB endpoint X transmittal (IN): 0=DATA0, 1=DATA1
+                RB_UEP_T_TOG: u1,
+                ///  expected data toggle flag of host receiving (IN): 0=DATA0, 1=DATA1
+                RB_UH_R_TOG: u1,
+            }),
+            reserved61: [1]u8,
+            ///  host transmittal endpoint transmittal length
+            R16_UH_TX_LEN: u16,
+            ///  host transmittal endpoint control
+            R8_UH_TX_CTRL: mmio.Mmio(packed struct(u8) {
+                ///  bit mask of handshake response type for USB endpoint X transmittal (IN)
+                MASK_UEP_T_RES: u2,
+                ///  bit mask of handshake response type for USB endpoint X receiving (OUT)
+                MASK_UEP_R_RES: u2,
+                ///  enable automatic toggle after successful transfer completion on endpoint 1/2/3: 0=manual toggle, 1=automatic toggle
+                RB_UEP_AUTO_TOG: u1,
+                reserved6: u1,
+                ///  prepared data toggle flag of USB endpoint X transmittal (IN): 0=DATA0, 1=DATA1
+                RB_UEP_T_TOG: u1,
+                ///  expected data toggle flag of USB endpoint X receiving (OUT): 0=DATA0, 1=DATA1
+                RB_UEP_R_TOG: u1,
             }),
         };
 

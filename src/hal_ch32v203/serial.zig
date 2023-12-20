@@ -48,7 +48,7 @@ pub fn SERIAL(comptime pin_name: []const u8) type {
                 asm volatile ("" ::: "memory");
             }
 
-            const char = @as(u8, @truncate(regs.DATAR.read().DR));
+            const char: u8 = @truncate(regs.DATAR.read().DR);
 
             // Clear RXNE
             regs.STATR.modify(.{

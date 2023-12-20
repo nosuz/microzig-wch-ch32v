@@ -6,9 +6,9 @@ const time = ch32v.time;
 
 const clocks_config = clocks.Configuration{
     // .sysclk_src = .HSE,
-    // .hse_freq = 25_000_000,
-    // .sysclk_src = .HSI,
-    .sysclk_src = .PLL,
+    // .hse_freq = 16_000_000,
+    .sysclk_src = .HSI,
+    // .sysclk_src = .PLL,
     // .pll_src = .HSI,
     // .pll_src = .HSI_div2,
     // .pll_multiplex = .MUL_18,

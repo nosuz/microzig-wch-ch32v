@@ -1,4 +1,6 @@
-const pins = @import("pins.zig");
+const microzig = @import("microzig");
+const ch32v = microzig.hal;
+const pins = ch32v.pins;
 
 pub const Port = enum { PA, PB, PC, PD };
 

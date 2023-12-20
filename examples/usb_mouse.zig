@@ -1,15 +1,17 @@
 const std = @import("std");
 const microzig = @import("microzig");
 
-// variable name is fixed for usb device class
-pub const usbd_class = @import("lib/hid_mouse.zig");
-
 const ch32v = microzig.hal;
 const clocks = ch32v.clocks;
 const time = ch32v.time;
 const serial = ch32v.serial;
 const usbd = ch32v.usbd;
 const interrupt = ch32v.interrupt;
+
+pub const usbd_class = if (ch32v.cpu_type == .ch32v103)
+    @import("lib_ch32v103/hid_mouse.zig")
+else
+    @import("lib_ch32v203/hid_mouse.zig");
 
 pub const pin_config = ch32v.pins.GlobalConfiguration{
     .PA5 = .{
@@ -59,11 +61,20 @@ pub const __Clocks_freq = clocks_config.get_freqs();
 
 // Set interrupt handlers
 pub const microzig_options = struct {
-    pub const interrupts = struct {
-        pub fn USB_LP_CAN1_RX0() void {
-            usbd.interrupt_handler();
+    pub const interrupts = if (ch32v.cpu_type == .ch32v103)
+        struct {
+            // CH32V103
+            pub fn USBHD() void {
+                usbd.interrupt_handler();
+            }
         }
-    };
+    else
+        struct {
+            // CH32V203
+            pub fn USB_LP_CAN1_RX0() void {
+                usbd.interrupt_handler();
+            }
+        };
 };
 
 // set logger
@@ -89,7 +100,7 @@ pub fn main() !void {
 
     while (true) {
         time.sleep_ms(1000);
-        // pins.led.toggle();
+        pins.led.toggle();
         const x = rand.random().int(i8);
         const y = rand.random().int(i8);
         pins.usb.update(x, y);

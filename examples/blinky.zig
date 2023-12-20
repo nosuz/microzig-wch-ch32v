@@ -1,3 +1,4 @@
+// Blinks PA9
 const microzig = @import("microzig");
 
 // `microzig.config`: comptime access to configuration

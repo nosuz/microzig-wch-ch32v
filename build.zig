@@ -30,9 +30,9 @@ pub fn addCh32vExecutable(
         .name = opts.name,
         .source_file = opts.source_file,
         .backing = .{
-            // .chip = chips.ch32v103c8,
+            .chip = chips.ch32v103c8,
             // .chip = chips.ch32v203c8,
-            .board = opts.board.inner,
+            // .board = opts.board.inner,
         },
         .optimize = opts.optimize,
         .linkerscript_source_file = .{ .path = linkerscript_path },
@@ -58,7 +58,6 @@ fn root() []const u8 {
 pub const Examples = struct {
     blinky: *microzig.EmbeddedExecutable,
     blinky2: *microzig.EmbeddedExecutable,
-    blinky_default: *microzig.EmbeddedExecutable,
     blinky_sleep: *microzig.EmbeddedExecutable,
     blinky_clocks: *microzig.EmbeddedExecutable,
     serial: *microzig.EmbeddedExecutable,

@@ -42,7 +42,7 @@ const pin_config = ch32v.pins.GlobalConfiguration{
     .IN17 = .{
         .name = "vref",
         .function = .ADC,
-        // .adc = .ADC2,
+        // .adc = .ADC1,
         .cycles = .cycles239_5,
     },
     .PA9 = .{
