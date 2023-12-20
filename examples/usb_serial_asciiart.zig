@@ -20,32 +20,58 @@ pub const usbd_class = if (ch32v.cpu_type == .ch32v103)
 else
     @import("lib_ch32v203/cdc_acm.zig");
 
-pub const pin_config = ch32v.pins.GlobalConfiguration{
-    .PA5 = .{
-        .name = "led",
-        .direction = .out,
-        .level = .low,
-    },
-    .PA11 = .{
-        .name = "usb",
-        .function = .USBD,
-        .usbd_speed = .Full_speed, // use SOF instead of timer
-        // .usbd_speed = .Low_speed, // no BULK transfer; for debugging
-        .usbd_ep_num = 4,
-        .usbd_buffer_size = .byte_64,
-        .usbd_handle_sof = true,
-    },
-};
+pub const pin_config = if (ch32v.cpu_type == .ch32v103)
+    ch32v.pins.GlobalConfiguration{
+        .PA5 = .{
+            .name = "led",
+            .direction = .out,
+            .level = .low,
+        },
+        .PA11 = .{
+            .name = "usb",
+            .function = .USBD,
+            .usbd_speed = .Full_speed, // use SOF instead of timer
+            // .usbd_speed = .Low_speed, // no BULK transfer; for debugging
+            .usbd_ep_num = 4,
+            .usbd_buffer_size = .byte_64,
+            .usbd_handle_sof = true,
+        },
+    }
+else
+    ch32v.pins.GlobalConfiguration{
+        .PA5 = .{
+            .name = "led",
+            .direction = .out,
+            .level = .low,
+        },
+        .PA11 = .{
+            .name = "usb",
+            .function = .USBD,
+            .usbd_speed = .Full_speed, // use SOF instead of timer
+            // .usbd_speed = .Low_speed, // no BULK transfer; for debugging
+            .usbd_ep_num = 4,
+            .usbd_buffer_size = .byte_64,
+            .usbd_handle_sof = true,
+        },
+    };
 
-const clocks_config = clocks.Configuration{
-    // .sysclk_src = .HSI, // 8MHz
-    .sysclk_src = .PLL,
-    .pll_src = .HSI,
-    .pll_multiplex = .MUL_6, // 48 MHz
-    // .pll_multiplex = .MUL_9, // 72 MHz Max. for CH32V103 but sometime not work at max clock-speed.
-    // .pll_multiplex = .MUL_12, // 96 MHz
-    // .pll_multiplex = .MUL_18, // 144 MHz
-};
+const clocks_config = if (ch32v.cpu_type == .ch32v103)
+    clocks.Configuration{
+        // .sysclk_src = .HSI, // 8MHz
+        .sysclk_src = .PLL,
+        .pll_src = .HSI,
+        .pll_multiplex = .MUL_6, // 48 MHz
+        // .pll_multiplex = .MUL_9, // 72 MHz Max. for CH32V103 but sometime not work at max clock-speed.
+    }
+else
+    clocks.Configuration{
+        // .sysclk_src = .HSI, // 8MHz
+        .sysclk_src = .PLL,
+        .pll_src = .HSI,
+        .pll_multiplex = .MUL_6, // 48 MHz
+        // .pll_multiplex = .MUL_12, // 96 MHz
+        // .pll_multiplex = .MUL_18, // 144 MHz
+    };
 
 pub const __Clocks_freq = clocks_config.get_freqs();
 // pub const __Clocks_freq = clocks.Default_clocks_freq();
