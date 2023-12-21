@@ -90,7 +90,8 @@ pub const devices = struct {
             ///  CRC calculation unit
             pub const CRC = @as(*volatile types.peripherals.CRC, @ptrFromInt(0x40023000));
             ///  USB register
-            pub const USBHD = @as(*volatile types.peripherals.USBHD, @ptrFromInt(0x40023400));
+            pub const USBHD_DEVICE = @as(*volatile types.peripherals.USBHD_DEVICE, @ptrFromInt(0x40023400));
+            pub const USBHD_HOST = @as(*volatile types.peripherals.USBHD_HOST, @ptrFromInt(0x40023400));
             ///  Extend configuration
             pub const EXTEND = @as(*volatile types.peripherals.EXTEND, @ptrFromInt(0x40023800));
             ///  OPA configuration
@@ -104,7 +105,8 @@ pub const devices = struct {
             ///  Ethernet: DMA controller operation
             pub const ETHERNET_DMA = @as(*volatile types.peripherals.ETHERNET_DMA, @ptrFromInt(0x40029000));
             ///  USB FS OTG register
-            pub const USB_OTG_FS = @as(*volatile types.peripherals.USB_OTG_FS, @ptrFromInt(0x50000000));
+            pub const USBFS_DEVICE = @as(*volatile types.peripherals.USBFS_DEVICE, @ptrFromInt(0x50000000));
+            pub const USBFS_HOST = @as(*volatile types.peripherals.USBFS_HOST, @ptrFromInt(0x50000000));
             ///  Debug support
             pub const DBG = @as(*volatile types.peripherals.DBG, @ptrFromInt(0xe000d000));
             ///  Programmable Fast Interrupt Controller
@@ -5853,8 +5855,8 @@ pub const types = struct {
             ///  AHB reset register (RCC_APHBRSTR)
             AHBRSTR: mmio.Mmio(packed struct(u32) {
                 reserved12: u12,
-                ///  USBHD reset
-                USBHDRST: u1,
+                /// OTF FS reset
+                OTGFSRST: u1,
                 ///  DVP reset
                 DVPRST: u1,
                 ///  Ethernet MAC reset
@@ -7076,7 +7078,391 @@ pub const types = struct {
         };
 
         ///  USB FS OTG register
-        pub const USB_OTG_FS = extern struct {
+        pub const USBFS_DEVICE = extern struct {
+            ///  USB base control
+            USBHD_BASE_CTRL: mmio.Mmio(packed struct(u8) {
+                ///  DMA enable and DMA interrupt enable for USB
+                USBHD_UC_DMA_EN: u1,
+                ///  force clear FIFO and count of USB
+                USBHD_UC_CLR_ALL: u1,
+                ///  force reset USB SIE, need software clear
+                USBHD_UC_RESET_SIE: u1,
+                ///  enable automatic responding busy for device mode or automatic pause for host mode during interrupt flag UIF_TRANSFER valid
+                USBHD_UC_INT_BUSY: u1,
+                ///  USB device enable and internal pullup resistance enable
+                USBHD_UC_SYS_CTRL_MASK: u2,
+                ///  enable USB low speed: 0=12Mbps, 1=1.5Mbps
+                USBHD_UC_LOW_SPEED: u1,
+                ///  enable USB host mode: 0=device mode, 1=host mode
+                RB_UC_HOST_MODE: u1,
+            }),
+            ///  USB device physical prot control
+            USBHD_UDEV_CTRL: mmio.Mmio(packed struct(u8) {
+                ///  enable USB port: 0=disable, 1=enable port, automatic disabled if USB device detached
+                USBHD_UD_PORT_EN: u1,
+                ///  general purpose flag
+                USBHD_UD_GP_BIT: u1,
+                ///  enable USB port low speed: 0=full speed, 1=low speed
+                USBHD_UD_LOW_SPEED: u1,
+                reserved4: u1,
+                ///  ReadOnly: indicate current UDM pin level
+                USBHD_UD_DM_PIN: u1,
+                ///  USB device enable and internal pullup resistance enable
+                USBHD_UD_DP_PIN: u1,
+                reserved7: u1,
+                ///  disable USB UDP/UDM pulldown resistance: 0=enable pulldown, 1=disable
+                USBHD_UD_PD_DIS: u1,
+            }),
+            ///  USB interrupt enable
+            R8_USB_INT_EN: mmio.Mmio(packed struct(u8) {
+                ///  enable interrupt for USB bus reset event for USB device mode
+                USBHD_UIE_BUS_RST: u1,
+                ///  enable interrupt for USB transfer completion
+                USBHD_UIE_TRANSFER: u1,
+                ///  enable interrupt for USB suspend or resume event
+                USBHD_UIE_SUSPEND: u1,
+                ///  enable interrupt for host SOF timer action for USB host mode
+                USBHD_UIE_HST_SOF: u1,
+                ///  enable interrupt for FIFO overflow
+                USBHD_UIE_FIFO_OV: u1,
+                reserved6: u1,
+                ///  enable interrupt for NAK responded for USB device mode
+                USBHD_UIE_DEV_NAK: u1,
+                ///  enable interrupt for SOF received for USB device mode
+                USBHD_UIE_DEV_SOF: u1,
+            }),
+            ///  USB device address
+            R8_USB_DEV_AD: mmio.Mmio(packed struct(u8) {
+                ///  bit mask for USB device address
+                MASK_USB_ADDR: u7,
+                ///  general purpose bit
+                RB_UDA_GP_BIT: u1,
+            }),
+            reserved5: [1]u8,
+            ///  USB miscellaneous status
+            R8_USB_MIS_ST: mmio.Mmio(packed struct(u8) {
+                ///  RO, indicate device attached status on USB host
+                RB_UMS_DEV_ATTACH: u1,
+                ///  RO, indicate UDM level saved at device attached to USB host
+                RB_UMS_DM_LEVEL: u1,
+                ///  RO, indicate USB suspend status
+                RB_UMS_SUSPEND: u1,
+                ///  RO, indicate USB bus reset status
+                RB_UMS_BUS_RESET: u1,
+                ///  RO, indicate USB receiving FIFO ready status (not empty)
+                RB_UMS_R_FIFO_RDY: u1,
+                ///  RO, indicate USB SIE free status
+                RB_UMS_SIE_FREE: u1,
+                ///  RO, indicate host SOF timer action status for USB host
+                RB_UMS_SOF_ACT: u1,
+                ///  RO, indicate host SOF timer presage status
+                RB_UMS_SOF_PRES: u1,
+            }),
+            ///  USB interrupt flag
+            R8_USB_INT_FG: mmio.Mmio(packed struct(u8) {
+                ///  bus reset event interrupt flag for USB device mode, direct bit address clear or write 1 to clear
+                RB_UIF_BUS_RST: u1,
+                ///  USB transfer completion interrupt flag, direct bit address clear or write 1 to clear
+                RB_UIF_TRANSFER: u1,
+                ///  USB suspend or resume event interrupt flag, direct bit address clear or write 1 to clear
+                RB_UIF_SUSPEND: u1,
+                ///  host SOF timer interrupt flag for USB host, direct bit address clear or write 1 to clear
+                RB_UIF_HST_SOF: u1,
+                ///  FIFO overflow interrupt flag for USB, direct bit address clear or write 1 to clear
+                RB_UIF_FIFO_OV: u1,
+                ///  RO, indicate USB SIE free status
+                RB_U_SIE_FREE: u1,
+                ///  RO, indicate current USB transfer toggle is OK
+                RB_U_TOG_OK: u1,
+                ///  RO, indicate current USB transfer is NAK received
+                RB_U_IS_NAK: u1,
+            }),
+            ///  USB interrupt status
+            R8_USB_INT_ST: mmio.Mmio(packed struct(u8) {
+                ///  RO, bit mask of current transfer handshake response for USB host mode: 0000=no response, time out from device, others=handshake response PID received
+                MASK_UIS_ENDP: u4,
+                ///  RO, bit mask of current token PID code received for USB device mode
+                MASK_UIS_TOKEN: u2,
+                ///  RO, indicate current USB transfer toggle is OK
+                RB_UIS_TOG_OK: u1,
+                ///  RO, indicate current USB transfer is NAK received for USB device mode
+                RB_UIS_IS_NAK: u1,
+            }),
+            ///  USB receiving length
+            R16_USB_RX_LEN: u16,
+            reserved12: [2]u8,
+            ///  endpoint 4/1 mode
+            R8_UEP4_1_MOD: mmio.Mmio(packed struct(u8) {
+                reserved2: u2,
+                ///  enable USB endpoint 4 transmittal (IN)
+                RB_UEP4_TX_EN: u1,
+                ///  enable USB endpoint 4 receiving (OUT)
+                RB_UEP4_RX_EN: u1,
+                ///  buffer mode of USB endpoint 1
+                RB_UEP1_BUF_MOD: u1,
+                reserved6: u1,
+                ///  enable USB endpoint 1 transmittal (IN)
+                RB_UEP1_TX_EN: u1,
+                ///  enable USB endpoint 1 receiving (OUT)
+                RB_UEP1_RX_EN: u1,
+            }),
+            ///  endpoint 2/3 mode
+            R8_UEP2_3_MOD: mmio.Mmio(packed struct(u8) {
+                ///  buffer mode of USB endpoint 2
+                RB_UEP2_BUF_MOD: u1,
+                reserved2: u1,
+                ///  enable USB endpoint 2 transmittal (IN)
+                RB_UEP2_TX_EN: u1,
+                ///  enable USB endpoint 2 receiving (OUT)
+                RB_UEP2_RX_EN: u1,
+                ///  buffer mode of USB endpoint 3
+                RB_UEP3_BUF_MOD: u1,
+                reserved6: u1,
+                ///  enable USB endpoint 3 transmittal (IN)
+                RB_UEP3_TX_EN: u1,
+                ///  enable USB endpoint 3 receiving (OUT)
+                RB_UEP3_RX_EN: u1,
+            }),
+            ///  endpoint 5/6 mode
+            R8_UEP5_6_MOD: mmio.Mmio(packed struct(u8) {
+                ///  buffer mode of USB endpoint 5
+                RB_UEP5_BUF_MOD: u1,
+                reserved2: u1,
+                ///  enable USB endpoint 5 transmittal (IN)
+                RB_UEP5_TX_EN: u1,
+                ///  enable USB endpoint 5 receiving (OUT)
+                RB_UEP5_RX_EN: u1,
+                ///  buffer mode of USB endpoint 6
+                RB_UEP6_BUF_MOD: u1,
+                reserved6: u1,
+                ///  enable USB endpoint 6 transmittal (IN)
+                RB_UEP6_TX_EN: u1,
+                ///  enable USB endpoint 6 receiving (OUT)
+                RB_UEP3_RX_EN: u1,
+            }),
+            ///  endpoint 7 mode
+            R8_UEP7_MOD: mmio.Mmio(packed struct(u8) {
+                ///  buffer mode of USB endpoint 7
+                RB_UEP7_BUF_MOD: u1,
+                reserved2: u1,
+                ///  enable USB endpoint 7 transmittal (IN)
+                RB_UEP7_TX_EN: u1,
+                ///  enable USB endpoint 7 receiving (OUT)
+                RB_UEP7_RX_EN: u1,
+                padding: u4,
+            }),
+            ///  endpoint 0 DMA buffer address
+            R32_UEP0_DMA: u32,
+            ///  endpoint 1 DMA buffer address
+            R32_UEP1_DMA: u32,
+            ///  endpoint 2 DMA buffer address
+            R32_UEP2_DMA: u32,
+            ///  endpoint 3 DMA buffer address
+            R32_UEP3_DMA: u32,
+            ///  endpoint 4 DMA buffer address
+            R32_UEP4_DMA: u32,
+            ///  endpoint 5 DMA buffer address
+            R32_UEP5_DMA: u32,
+            ///  endpoint 6 DMA buffer address
+            R32_UEP6_DMA: u32,
+            ///  endpoint 7 DMA buffer address
+            R32_UEP7_DMA: u32,
+            ///  endpoint 0 transmittal length
+            R8_UEP0_T_LEN: u8,
+            reserved50: [1]u8,
+            ///  endpoint 0 control
+            R8_UEP0_T_CTRL: mmio.Mmio(packed struct(u8) {
+                ///  bit mask of handshake response type for USB endpoint X transmittal (IN)
+                MASK_UEP_T_RES: u2,
+                ///  prepared data toggle flag of USB endpoint X transmittal (IN): 0=DATA0, 1=DATA1
+                USBHD_UEP_T_TOG: u1,
+                ///  enable automatic toggle after successful transfer completion on endpoint 1/2/3: 0=manual toggle, 1=automatic toggle
+                USBHD_UEP_AUTO_TOG: u1,
+                padding: u4,
+            }),
+            ///  endpoint 0 control
+            R8_UEP0_R_CTRL: mmio.Mmio(packed struct(u8) {
+                ///  bit mask of handshake response type for USB endpoint X receiving (OUT)
+                MASK_UEP_R_RES: u2,
+                ///  expected data toggle flag of USB endpoint X receiving (OUT): 0=DATA0, 1=DATA1
+                USBHD_UEP_R_TOG: u1,
+                ///  enable automatic toggle after successful transfer completion on endpoint 1/2/3: 0=manual toggle, 1=automatic toggle
+                USBHD_UEP_AUTO_TOG: u1,
+                padding: u4,
+            }),
+            ///  endpoint 1 transmittal length
+            R8_UEP1_T_LEN: u8,
+            reserved54: [1]u8,
+            ///  endpoint 1 control
+            R8_UEP1_T_CTRL: mmio.Mmio(packed struct(u8) {
+                ///  bit mask of handshake response type for USB endpoint X transmittal (IN)
+                MASK_UEP_T_RES: u2,
+                ///  prepared data toggle flag of USB endpoint X transmittal (IN): 0=DATA0, 1=DATA1
+                USBHD_UEP_T_TOG: u1,
+                ///  enable automatic toggle after successful transfer completion on endpoint 1/2/3: 0=manual toggle, 1=automatic toggle
+                USBHD_UEP_AUTO_TOG: u1,
+                reserved6: u2,
+                ///  USB host automatic SOF enable
+                USBHD_UH_SOF_EN: u1,
+                ///  USB host PRE PID enable for low speed device via hub
+                USBHD_UH_PRE_PID_EN: u1,
+            }),
+            ///  endpoint 1 control
+            R8_UEP1_R_CTRL: mmio.Mmio(packed struct(u8) {
+                ///  bit mask of handshake response type for USB endpoint X receiving (OUT)
+                MASK_UEP_R_RES: u2,
+                ///  expected data toggle flag of USB endpoint X receiving (OUT): 0=DATA0, 1=DATA1
+                USBHD_UEP_R_TOG: u1,
+                ///  enable automatic toggle after successful transfer completion on endpoint 1/2/3: 0=manual toggle, 1=automatic toggle
+                USBHD_UEP_AUTO_TOG: u1,
+                padding: u4,
+            }),
+            ///  endpoint 2 transmittal length
+            R8_UEP2_T_LEN: mmio.Mmio(packed struct(u8) {
+                ///  bit mask of endpoint number for USB host transfer
+                USBHD_UH_ENDP_MASK: u4,
+                ///  bit mask of token PID for USB host transfer
+                USBHD_UH_TOKEN_MASK: u4,
+            }),
+            reserved58: [1]u8,
+            ///  endpoint 2 control
+            R8_UEP2_T_CTRL: mmio.Mmio(packed struct(u8) {
+                ///  bit mask of handshake response type for USB endpoint X transmittal (IN)
+                MASK_UEP_T_RES: u2,
+                ///  prepared data toggle flag of USB endpoint X transmittal (IN): 0=DATA0, 1=DATA1
+                USBHD_UEP_T_TOG_: u1,
+                ///  enable automatic toggle after successful transfer completion on endpoint 1/2/3: 0=manual toggle, 1=automatic toggle
+                USBHD_UEP_AUTO_TOG: u1,
+                padding: u4,
+            }),
+            ///  endpoint 2 control
+            R8_UEP2_R_CTRL: mmio.Mmio(packed struct(u8) {
+                ///  bit mask of handshake response type for USB endpoint X receiving (OUT)
+                MASK_UEP_R_RES: u2,
+                ///  expected data toggle flag of USB endpoint X receiving (OUT): 0=DATA0, 1=DATA1
+                USBHD_UEP_R_TOG: u1,
+                ///  enable automatic toggle after successful transfer completion on endpoint 1/2/3: 0=manual toggle, 1=automatic toggle
+                USBHD_UEP_AUTO_TOG: u1,
+                padding: u4,
+            }),
+            ///  endpoint 3 transmittal length
+            R8_UEP3_T_LEN: u8,
+            reserved62: [1]u8,
+            ///  endpoint 3 control
+            R8_UEP3_T_CTRL: mmio.Mmio(packed struct(u8) {
+                ///  bit mask of handshake response type for USB endpoint X transmittal (IN)
+                MASK_UEP_T_RES: u2,
+                ///  prepared data toggle flag of USB endpoint X transmittal (IN): 0=DATA0, 1=DATA1
+                USBHD_UEP_T_TOG: u1,
+                ///  enable automatic toggle after successful transfer completion on endpoint 1/2/3: 0=manual toggle, 1=automatic toggle
+                USBHD_UEP_AUTO_TOG: u1,
+                padding: u4,
+            }),
+            ///  endpoint 3 control
+            R8_UEP3_R_CTRL_: mmio.Mmio(packed struct(u8) {
+                ///  bit mask of handshake response type for USB endpoint X receiving (OUT)
+                MASK_UEP_R_RES: u2,
+                ///  expected data toggle flag of USB endpoint X receiving (OUT): 0=DATA0, 1=DATA1
+                USBHD_UEP_R_TOG: u1,
+                ///  enable automatic toggle after successful transfer completion on endpoint 1/2/3: 0=manual toggle, 1=automatic toggle
+                USBHD_UEP_AUTO_TOG: u1,
+                padding: u4,
+            }),
+            ///  endpoint 4 transmittal length
+            R8_UEP4_T_LEN: u8,
+            reserved66: [1]u8,
+            ///  endpoint 4 control
+            R8_UEP4_T_CTRL: mmio.Mmio(packed struct(u8) {
+                ///  bit mask of handshake response type for USB endpoint X transmittal (IN)
+                MASK_UEP_T_RES: u2,
+                ///  prepared data toggle flag of USB endpoint X transmittal (IN): 0=DATA0, 1=DATA1
+                USBHD_UEP_T_TOG: u1,
+                ///  enable automatic toggle after successful transfer completion on endpoint 1/2/3: 0=manual toggle, 1=automatic toggle
+                USBHD_UEP_AUTO_TOG: u1,
+                padding: u4,
+            }),
+            ///  endpoint 4 control
+            R8_UEP4_R_CTRL_: mmio.Mmio(packed struct(u8) {
+                ///  bit mask of handshake response type for USB endpoint X receiving (OUT)
+                MASK_UEP_R_RES: u2,
+                ///  expected data toggle flag of USB endpoint X receiving (OUT): 0=DATA0, 1=DATA1
+                USBHD_UEP_R_TOG: u1,
+                ///  enable automatic toggle after successful transfer completion on endpoint 1/2/3: 0=manual toggle, 1=automatic toggle
+                USBHD_UEP_AUTO_TOG: u1,
+                padding: u4,
+            }),
+            ///  endpoint 5 transmittal length
+            R8_UEP5_T_LEN: u8,
+            reserved70: [1]u8,
+            ///  endpoint 5 control
+            R8_UEP5_T_CTRL: mmio.Mmio(packed struct(u8) {
+                ///  bit mask of handshake response type for USB endpoint X transmittal (IN)
+                MASK_UEP_T_RES: u2,
+                ///  prepared data toggle flag of USB endpoint X transmittal (IN): 0=DATA0, 1=DATA1
+                USBHD_UEP_T_TOG: u1,
+                ///  enable automatic toggle after successful transfer completion on endpoint 1/2/3: 0=manual toggle, 1=automatic toggle
+                USBHD_UEP_AUTO_TOG: u1,
+                padding: u4,
+            }),
+            ///  endpoint 5 control
+            R8_UEP5_R_CTRL_: mmio.Mmio(packed struct(u8) {
+                ///  bit mask of handshake response type for USB endpoint X receiving (OUT)
+                MASK_UEP_R_RES: u2,
+                ///  expected data toggle flag of USB endpoint X receiving (OUT): 0=DATA0, 1=DATA1
+                USBHD_UEP_R_TOG: u1,
+                ///  enable automatic toggle after successful transfer completion on endpoint 1/2/3: 0=manual toggle, 1=automatic toggle
+                USBHD_UEP_AUTO_TOG: u1,
+                padding: u4,
+            }),
+            ///  endpoint 6 transmittal length
+            R8_UEP6_T_LEN: u8,
+            reserved74: [1]u8,
+            ///  endpoint 6 control
+            R8_UEP6_T_CTRL: mmio.Mmio(packed struct(u8) {
+                ///  bit mask of handshake response type for USB endpoint X transmittal (IN)
+                MASK_UEP_T_RES: u2,
+                ///  prepared data toggle flag of USB endpoint X transmittal (IN): 0=DATA0, 1=DATA1
+                USBHD_UEP_T_TOG: u1,
+                ///  enable automatic toggle after successful transfer completion on endpoint 1/2/3: 0=manual toggle, 1=automatic toggle
+                USBHD_UEP_AUTO_TOG: u1,
+                padding: u4,
+            }),
+            ///  endpoint 6 control
+            R8_UEP6_R_CTRL_: mmio.Mmio(packed struct(u8) {
+                ///  bit mask of handshake response type for USB endpoint X receiving (OUT)
+                MASK_UEP_R_RES: u2,
+                ///  expected data toggle flag of USB endpoint X receiving (OUT): 0=DATA0, 1=DATA1
+                USBHD_UEP_R_TOG: u1,
+                ///  enable automatic toggle after successful transfer completion on endpoint 1/2/3: 0=manual toggle, 1=automatic toggle
+                USBHD_UEP_AUTO_TOG: u1,
+                padding: u4,
+            }),
+            ///  endpoint 7 transmittal length
+            R8_UEP7_T_LEN: u8,
+            reserved78: [1]u8,
+            ///  endpoint 7 control
+            R8_UEP7_T_CTRL: mmio.Mmio(packed struct(u8) {
+                ///  bit mask of handshake response type for USB endpoint X transmittal (IN)
+                MASK_UEP_T_RES: u2,
+                ///  prepared data toggle flag of USB endpoint X transmittal (IN): 0=DATA0, 1=DATA1
+                USBHD_UEP_T_TOG: u1,
+                ///  enable automatic toggle after successful transfer completion on endpoint 1/2/3: 0=manual toggle, 1=automatic toggle
+                USBHD_UEP_AUTO_TOG: u1,
+                padding: u4,
+            }),
+            ///  endpoint 7 control
+            R8_UEP7_R_CTRL_: mmio.Mmio(packed struct(u8) {
+                ///  bit mask of handshake response type for USB endpoint X receiving (OUT)
+                MASK_UEP_R_RES: u2,
+                ///  expected data toggle flag of USB endpoint X receiving (OUT): 0=DATA0, 1=DATA1
+                USBHD_UEP_R_TOG: u1,
+                ///  enable automatic toggle after successful transfer completion on endpoint 1/2/3: 0=manual toggle, 1=automatic toggle
+                USBHD_UEP_AUTO_TOG: u1,
+                padding: u4,
+            }),
+        };
+
+        pub const USBFS_HOST = extern struct {
             ///  USB base control
             USBHD_BASE_CTRL: mmio.Mmio(packed struct(u8) {
                 ///  DMA enable and DMA interrupt enable for USB
@@ -7457,35 +7843,6 @@ pub const types = struct {
                 ///  enable automatic toggle after successful transfer completion on endpoint 1/2/3: 0=manual toggle, 1=automatic toggle
                 USBHD_UEP_AUTO_TOG: u1,
                 padding: u4,
-            }),
-            reserved84: [4]u8,
-            ///  usb otg control
-            USB_OTG_CR: mmio.Mmio(packed struct(u32) {
-                ///  usb otg control
-                USB_OTG_CR_DISCHARGEVBUS: u1,
-                ///  usb otg control
-                USB_OTG_CR_CHARGEVBUS: u1,
-                ///  usb otg control
-                USB_OTG_CR_IDPU: u1,
-                ///  usb otg control
-                USB_OTG_CR_OTG_EN: u1,
-                ///  usb otg control
-                USB_OTG_CR_VBUS: u1,
-                ///  usb otg control
-                USB_OTG_CR_SESS: u1,
-                padding: u26,
-            }),
-            ///  usb otg status
-            USB_OTG_SR: mmio.Mmio(packed struct(u32) {
-                ///  usb otg status
-                USB_OTG_SR_VBUS_VLD: u1,
-                ///  usb otg status
-                USB_OTG_SR_SESS_VLD: u1,
-                ///  usb otg status
-                USB_OTG_SR_SESS_END: u1,
-                ///  usb otg status
-                USB_OTG_SR_ID_DIG: u1,
-                padding: u28,
             }),
         };
 
@@ -9276,7 +9633,903 @@ pub const types = struct {
         };
 
         ///  USB register
-        pub const USBHD = extern struct {
+        pub const USBHD_DEVICE = extern struct {
+            ///  USB base control
+            USB_CTRL: mmio.Mmio(packed struct(u8) {
+                ///  DMA enable and DMA interrupt enable for USB
+                RB_UC_DMA_EN: u1,
+                ///  force clear FIFO and count of USB
+                RB_UC_CLR_ALL: u1,
+                ///  force reset USB SIE, need software clear
+                RB_UC_RESET_SIE: u1,
+                ///  enable automatic responding busy for device mode or automatic pause for host mode during interrupt flag UIF_TRANSFER valid
+                RB_UC_INT_BUSY: u1,
+                ///  USB device enable and internal pullup resistance enable
+                RB_UC_DEV_PU_EN: u1,
+                ///  enable USB low speed: 00=full speed, 01=high speed, 10 =low speed
+                RB_UC_SPEED_TYPE: u2,
+                ///  enable USB host mode: 0=device mode, 1=host mode
+                RB_UC_HOST_MODE: u1,
+            }),
+            reserved1: [1]u8,
+            ///  USB interrupt enable
+            USB_INT_EN: mmio.Mmio(packed struct(u8) {
+                ///  enable interrupt for USB bus reset event for USB device mode
+                RB_UIE_BUS_RST: u1,
+                ///  enable interrupt for USB transfer completion
+                RB_UIE_TRANSFER: u1,
+                ///  enable interrupt for USB suspend or resume event
+                RB_UIE_SUSPEND: u1,
+                ///  indicate host SOF timer action status for USB host
+                RB_UIE_SOF_ACT: u1,
+                ///  enable interrupt for FIFO overflow
+                RB_UIE_FIFO_OV: u1,
+                ///  indicate host SETUP timer action status for USB host
+                RB_UIE_SETUP_ACT: u1,
+                ///  enable interrupt for NAK responded for USB device mode
+                RB_UIE_ISO_ACT: u1,
+                ///  enable interrupt for NAK responded for USB device mode
+                RB_UIE_DEV_NAK: u1,
+            }),
+            ///  USB device address
+            USB_DEV_AD: mmio.Mmio(packed struct(u8) {
+                ///  bit mask for USB device address
+                MASK_USB_ADDR: u7,
+                ///  general purpose bit
+                RB_UDA_GP_BIT: u1,
+            }),
+            ///  USB_FRAME_NO
+            USB_FRAME_NO: mmio.Mmio(packed struct(u16) {
+                ///  USB_FRAME_NO
+                USB_FRAME_NO: u16,
+            }),
+            ///  indicate USB suspend status
+            USB_USB_SUSPEND: mmio.Mmio(packed struct(u8) {
+                ///  USB_SYS_MOD
+                USB_SYS_MOD: u2,
+                ///  remote resume
+                USB_WAKEUP: u1,
+                reserved4: u1,
+                ///  USB_LINESTATE
+                USB_LINESTATE: u2,
+                padding: u2,
+            }),
+            reserved8: [1]u8,
+            ///  USB_SPEED_TYPE
+            USB_SPEED_TYPE: mmio.Mmio(packed struct(u8) {
+                ///  USB_SPEED_TYPE
+                USB_SPEED_TYPE: u2,
+                padding: u6,
+            }),
+            ///  USB miscellaneous status
+            USB_MIS_ST: mmio.Mmio(packed struct(u8) {
+                ///  RO, indicate device attached status on USB host
+                RB_UMS_SPLIT_CAN: u1,
+                ///  RO, indicate UDM level saved at device attached to USB host
+                RB_UMS_ATTACH: u1,
+                ///  RO, indicate USB suspend status
+                RB_UMS_SUSPEND: u1,
+                ///  RO, indicate USB bus reset status
+                RB_UMS_BUS_RESET: u1,
+                ///  RO, indicate USB receiving FIFO ready status (not empty)
+                RB_UMS_R_FIFO_RDY: u1,
+                ///  RO, indicate USB SIE free status
+                RB_UMS_SIE_FREE: u1,
+                ///  RO, indicate host SOF timer action status for USB host
+                RB_UMS_SOF_ACT: u1,
+                ///  RO, indicate host SOF timer presage status
+                RB_UMS_SOF_PRES: u1,
+            }),
+            ///  USB interrupt flag
+            USB_INT_FG: mmio.Mmio(packed struct(u8) {
+                ///  RB_UIF_BUS_RST
+                RB_UIF_BUS_RST: u1,
+                ///  USB transfer completion interrupt flag, direct bit address clear or write 1 to clear
+                RB_UIF_TRANSFER: u1,
+                ///  USB suspend or resume event interrupt flag, direct bit address clear or write 1 to clear
+                RB_UIF_SUSPEND: u1,
+                ///  host SOF timer interrupt flag for USB host, direct bit address clear or write 1 to clear
+                RB_UIF_HST_SOF: u1,
+                ///  FIFO overflow interrupt flag for USB, direct bit address clear or write 1 to clear
+                RB_UIF_FIFO_OV: u1,
+                ///  USB_SETUP_ACT
+                RB_U_SETUP_ACT: u1,
+                ///  UIF_ISO_ACT
+                UIF_ISO_ACT: u1,
+                ///  RO, indicate current USB transfer is NAK received
+                RB_U_IS_NAK: u1,
+            }),
+            ///  USB interrupt status
+            USB_INT_ST: mmio.Mmio(packed struct(u8) {
+                ///  RO, bit mask of current transfer handshake response for USB host mode: 0000=no response, time out from device, others=handshake response PID received;RO, bit mask of current transfer endpoint number for USB device mode
+                MASK_UIS_H_RES: u4,
+                ///  RO, bit mask of current token PID code received for USB device mode
+                MASK_UIS_TOKEN: u2,
+                ///  RO, indicate current USB transfer toggle is OK
+                RB_UIS_TOG_OK: u1,
+                ///  RO, indicate current USB transfer is NAK received for USB device mode
+                RB_UIS_IS_NAK: u1,
+            }),
+            ///  USB receiving length
+            USB_RX_LEN: mmio.Mmio(packed struct(u16) {
+                ///  length of received bytes
+                R16_USB_RX_LEN: u16,
+            }),
+            reserved16: [2]u8,
+            ///  USB endpoint configuration
+            UEP_CONFIG: mmio.Mmio(packed struct(u32) {
+                reserved1: u1,
+                ///  endpoint TX enable
+                bUEP_T_EN: u15,
+                reserved17: u1,
+                ///  endpoint RX enable
+                bUEP_R_EN: u15,
+            }),
+            ///  USB endpoint type
+            UEP_TYPE: mmio.Mmio(packed struct(u32) {
+                reserved1: u1,
+                ///  endpoint TX type
+                bUEP_T_TYPE: u15,
+                reserved17: u1,
+                ///  endpoint RX type
+                bUEP_R_TYPE: u15,
+            }),
+            ///  USB endpoint buffer mode
+            UEP_BUF_MOD: mmio.Mmio(packed struct(u32) {
+                ///  buffer mode of USB endpoint
+                bUEP_BUF_MOD: u16,
+                ///  buffer mode of USB endpoint
+                bUEP_ISO_BUF_MOD: u16,
+            }),
+            ///  USB endpoint 0 DMA buffer address
+            UEP0_DMA: mmio.Mmio(packed struct(u16) {
+                ///  endpoint 0 DMA buffer address
+                UEP0_DMA: u16,
+            }),
+            reserved32: [2]u8,
+            ///  endpoint 1 DMA RX buffer address
+            UEP1_RX_DMA: mmio.Mmio(packed struct(u16) {
+                ///  endpoint 1 DMA buffer address
+                UEP1_RX_DMA: u16,
+            }),
+            reserved36: [2]u8,
+            ///  endpoint 2 DMA RX buffer address
+            UEP2_RX_DMA: mmio.Mmio(packed struct(u16) {
+                ///  endpoint 2 DMA buffer address
+                UEP2_RX_DMA: u16,
+            }),
+            reserved40: [2]u8,
+            ///  endpoint 3 DMA RX buffer address
+            UEP3_RX_DMA: mmio.Mmio(packed struct(u16) {
+                ///  endpoint 3 DMA buffer address
+                UEP3_RX_DMA: u16,
+            }),
+            reserved44: [2]u8,
+            ///  endpoint 4 DMA RX buffer address
+            UEP4_RX_DMA: mmio.Mmio(packed struct(u16) {
+                ///  endpoint 4 DMA buffer address
+                UEP4_RX_DMA: u16,
+            }),
+            reserved48: [2]u8,
+            ///  endpoint 5 DMA RX buffer address
+            UEP5_RX_DMA: mmio.Mmio(packed struct(u16) {
+                ///  endpoint 5 DMA buffer address
+                UEP5_DMA: u16,
+            }),
+            reserved52: [2]u8,
+            ///  endpoint 6 DMA RX buffer address
+            UEP6_RX_DMA: mmio.Mmio(packed struct(u16) {
+                ///  endpoint 6 DMA buffer address
+                UEP6_RX_DMA: u16,
+            }),
+            reserved56: [2]u8,
+            ///  endpoint 7 DMA RX buffer address
+            UEP7_RX_DMA: mmio.Mmio(packed struct(u16) {
+                ///  endpoint 7 DMA buffer address
+                UEP7_RX_DMA: u16,
+            }),
+            reserved60: [2]u8,
+            ///  endpoint 8 DMA RX buffer address
+            UEP8_RX_DMA: mmio.Mmio(packed struct(u16) {
+                ///  endpoint 8 DMA buffer address
+                UEP8_RX_DMA: u16,
+            }),
+            reserved64: [2]u8,
+            ///  endpoint 9 DMA RX buffer address
+            UEP9_RX_DMA: mmio.Mmio(packed struct(u16) {
+                ///  endpoint 9 DMA buffer address
+                UEP9_RX_DMA: u16,
+            }),
+            reserved68: [2]u8,
+            ///  endpoint 10 DMA RX buffer address
+            UEP10_RX_DMA: mmio.Mmio(packed struct(u16) {
+                ///  endpoint 10 DMA buffer address
+                UEP10_RX_DMA: u16,
+            }),
+            reserved72: [2]u8,
+            ///  endpoint 11 DMA RX buffer address
+            UEP11_RX_DMA: mmio.Mmio(packed struct(u16) {
+                ///  endpoint 11 DMA buffer address
+                UEP11_RX_DMA: u16,
+            }),
+            reserved76: [2]u8,
+            ///  endpoint 12 DMA RX buffer address
+            UEP12_RX_DMA: mmio.Mmio(packed struct(u16) {
+                ///  endpoint 12 DMA buffer address
+                UEP12_RX_DMA: u16,
+            }),
+            reserved80: [2]u8,
+            ///  endpoint 13 DMA RX buffer address
+            UEP13_RX_DMA: mmio.Mmio(packed struct(u16) {
+                ///  endpoint 13 DMA buffer address
+                UEP13_RX_DMA: u16,
+            }),
+            reserved84: [2]u8,
+            ///  endpoint 14 DMA RX buffer address
+            UEP14_RX_DMA: mmio.Mmio(packed struct(u16) {
+                ///  endpoint 14 DMA buffer address
+                UEP14_RX_DMA: u16,
+            }),
+            reserved88: [2]u8,
+            ///  endpoint 15 DMA RX buffer address
+            UEP15_RX_DMA: mmio.Mmio(packed struct(u16) {
+                ///  endpoint 15 DMA buffer address
+                UEP15_RX_DMA: u16,
+            }),
+            reserved92: [2]u8,
+            ///  endpoint 1 DMA TX buffer address
+            UEP1_TX_DMA: mmio.Mmio(packed struct(u16) {
+                ///  endpoint 1 DMA buffer address
+                UEP1_TX_DMA: u16,
+            }),
+            reserved96: [2]u8,
+            ///  endpoint 2 DMA TX buffer address
+            UEP2_TX_DMA: mmio.Mmio(packed struct(u16) {
+                ///  endpoint 2 DMA buffer address
+                UEP2_TX_DMA: u16,
+            }),
+            reserved100: [2]u8,
+            ///  endpoint 3 DMA TX buffer address
+            UEP3_TX_DMA: mmio.Mmio(packed struct(u16) {
+                ///  endpoint 3 DMA buffer address
+                UEP3_TX_DMA: u16,
+            }),
+            reserved104: [2]u8,
+            ///  endpoint 4 DMA TX buffer address
+            UEP4_TX_DMA: mmio.Mmio(packed struct(u16) {
+                ///  endpoint 4 DMA buffer address
+                UEP4_TX_DMA: u16,
+            }),
+            reserved108: [2]u8,
+            ///  endpoint 5 DMA TX buffer address
+            UEP5_TX_DMA: mmio.Mmio(packed struct(u16) {
+                ///  endpoint 5 DMA buffer address
+                UEP5_TX_DMA: u16,
+            }),
+            reserved112: [2]u8,
+            ///  endpoint 6 DMA TX buffer address
+            UEP6_TX_DMA: mmio.Mmio(packed struct(u16) {
+                ///  endpoint 6 DMA buffer address
+                UEP6_TX_DMA: u16,
+            }),
+            reserved116: [2]u8,
+            ///  endpoint 7 DMA TX buffer address
+            UEP7_TX_DMA: mmio.Mmio(packed struct(u16) {
+                ///  endpoint 7 DMA buffer address
+                UEP7_TX_DMA: u16,
+            }),
+            reserved120: [2]u8,
+            ///  endpoint 8 DMA TX buffer address
+            UEP8_TX_DMA: mmio.Mmio(packed struct(u16) {
+                ///  endpoint 8 DMA buffer address
+                UEP8_TX_DMA: u16,
+            }),
+            reserved124: [2]u8,
+            ///  endpoint 9 DMA TX buffer address
+            UEP9_TX_DMA: mmio.Mmio(packed struct(u16) {
+                ///  endpoint 9 DMA buffer address
+                UEP9_TX_DMA: u16,
+            }),
+            reserved128: [2]u8,
+            ///  endpoint 10 DMA TX buffer address
+            UEP10_TX_DMA: mmio.Mmio(packed struct(u16) {
+                ///  endpoint 10 DMA buffer address
+                UEP10_TX_DMA: u16,
+            }),
+            reserved132: [2]u8,
+            ///  endpoint 11 DMA TX buffer address
+            UEP11_TX_DMA: mmio.Mmio(packed struct(u16) {
+                ///  endpoint 11 DMA buffer address
+                UEP11_TX_DMA: u16,
+            }),
+            reserved136: [2]u8,
+            ///  endpoint 12 DMA TX buffer address
+            UEP12_TX_DMA: mmio.Mmio(packed struct(u16) {
+                ///  endpoint 12 DMA buffer address
+                UEP12_TX_DMA: u16,
+            }),
+            reserved140: [2]u8,
+            ///  endpoint 13 DMA TX buffer address
+            UEP13_TX_DMA: mmio.Mmio(packed struct(u16) {
+                ///  endpoint 13 DMA buffer address
+                UEP13_TX_DMA: u16,
+            }),
+            reserved144: [2]u8,
+            ///  endpoint 14 DMA TX buffer address
+            UEP14_TX_DMA: mmio.Mmio(packed struct(u16) {
+                ///  endpoint 14 DMA buffer address
+                UEP14_TX_DMA: u16,
+            }),
+            reserved148: [2]u8,
+            ///  endpoint 15 DMA TX buffer address
+            UEP15_TX_DMA: mmio.Mmio(packed struct(u16) {
+                ///  endpoint 15 DMA buffer address
+                UEP15_TX_DMA: u16,
+            }),
+            reserved152: [2]u8,
+            ///  endpoint 0 max acceptable length
+            UEP0_MAX_LEN: mmio.Mmio(packed struct(u16) {
+                ///  endpoint 0 max acceptable length
+                UEP0_MAX_LEN: u11,
+                padding: u5,
+            }),
+            reserved156: [2]u8,
+            ///  endpoint 1 max acceptable length
+            UEP1_MAX_LEN: mmio.Mmio(packed struct(u16) {
+                ///  endpoint 1 max acceptable length
+                UEP1_MAX_LEN: u11,
+                padding: u5,
+            }),
+            reserved160: [2]u8,
+            ///  endpoint 2 max acceptable length
+            UEP2_MAX_LEN: mmio.Mmio(packed struct(u16) {
+                ///  endpoint 2 max acceptable length
+                UEP2_MAX_LEN: u11,
+                padding: u5,
+            }),
+            reserved164: [2]u8,
+            ///  endpoint 3 MAX_LEN TX
+            UEP3_MAX_LEN: mmio.Mmio(packed struct(u16) {
+                ///  endpoint 3 max acceptable length
+                UEP3_MAX_LEN: u11,
+                padding: u5,
+            }),
+            reserved168: [2]u8,
+            ///  endpoint 4 max acceptable length
+            UEP4_MAX_LEN: mmio.Mmio(packed struct(u16) {
+                ///  endpoint 4 max acceptable length
+                UEP4_MAX_LEN: u11,
+                padding: u5,
+            }),
+            reserved172: [2]u8,
+            ///  endpoint 5 max acceptable length
+            UEP5_MAX_LEN: mmio.Mmio(packed struct(u16) {
+                ///  endpoint 5 max acceptable length
+                UEP5_MAX_LEN: u11,
+                padding: u5,
+            }),
+            reserved176: [2]u8,
+            ///  endpoint 6 max acceptable length
+            UEP6_MAX_LEN: mmio.Mmio(packed struct(u16) {
+                ///  endpoint 6 max acceptable length
+                UEP6_MAX_LEN: u11,
+                padding: u5,
+            }),
+            reserved180: [2]u8,
+            ///  endpoint 7 max acceptable length
+            UEP7_MAX_LEN: mmio.Mmio(packed struct(u16) {
+                ///  endpoint 7 max acceptable length
+                UEP7_MAX_LEN: u11,
+                padding: u5,
+            }),
+            reserved184: [2]u8,
+            ///  endpoint 8 max acceptable length
+            UEP8_MAX_LEN: mmio.Mmio(packed struct(u16) {
+                ///  endpoint 8 max acceptable length
+                UEP8_MAX_LEN: u11,
+                padding: u5,
+            }),
+            reserved188: [2]u8,
+            ///  endpoint 9 max acceptable length
+            UEP9_MAX_LEN: mmio.Mmio(packed struct(u16) {
+                ///  endpoint 9 max acceptable length
+                UEP9_MAX_LEN: u11,
+                padding: u5,
+            }),
+            reserved192: [2]u8,
+            ///  endpoint 10 max acceptable length
+            UEP10_MAX_LEN: mmio.Mmio(packed struct(u16) {
+                ///  endpoint 10 max acceptable length
+                UEP10_MAX_LEN: u11,
+                padding: u5,
+            }),
+            reserved196: [2]u8,
+            ///  endpoint 11 max acceptable length
+            UEP11_MAX_LEN: mmio.Mmio(packed struct(u16) {
+                ///  endpoint 11 max acceptable length
+                UEP11_MAX_LEN: u11,
+                padding: u5,
+            }),
+            reserved200: [2]u8,
+            ///  endpoint 12 max acceptable length
+            UEP12_MAX_LEN: mmio.Mmio(packed struct(u16) {
+                ///  endpoint 12 max acceptable length
+                UEP12_MAX_LEN: u11,
+                padding: u5,
+            }),
+            reserved204: [2]u8,
+            ///  endpoint 13 max acceptable length
+            UEP13_MAX_LEN: mmio.Mmio(packed struct(u16) {
+                ///  endpoint 13 max acceptable length
+                UEP13_MAX_LEN: u11,
+                padding: u5,
+            }),
+            reserved208: [2]u8,
+            ///  endpoint 14 max acceptable length
+            UEP14_MAX_LEN: mmio.Mmio(packed struct(u16) {
+                ///  endpoint 14 max acceptable length
+                UEP14_MAX_LEN: u11,
+                padding: u5,
+            }),
+            reserved212: [2]u8,
+            ///  endpoint 15 max acceptable length
+            UEP15_MAX_LEN: mmio.Mmio(packed struct(u16) {
+                ///  endpoint 15 max acceptable length
+                UEP15_MAX_LEN: u11,
+                padding: u5,
+            }),
+            reserved216: [2]u8,
+            ///  endpoint 0 send the length
+            UEP0_T_LEN: mmio.Mmio(packed struct(u16) {
+                ///  endpoint 0 send the length
+                UEP0_T_LEN: u11,
+                padding: u5,
+            }),
+            ///  endpoint 0 send control
+            UEP0_T_CTRL: mmio.Mmio(packed struct(u8) {
+                ///  endpoint 0 control of the send response to IN transactions
+                MASK_UEP_T_RES: u2,
+                reserved3: u1,
+                ///  endpoint 0 synchronous trigger bit for the sender to prepare
+                MASK_UEP_T_TOG: u2,
+                ///  endpoint 0 synchronous trigger bit automatic filp enables the control bit
+                bUEP_T_TOG_AUTO: u1,
+                padding: u2,
+            }),
+            ///  endpoint 0 send control
+            UEP0_R_CTRL: mmio.Mmio(packed struct(u8) {
+                ///  endpoint 0 control of the accept response to OUT transactions
+                MASK_UEP_R_RES: u2,
+                reserved3: u1,
+                ///  endpoint 0 synchronous trigger bit for the accept to prepare
+                MASK_UEP_R_TOG: u2,
+                ///  endpoint 0 synchronous trigger bit automatic filp enables the control bit
+                bUEP_R_TOG_AUTO: u1,
+                padding: u2,
+            }),
+            ///  endpoint 1 send the length
+            UEP1_T_LEN: mmio.Mmio(packed struct(u16) {
+                ///  endpoint 1 send the length
+                UEP1_T_LEN: u11,
+                padding: u5,
+            }),
+            ///  endpoint 1 send control
+            UEP1_T_CTRL: mmio.Mmio(packed struct(u8) {
+                ///  endpoint 1 control of the send response to IN transactions
+                MASK_UEP_T_RES: u2,
+                reserved3: u1,
+                ///  endpoint 1 synchronous trigger bit for the sender to prepare
+                MASK_UEP_T_TOG: u2,
+                ///  endpoint 1 synchronous trigger bit automatic filp enables the control bit
+                bUEP_T_TOG_AUTO: u1,
+                padding: u2,
+            }),
+            ///  endpoint 1 send control
+            UEP1_R_CTRL: mmio.Mmio(packed struct(u8) {
+                ///  endpoint 1 control of the accept response to OUT transactions
+                MASK_UEP_R_RES: u2,
+                reserved3: u1,
+                ///  endpoint 1 synchronous trigger bit for the accept to prepare
+                MASK_UEP_R_TOG: u2,
+                ///  endpoint 1 synchronous trigger bit automatic filp enables the control bit
+                bUEP_R_TOG_AUTO: u1,
+                padding: u2,
+            }),
+            ///  endpoint 2 send the length
+            UEP2_T_LEN: mmio.Mmio(packed struct(u16) {
+                ///  endpoint 2 send the length
+                UEP2_T_LEN: u11,
+                padding: u5,
+            }),
+            ///  endpoint 2 send control
+            UEP2_T_CTRL: mmio.Mmio(packed struct(u8) {
+                ///  endpoint 2 control of the send response to IN transactions
+                MASK_UEP_T_RES: u2,
+                reserved3: u1,
+                ///  endpoint 2 synchronous trigger bit for the sender to prepare
+                MASK_UEP_T_TOG: u2,
+                ///  endpoint 2 synchronous trigger bit automatic filp enables the control bit
+                bUEP_T_TOG_AUTO: u1,
+                padding: u2,
+            }),
+            ///  endpoint 2 send control
+            UEP2_R_CTRL: mmio.Mmio(packed struct(u8) {
+                ///  endpoint 2 control of the accept response to OUT transactions
+                MASK_UEP_R_RES: u2,
+                reserved3: u1,
+                ///  endpoint 2 synchronous trigger bit for the accept to prepare
+                MASK_UEP_R_TOG: u2,
+                ///  endpoint 2 synchronous trigger bit automatic filp enables the control bit
+                bUEP_R_TOG_AUTO: u1,
+                padding: u2,
+            }),
+            ///  endpoint 3 send the length
+            UEP3_T_LEN: mmio.Mmio(packed struct(u16) {
+                ///  endpoint 3 send the length
+                UEP3_T_LEN: u11,
+                padding: u5,
+            }),
+            ///  endpoint 3 send control
+            UEP3_T_CTRL: mmio.Mmio(packed struct(u8) {
+                ///  endpoint 3 control of the send response to IN transactions
+                MASK_UEP_T_RES: u2,
+                reserved3: u1,
+                ///  endpoint 3 synchronous trigger bit for the sender to prepare
+                MASK_UEP_T_TOG: u2,
+                ///  endpoint 3 synchronous trigger bit automatic filp enables the control bit
+                bUEP_T_TOG_AUTO: u1,
+                padding: u2,
+            }),
+            ///  endpoint 3 send control
+            UEP3_R_CTRL: mmio.Mmio(packed struct(u8) {
+                ///  endpoint 3 control of the accept response to OUT transactions
+                MASK_UEP_R_RES: u2,
+                reserved3: u1,
+                ///  endpoint 3 synchronous trigger bit for the accept to prepare
+                MASK_UEP_R_TOG: u2,
+                ///  endpoint 3 synchronous trigger bit automatic filp enables the control bit
+                bUEP_R_TOG_AUTO: u1,
+                padding: u2,
+            }),
+            ///  endpoint 4 send the length
+            UEP4_T_LEN: mmio.Mmio(packed struct(u16) {
+                ///  endpoint 0 send the length
+                UEP4_T_LEN: u11,
+                padding: u5,
+            }),
+            ///  endpoint 4 send control
+            UEP4_T_CTRL: mmio.Mmio(packed struct(u8) {
+                ///  endpoint 4 control of the send response to IN transactions
+                MASK_UEP_T_RES: u2,
+                reserved3: u1,
+                ///  endpoint 4 synchronous trigger bit for the sender to prepare
+                MASK_UEP_T_TOG: u2,
+                ///  endpoint 4 synchronous trigger bit automatic filp enables the control bit
+                bUEP_T_TOG_AUTO: u1,
+                padding: u2,
+            }),
+            ///  endpoint 4 send control
+            UEP4_R_CTRL: mmio.Mmio(packed struct(u8) {
+                ///  endpoint 4 control of the accept response to OUT transactions
+                MASK_UEP_R_RES: u2,
+                reserved3: u1,
+                ///  endpoint 4 synchronous trigger bit for the accept to prepare
+                MASK_UEP_R_TOG: u2,
+                ///  endpoint 4 synchronous trigger bit automatic filp enables the control bit
+                bUEP_R_TOG_AUTO: u1,
+                padding: u2,
+            }),
+            ///  endpoint 5 send the length
+            UEP5_T_LEN: mmio.Mmio(packed struct(u16) {
+                ///  endpoint 5 send the length
+                UEP5_T_LEN: u11,
+                padding: u5,
+            }),
+            ///  endpoint 5 send control
+            UEP5_T_CTRL: mmio.Mmio(packed struct(u8) {
+                ///  endpoint 5 control of the send response to IN transactions
+                MASK_UEP_T_RES: u2,
+                reserved3: u1,
+                ///  endpoint 5 synchronous trigger bit for the sender to prepare
+                MASK_UEP_T_TOG: u2,
+                ///  endpoint 5 synchronous trigger bit automatic filp enables the control bit
+                bUEP_T_TOG_AUTO: u1,
+                padding: u2,
+            }),
+            ///  endpoint 5 send control
+            UEP5_R_CTRL: mmio.Mmio(packed struct(u8) {
+                ///  endpoint 5 control of the accept response to OUT transactions
+                MASK_UEP_R_RES: u2,
+                reserved3: u1,
+                ///  endpoint 5 synchronous trigger bit for the accept to prepare
+                MASK_UEP_R_TOG: u2,
+                ///  endpoint 5 synchronous trigger bit automatic filp enables the control bit
+                bUEP_R_TOG_AUTO: u1,
+                padding: u2,
+            }),
+            ///  endpoint 6 send the length
+            UEP6_T_LEN: mmio.Mmio(packed struct(u16) {
+                ///  endpoint 6 send the length
+                UEP6_T_LEN: u11,
+                padding: u5,
+            }),
+            ///  endpoint 6 send control
+            UEP6_T_CTRL: mmio.Mmio(packed struct(u8) {
+                ///  endpoint 6 control of the send response to IN transactions
+                MASK_UEP_T_RES: u2,
+                reserved3: u1,
+                ///  endpoint 6 synchronous trigger bit for the sender to prepare
+                MASK_UEP_T_TOG: u2,
+                ///  endpoint 6 synchronous trigger bit automatic filp enables the control bit
+                bUEP_T_TOG_AUTO: u1,
+                padding: u2,
+            }),
+            ///  endpoint 6 send control
+            UEP6_R_CTRL: mmio.Mmio(packed struct(u8) {
+                ///  endpoint 6 control of the accept response to OUT transactions
+                MASK_UEP_R_RES: u2,
+                reserved3: u1,
+                ///  endpoint 6 synchronous trigger bit for the accept to prepare
+                MASK_UEP_R_TOG: u2,
+                ///  endpoint 6 synchronous trigger bit automatic filp enables the control bit
+                bUEP_R_TOG_AUTO: u1,
+                padding: u2,
+            }),
+            ///  endpoint 7 send the length
+            UEP7_T_LEN: mmio.Mmio(packed struct(u16) {
+                ///  endpoint 7 send the length
+                UEP7_T_LEN: u11,
+                padding: u5,
+            }),
+            ///  endpoint 7 send control
+            UEP7_T_CTRL: mmio.Mmio(packed struct(u8) {
+                ///  endpoint 7 control of the send response to IN transactions
+                MASK_UEP_T_RES: u2,
+                reserved3: u1,
+                ///  endpoint 7 synchronous trigger bit for the sender to prepare
+                MASK_UEP_T_TOG: u2,
+                ///  endpoint 7 synchronous trigger bit automatic filp enables the control bit
+                bUEP_T_TOG_AUTO: u1,
+                padding: u2,
+            }),
+            ///  endpoint 7 send control
+            UEP7_R_CTRL: mmio.Mmio(packed struct(u8) {
+                ///  endpoint 7 control of the accept response to OUT transactions
+                MASK_UEP_R_RES: u2,
+                reserved3: u1,
+                ///  endpoint 7 synchronous trigger bit for the accept to prepare
+                MASK_UEP_R_TOG: u2,
+                ///  endpoint 7 synchronous trigger bit automatic filp enables the control bit
+                bUEP_R_TOG_AUTO: u1,
+                padding: u2,
+            }),
+            ///  endpoint 8 send the length
+            UEP8_T_LEN: mmio.Mmio(packed struct(u16) {
+                ///  endpoint 8 send the length
+                UEP8_T_LEN: u11,
+                padding: u5,
+            }),
+            ///  endpoint 8 send control
+            UEP8_T_CTRL: mmio.Mmio(packed struct(u8) {
+                ///  endpoint 8 control of the send response to IN transactions
+                MASK_UEP_T_RES: u2,
+                reserved3: u1,
+                ///  endpoint 8 synchronous trigger bit for the sender to prepare
+                MASK_UEP_T_TOG: u2,
+                ///  endpoint 8 synchronous trigger bit automatic filp enables the control bit
+                bUEP_T_TOG_AUTO: u1,
+                padding: u2,
+            }),
+            ///  endpoint 8 send control
+            UEP8_R_CTRL: mmio.Mmio(packed struct(u8) {
+                ///  endpoint 8 control of the accept response to OUT transactions
+                MASK_UEP_R_RES: u2,
+                reserved3: u1,
+                ///  endpoint 8 synchronous trigger bit for the accept to prepare
+                MASK_UEP_R_TOG: u2,
+                ///  endpoint 8 synchronous trigger bit automatic filp enables the control bit
+                bUEP_R_TOG_AUTO: u1,
+                padding: u2,
+            }),
+            ///  endpoint9 send the length
+            UEP9_T_LEN: mmio.Mmio(packed struct(u16) {
+                ///  endpoint 9 send the length
+                UEP9_T_LEN: u11,
+                padding: u5,
+            }),
+            ///  endpoint 9 send control
+            UEP9_T_CTRL: mmio.Mmio(packed struct(u8) {
+                ///  endpoint 9 control of the send response to IN transactions
+                MASK_UEP_T_RES: u2,
+                reserved3: u1,
+                ///  endpoint 9 synchronous trigger bit for the sender to prepare
+                MASK_UEP_T_TOG: u2,
+                ///  endpoint 9 synchronous trigger bit automatic filp enables the control bit
+                bUEP_T_TOG_AUTO: u1,
+                padding: u2,
+            }),
+            ///  endpoint 9 send control
+            UEP9_R_CTRL: mmio.Mmio(packed struct(u8) {
+                ///  endpoint 9 control of the accept response to OUT transactions
+                MASK_UEP_R_RES: u2,
+                reserved3: u1,
+                ///  endpoint 9 synchronous trigger bit for the accept to prepare
+                MASK_UEP_R_TOG: u2,
+                ///  endpoint 9 synchronous trigger bit automatic filp enables the control bit
+                bUEP_R_TOG_AUTO: u1,
+                padding: u2,
+            }),
+            ///  endpoint 10 send the length
+            UEP10_T_LEN: mmio.Mmio(packed struct(u16) {
+                ///  endpoint 10 send the length
+                UEP10_T_LEN: u11,
+                padding: u5,
+            }),
+            ///  endpoint 10 send control
+            UEP10_T_CTRL: mmio.Mmio(packed struct(u8) {
+                ///  endpoint 10 control of the send response to IN transactions
+                MASK_UEP_T_RES: u2,
+                reserved3: u1,
+                ///  endpoint 10 synchronous trigger bit for the sender to prepare
+                MASK_UEP_T_TOG: u2,
+                ///  endpoint 10 synchronous trigger bit automatic filp enables the control bit
+                bUEP_T_TOG_AUTO: u1,
+                padding: u2,
+            }),
+            ///  endpoint 10 send control
+            UEP10_R_CTRL: mmio.Mmio(packed struct(u8) {
+                ///  endpoint 10 control of the accept response to OUT transactions
+                MASK_UEP_R_RES: u2,
+                reserved3: u1,
+                ///  endpoint 10 synchronous trigger bit for the accept to prepare
+                MASK_UEP_R_TOG: u2,
+                ///  endpoint 10 synchronous trigger bit automatic filp enables the control bit
+                bUEP_R_TOG_AUTO: u1,
+                padding: u2,
+            }),
+            ///  endpoint 11 send the length
+            UEP11_T_LEN: mmio.Mmio(packed struct(u16) {
+                ///  endpoint 11 send the length
+                UEP0_T_LEN: u11,
+                padding: u5,
+            }),
+            ///  endpoint 11 send control
+            UEP11_T_CTRL: mmio.Mmio(packed struct(u8) {
+                ///  endpoint 11 control of the send response to IN transactions
+                MASK_UEP_T_RES: u2,
+                reserved3: u1,
+                ///  endpoint 11 synchronous trigger bit for the sender to prepare
+                MASK_UEP_T_TOG: u2,
+                ///  endpoint 11 synchronous trigger bit automatic filp enables the control bit
+                bUEP_T_TOG_AUTO: u1,
+                padding: u2,
+            }),
+            ///  endpoint 11 send control
+            UEP11_R_CTRL: mmio.Mmio(packed struct(u8) {
+                ///  endpoint 11 control of the accept response to OUT transactions
+                MASK_UEP_R_RES: u2,
+                reserved3: u1,
+                ///  endpoint 11 synchronous trigger bit for the accept to prepare
+                MASK_UEP_R_TOG: u2,
+                ///  endpoint 11 synchronous trigger bit automatic filp enables the control bit
+                bUEP_R_TOG_AUTO: u1,
+                padding: u2,
+            }),
+            ///  endpoint 12 send the length
+            UEP12_T_LEN: mmio.Mmio(packed struct(u16) {
+                ///  endpoint 12 send the length
+                UEP0_T_LEN: u11,
+                padding: u5,
+            }),
+            ///  endpoint 12 send control
+            UEP12_T_CTRL: mmio.Mmio(packed struct(u8) {
+                ///  endpoint 12 control of the send response to IN transactions
+                MASK_UEP_T_RES: u2,
+                reserved3: u1,
+                ///  endpoint 12 synchronous trigger bit for the sender to prepare
+                MASK_UEP_T_TOG: u2,
+                ///  endpoint 12 synchronous trigger bit automatic filp enables the control bit
+                bUEP_T_TOG_AUTO: u1,
+                padding: u2,
+            }),
+            ///  endpoint 12 send control
+            UEP12_R_CTRL: mmio.Mmio(packed struct(u8) {
+                ///  endpoint 12 control of the accept response to OUT transactions
+                MASK_UEP_R_RES: u2,
+                reserved3: u1,
+                ///  endpoint 12 synchronous trigger bit for the accept to prepare
+                MASK_UEP_R_TOG: u2,
+                ///  endpoint 12 synchronous trigger bit automatic filp enables the control bit
+                bUEP_R_TOG_AUTO: u1,
+                padding: u2,
+            }),
+            ///  endpoint 13 send the length
+            UEP13_T_LEN: mmio.Mmio(packed struct(u16) {
+                ///  endpoint 13 send the length
+                UEP13_T_LEN: u11,
+                padding: u5,
+            }),
+            ///  endpoint 13 send control
+            UEP13_T_CTRL: mmio.Mmio(packed struct(u8) {
+                ///  endpoint 13 control of the send response to IN transactions
+                MASK_UEP_T_RES: u2,
+                reserved3: u1,
+                ///  endpoint 13 synchronous trigger bit for the sender to prepare
+                MASK_UEP_T_TOG: u2,
+                ///  endpoint 13 synchronous trigger bit automatic filp enables the control bit
+                bUEP_T_TOG_AUTO: u1,
+                padding: u2,
+            }),
+            ///  endpoint 13 send control
+            UEP13_R_CTRL: mmio.Mmio(packed struct(u8) {
+                ///  endpoint 13 control of the accept response to OUT transactions
+                MASK_UEP_R_RES: u2,
+                reserved3: u1,
+                ///  endpoint 13 synchronous trigger bit for the accept to prepare
+                MASK_UEP_R_TOG: u2,
+                ///  endpoint 13 synchronous trigger bit automatic filp enables the control bit
+                bUEP_R_TOG_AUTO: u1,
+                padding: u2,
+            }),
+            ///  endpoint 14 send the length
+            UEP14_T_LEN: mmio.Mmio(packed struct(u16) {
+                ///  endpoint 14 send the length
+                UEP14_T_LEN: u11,
+                padding: u5,
+            }),
+            ///  endpoint 14 send control
+            UEP14_T_CTRL: mmio.Mmio(packed struct(u8) {
+                ///  endpoint 14 control of the send response to IN transactions
+                MASK_UEP_T_RES: u2,
+                reserved3: u1,
+                ///  endpoint 14 synchronous trigger bit for the sender to prepare
+                MASK_UEP_T_TOG: u2,
+                ///  endpoint 14 synchronous trigger bit automatic filp enables the control bit
+                bUEP_T_TOG_AUTO: u1,
+                padding: u2,
+            }),
+            ///  endpoint 14 send control
+            UEP14_R_CTRL: mmio.Mmio(packed struct(u8) {
+                ///  endpoint 14 control of the accept response to OUT transactions
+                MASK_UEP_R_RES: u2,
+                reserved3: u1,
+                ///  endpoint 14 synchronous trigger bit for the accept to prepare
+                MASK_UEP_R_TOG: u2,
+                ///  endpoint 14 synchronous trigger bit automatic filp enables the control bit
+                bUEP_R_TOG_AUTO: u1,
+                padding: u2,
+            }),
+            ///  endpoint 15 send the length
+            UEP15_T_LEN: mmio.Mmio(packed struct(u16) {
+                ///  endpoint 15 send the length
+                UEP0_T_LEN: u11,
+                padding: u5,
+            }),
+            ///  endpoint 15 send control
+            UEP15_T_CTRL: mmio.Mmio(packed struct(u8) {
+                ///  endpoint 15 control of the send response to IN transactions
+                MASK_UEP_T_RES: u2,
+                reserved3: u1,
+                ///  endpoint 15 synchronous trigger bit for the sender to prepare
+                MASK_UEP_T_TOG: u2,
+                ///  endpoint 15 synchronous trigger bit automatic filp enables the control bit
+                bUEP_T_TOG_AUTO: u1,
+                padding: u2,
+            }),
+            ///  endpoint 15 send control
+            UEP15_R_CTRL: mmio.Mmio(packed struct(u8) {
+                ///  endpoint 15 control of the accept response to OUT transactions
+                MASK_UEP_R_RES: u2,
+                reserved3: u1,
+                ///  endpoint 15 synchronous trigger bit for the accept to prepare
+                MASK_UEP_R_TOG: u2,
+                ///  endpoint 15 synchronous trigger bit automatic filp enables the control bit
+                bUEP_R_TOG_AUTO: u1,
+                padding: u2,
+            }),
+        };
+
+        pub const USBHD_HOST = extern struct {
             ///  USB base control
             USB_CTRL: mmio.Mmio(packed struct(u8) {
                 ///  DMA enable and DMA interrupt enable for USB
@@ -9441,7 +10694,7 @@ pub const types = struct {
                 ///  buffer mode of USB endpoint
                 bUEP_ISO_BUF_MOD: u16,
             }),
-            ///  B endpoint 0 DMA buffer address
+            ///  USB endpoint 0 DMA buffer address
             UEP0_DMA: mmio.Mmio(packed struct(u16) {
                 ///  endpoint 0 DMA buffer address
                 UEP0_DMA: u16,
