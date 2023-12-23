@@ -770,11 +770,11 @@ pub const GlobalConfiguration = struct {
                         const usbhd_gpio_port_index = @intFromEnum(gpio.Port.PA) * 2 + 1; // +1 is for port pins 8-15
                         const usbhd_shift_num_base = (11 - 8) * 4; // PA11 = 11
                         for (0..2) |i| {
-                            port_cfg_mask[usbhd_gpio_port_index] |= 0b1111 << (usbhd_shift_num_base + i);
+                            port_cfg_mask[usbhd_gpio_port_index] |= 0b1111 << (usbhd_shift_num_base + 4 * i);
                             // MODE: output max. 50MHz
-                            port_cfg_value[usbhd_gpio_port_index] |= 0b11 << (usbhd_shift_num_base + i);
+                            port_cfg_value[usbhd_gpio_port_index] |= 0b11 << (usbhd_shift_num_base + 4 * i);
                             // CFG: general push-pull
-                            port_cfg_value[usbhd_gpio_port_index] |= 0b00 << ((usbhd_shift_num_base + i) + 2);
+                            port_cfg_value[usbhd_gpio_port_index] |= 0b00 << ((usbhd_shift_num_base + 4 * i) + 2);
                         }
                         // set Low level
                         // default level after reset is Low and accept them.
