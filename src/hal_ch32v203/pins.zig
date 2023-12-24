@@ -776,8 +776,16 @@ pub const GlobalConfiguration = struct {
                         }
 
                         // check bus speed and buffer size.
-                        if ((pin_config.usbd_speed == .Low_speed) and (pin_config.usbd_buffer_size == .byte_64)) {
-                            @compileError("USBD: 8 bytes is enough for low-speed devices buffer size.");
+                        if (pin_config.usbd_speed) |speed| {
+                            switch (speed) {
+                                .Low_speed => {
+                                    if ((pin_config.usbd_buffer_size orelse .byte_8) != .byte_8) @compileError("USB buffer size should be 8 bytes for low-speed.");
+                                },
+                                .Full_speed => {},
+                            }
+                        } else {
+                            // default speed id low-speed
+                            if ((pin_config.usbd_buffer_size orelse .byte_8) != .byte_8) @compileError("USBD buffer size should be 8 bytes for low-speed.");
                         }
 
                         // Set PA11 and PA12 as GPIO out and set 0.
