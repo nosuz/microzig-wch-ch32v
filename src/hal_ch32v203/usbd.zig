@@ -243,9 +243,9 @@ pub fn init() void {
     // USB_LP_CAN1_RX0 = 36
     const USB_LP_INT = @intFromEnum(interrupt.Interrupts.USB_LP_CAN1_RX0);
     // clear pending interrupt
-    PFIC.IPRR2.raw |= (1 << (USB_LP_INT - 32));
+    PFIC.IPRR2.raw = (1 << (USB_LP_INT - 32));
     // open interrupt. Enabling global interupt is required.
-    PFIC.IENR2.raw |= (1 << (USB_LP_INT - 32));
+    PFIC.IENR2.raw = (1 << (USB_LP_INT - 32));
 
     // enable pull-up
     EXTEND.EXTEND_CTR.modify(.{

@@ -126,9 +126,9 @@ pub fn init(speed: Speed) void {
 
     const USB_HD_INT = @intFromEnum(interrupt.Interrupts.USBHD);
     // clear pending interrupt
-    PFIC.IPRR2.raw |= (1 << (USB_HD_INT - 32));
+    PFIC.IPRR2.raw = (1 << (USB_HD_INT - 32));
     // open interrupt. Enabling global interupt is required.
-    PFIC.IENR2.raw |= (1 << (USB_HD_INT - 32));
+    PFIC.IENR2.raw = (1 << (USB_HD_INT - 32));
 
     // enable pull-up
     USB.R8_USB_CTRL.modify(.{
