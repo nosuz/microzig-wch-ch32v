@@ -14,7 +14,6 @@ const peripherals = microzig.chip.peripherals;
 const RCC = peripherals.RCC;
 const USB = peripherals.USBHD_DEVICE;
 const PFIC = peripherals.PFIC;
-const EXTEND = peripherals.EXTEND;
 
 pub const Speed = enum(u1) {
     Full_speed = 0,
@@ -93,12 +92,12 @@ var descriptor: ?root.usbd_class.descriptors.DescriptorIndex = .device;
 // record last sent point
 var next_point: u32 = 0;
 
-pub fn init(speed: Speed) void {
+pub fn init() void {
     USB.R8_USB_CTRL.modify(.{
         // disbale USB
         .RB_UC_HOST_MODE = 0,
         .MASK_UC_SYS_CTRL = 0b00,
-        .RB_UC_LOW_SPEED = @intFromEnum(speed),
+        .RB_UC_LOW_SPEED = @intFromEnum(pin.__usbhd__.speed),
         .RB_UC_INT_BUSY = 1,
         .RB_UC_RESET_SIE = 0,
         .RB_UC_CLR_ALL = 0,
@@ -108,7 +107,7 @@ pub fn init(speed: Speed) void {
     // not work before setting R8_USB_CTRL
     USB.R8_UDEV_CTRL.modify(.{
         .RB_UD_PD_DIS = 1, // disable pull-down
-        .RB_UD_LOW_SPEED = @intFromEnum(speed),
+        .RB_UD_LOW_SPEED = @intFromEnum(pin.__usbhd__.speed),
         .RB_UD_PORT_EN = 1,
     });
 

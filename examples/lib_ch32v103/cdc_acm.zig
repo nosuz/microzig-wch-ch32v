@@ -375,7 +375,8 @@ pub fn USBHD(comptime config: pins.Pin.Configuration) type {
 
         // mandatory or call directly usbhd.init()
         pub fn init(self: @This()) void {
-            usbhd.init(self.speed);
+            _ = self;
+            usbhd.init();
         }
 
         pub fn read(self: @This()) u8 {
