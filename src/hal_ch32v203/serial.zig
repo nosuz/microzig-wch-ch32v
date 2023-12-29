@@ -63,7 +63,7 @@ pub fn SERIAL(comptime pin_name: []const u8) type {
             return (pin.serial_port_regs.STATR.read().TXE == 1);
         }
 
-        pub inline fn write(self: @This(), payload: []const u8) WriteError!usize {
+        pub fn write(self: @This(), payload: []const u8) WriteError!usize {
             const regs = pin.serial_port_regs;
             for (payload) |byte| {
                 // while (!self.is_writeable()) {}
@@ -89,6 +89,16 @@ pub fn SERIAL(comptime pin_name: []const u8) type {
         pub inline fn get_port(self: @This()) Port {
             _ = self;
             return pin.serial_port;
+        }
+
+        const Writer = std.io.Writer(@This(), WriteError, @This().write);
+        // https://github.com/ziglang/zig/blob/master/lib/std/io.zig
+        // const Reader = std.io.GenericReader(@This(), ReadError, @This().read);
+
+        pub fn writer(self: @This()) Writer {
+            return .{
+                .context = self,
+            };
         }
     };
 }
