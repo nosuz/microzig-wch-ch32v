@@ -109,7 +109,7 @@ pub fn main() !void {
     ios.usb.init();
     interrupt.enable_interrupt();
 
-    // start logger
+    // wait connect
     while (!ios.usb.is_connected()) {
         asm volatile ("" ::: "memory");
     }
@@ -117,6 +117,7 @@ pub fn main() !void {
     ios.led.toggle();
     std.log.debug("seq:", .{});
 
+    const usb_writer = ios.usb.writer();
     while (true) {
         for (0..20) |j| {
             std.log.debug("start: {}", .{j});
@@ -152,20 +153,20 @@ pub fn main() !void {
                     }
                     if (i > 15) {
                         // 130 PRINT " ",
-                        ios.usb.write(' ');
+                        ios.usb.write_byte(' ');
                         // 140 GOTO 210
                     } else {
                         // 200 IF I>9 THEN I=I+7
                         if (i > 9) i += 7;
                         // 205 PRINT CHR(48+I),
-                        ios.usb.write(48 + i);
+                        ios.usb.write_byte(48 + i);
                     }
                     // 210 NEXT X
                     x += 1;
                 }
                 // 220 PRINT
-                ios.usb.write('\r');
-                ios.usb.write('\n');
+                ios.usb.write_byte('\r');
+                ios.usb.write_byte('\n');
                 // 230 NEXT Y
                 y += 1;
             }
@@ -176,6 +177,7 @@ pub fn main() !void {
         ios.led.toggle();
 
         // wait until any key
+        usb_writer.writeAll("Type any key to restart\r\n") catch {};
         _ = ios.usb.read();
     }
 

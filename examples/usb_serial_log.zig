@@ -110,10 +110,10 @@ pub fn main() !void {
         std.log.debug("start seq: {}", .{i});
         const time_start = time.get_uptime();
         for (0..count) |_| {
-            ios.usb.write('@');
+            ios.usb.write_byte('@');
         }
-        ios.usb.write('\r');
-        ios.usb.write('\n');
+        ios.usb.write_byte('\r');
+        ios.usb.write_byte('\n');
         const delta = time.get_uptime() - time_start;
         std.log.debug("finish seq: {}", .{i});
         std.log.debug("count: {} bytes", .{count});

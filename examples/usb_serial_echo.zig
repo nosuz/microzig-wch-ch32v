@@ -125,12 +125,19 @@ pub fn main() !void {
     // start logger
     serial.init_logger(ios.tx.get_port());
 
+    const usb_writer = ios.usb.writer();
+
+    // wait connect
+    while (!ios.usb.is_connected()) {
+        asm volatile ("" ::: "memory");
+    }
+    usb_writer.writeAll("Echo typed charactors.\r\n") catch {};
     while (true) {
         // echo recieved data
         const chr = ios.usb.read();
         // usb_serial.Tx_Buffer.write_block(chr);
         for (0..10) |_| {
-            ios.usb.write(chr);
+            ios.usb.write_byte(chr);
         }
     }
 }

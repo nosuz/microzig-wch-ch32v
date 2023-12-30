@@ -384,15 +384,33 @@ pub fn USBHD(comptime config: pins.Pin.Configuration) type {
             return Rx_Buffer.read_block();
         }
 
-        pub fn write(self: @This(), chr: u8) void {
+        pub fn write_byte(self: @This(), chr: u8) void {
             _ = self;
             // discard data if connection is closed.
             if (CONNECTED) Tx_Buffer.write_block(chr);
         }
 
-        pub fn print(self: @This(), comptime fmt: []const u8, args: anytype) !void {
+        pub fn write(self: @This(), payload: []const u8) WriteError!usize {
             _ = self;
-            write_str(fmt, args);
+            if (CONNECTED) {
+                for (payload) |byte| {
+                    Tx_Buffer.write_block(byte);
+                }
+            }
+
+            return payload.len;
+        }
+
+        const WriteError = error{};
+
+        pub const Writer = std.io.Writer(@This(), WriteError, @This().write);
+        // https://github.com/ziglang/zig/blob/master/lib/std/io.zig
+        // const Reader = std.io.GenericReader(@This(), ReadError, @This().read);
+
+        pub fn writer(self: @This()) Writer {
+            return .{
+                .context = self,
+            };
         }
 
         pub fn is_readable(self: @This()) bool {
