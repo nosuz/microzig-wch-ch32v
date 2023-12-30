@@ -11,7 +11,6 @@ const interrupt = ch32v.interrupt;
 const time = ch32v.time;
 
 const peripherals = microzig.chip.peripherals;
-const RCC = peripherals.RCC;
 const USB = peripherals.USB;
 const PFIC = peripherals.PFIC;
 const EXTEND = peripherals.EXTEND;
