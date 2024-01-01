@@ -140,9 +140,7 @@ pub fn init() void {
 }
 
 pub fn interrupt_handler() void {
-    pin.led.toggle();
-    // FIXME: not contained pin.triger
-    // pin.triger.toggle();
+    // pin.led.toggle();
 
     const int_flag = USB.R8_USB_INT_FG.read();
     if (int_flag.RB_UIF_BUS_RST == 1) {

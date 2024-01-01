@@ -51,11 +51,6 @@ else
             .direction = .out,
             .level = .low,
         },
-        .PA6 = .{
-            .name = "triger",
-            .direction = .out,
-            .level = .low,
-        },
         .PA9 = .{
             .name = "tx",
             .function = .SERIAL,
