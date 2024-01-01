@@ -72,6 +72,7 @@ pub const Examples = struct {
     usb_mouse: *microzig.EmbeddedExecutable,
     usbhd_mouse: *microzig.EmbeddedExecutable,
     usb_keyboard: *microzig.EmbeddedExecutable,
+    usbhd_keyboard: *microzig.EmbeddedExecutable,
     usb_serial_echo: *microzig.EmbeddedExecutable,
     usb_serial_log: *microzig.EmbeddedExecutable,
     usb_serial_asciiart: *microzig.EmbeddedExecutable,
