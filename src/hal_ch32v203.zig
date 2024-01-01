@@ -16,6 +16,7 @@ pub const adc = @import("hal_ch32v203/adc.zig");
 pub const i2c = @import("hal_ch32v203/i2c.zig");
 pub const interrupt = @import("hal_ch32v203/interrupt.zig");
 pub const usbd = @import("hal_ch32v203/usbd.zig");
+pub const usbfs = @import("hal_ch32v203/usbfs_device.zig");
 
 pub const gpio = @import("hal/gpio.zig");
 pub const spi = @import("hal/spi.zig");

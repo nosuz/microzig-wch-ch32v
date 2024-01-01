@@ -6,6 +6,8 @@ const ch32v = microzig.hal;
 const usbd = ch32v.usbd;
 const pins = ch32v.pins;
 
+pub const BUFFER_SIZE = usbd.BUFFER_SIZE;
+
 const peripherals = microzig.chip.peripherals;
 const USB = peripherals.USB;
 

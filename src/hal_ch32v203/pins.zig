@@ -11,6 +11,7 @@ const adc = ch32v.adc;
 const i2c = ch32v.i2c;
 const spi = ch32v.spi;
 const usbd = ch32v.usbd;
+const usbfs = ch32v.usbfs;
 
 const root = @import("root");
 
@@ -111,6 +112,12 @@ pub const Pin = enum {
         usbd_ep_num: ?u3 = null,
         usbd_buffer_size: ?usbd.BufferSize = null,
         usbd_handle_sof: ?bool = null,
+
+        // USBFS
+        usbfs_speed: ?usbfs.Speed = null,
+        usbfs_ep_num: ?u3 = null,
+        usbfs_buffer_size: ?usbfs.BufferSize = null,
+        usbfs_handle_sof: ?bool = null,
     };
 };
 
@@ -121,6 +128,7 @@ pub const Function = enum {
     I2C,
     SPI,
     USBD,
+    USBFS, // USBFS Device
 };
 
 fn all() [@typeInfo(Pin).Enum.fields.len]u1 {
@@ -152,6 +160,7 @@ const function_table = [@typeInfo(Function).Enum.fields.len][@typeInfo(Pin).Enum
     list(&.{ 22, 23, 26, 27 }), // I2C
     list(&.{ 5, 6, 7, 29, 30, 31 }), // SPI
     list(&.{ 11, 12 }), // USBD
+    list(&.{ 22, 23 }), // USBFS
     // all(), // PIO0
     // all(), // PIO1
     // list(&.{ 0, 4, 16, 20 }), // SPI0_RX
@@ -339,6 +348,20 @@ pub fn Pins(comptime config: GlobalConfiguration) type {
                     fields = fields ++ &[_]StructField{usbd_pin_field};
 
                     pin_field.type = usbd.USBD(pin_config);
+                } else if (pin_config.function == .USBFS) {
+                    // make copy by the name "__usbfs__"
+                    const usbd_pin_field = StructField{
+                        .is_comptime = false,
+                        .default_value = null,
+
+                        // initialized below:
+                        .name = "__usbfs__",
+                        .type = usbfs.USBFS(pin_config),
+                        .alignment = @alignOf(field.type),
+                    };
+                    fields = fields ++ &[_]StructField{usbd_pin_field};
+
+                    pin_field.type = usbfs.USBFS(pin_config);
                 } else {
                     continue;
                 }
@@ -467,6 +490,9 @@ pub const GlobalConfiguration = struct {
 
         // USBD
         comptime var usbd_cfg = usbd.Configuration{};
+
+        // USBFS
+        comptime var usbfs_cfg = usbfs.Configuration{};
 
         // validate selected function
         comptime {
@@ -807,6 +833,58 @@ pub const GlobalConfiguration = struct {
                             usbd_cfg.speed = speed;
                         }
                         usbd_cfg.setup = true;
+                    } else if (pin_config.function == .USBFS) {
+                        // Ref. 3.3.5.6 USB clock
+                        // TODO: make sure HSE freq is good if PLL source is from HSE. HSE is not check is SYSCLK SRC is not HSE.
+                        switch (root.__Clocks_freq.pllclk) {
+                            48_000_000, 96_000_000, 144_000_000 => {},
+                            else => @compileError(comptimePrint("PLL clock freq. should be 48MHz or 96MHz or 144MHz.: {}", .{root.__Clocks_freq.pllclk})),
+                        }
+
+                        // make sure both PB6 and PB7 are USBFS or null
+                        if (config.PB6) |port| {
+                            if (port.function != .USBFS) {
+                                @compileError("PB6 is used for USBFS. Not available for other functions.");
+                            }
+                        }
+                        if (config.PB7) |port| {
+                            if (port.function != .USBFS) {
+                                @compileError("PB7 is used for USBFS. Not available for other functions.");
+                            }
+                        }
+
+                        // check bus speed and buffer size.
+                        if (pin_config.usbfs_speed) |speed| {
+                            switch (speed) {
+                                .Low_speed => {
+                                    if ((pin_config.usbfs_buffer_size orelse .byte_8) != .byte_8) @compileError("USB buffer size should be 8 bytes for low-speed.");
+                                },
+                                .Full_speed => {},
+                            }
+                        } else {
+                            // default speed id low-speed
+                            if ((pin_config.usbfs_buffer_size orelse .byte_8) != .byte_8) @compileError("USBFS buffer size should be 8 bytes for low-speed.");
+                        }
+
+                        // Set PB7 and PB8 as GPIO out and set 0.
+                        // But there pins are automatically connected to the USBD when the USBD is enabled.
+                        const usbfs_gpio_port_index = @intFromEnum(gpio.Port.PB) * 2; // +1 is for port pins 8-15
+                        const usbfs_shift_num_base = 6 * 4; // PB6
+                        for (0..2) |i| {
+                            port_cfg_mask[usbfs_gpio_port_index] |= 0b1111 << (usbfs_shift_num_base + 4 * i);
+                            // MODE: output max. 50MHz
+                            port_cfg_value[usbfs_gpio_port_index] |= 0b11 << (usbfs_shift_num_base + 4 * i);
+                            // CFG: general push-pull
+                            port_cfg_value[usbfs_gpio_port_index] |= 0b00 << ((usbfs_shift_num_base + 4 * i) + 2);
+                        }
+                        // set Low level
+                        // default level after reset is Low and accept them.
+                        // port_cfg_default[0] &= ~(0b11 << 11);
+
+                        if (pin_config.usbfs_speed) |speed| {
+                            usbfs_cfg.speed = speed;
+                        }
+                        usbfs_cfg.setup = true;
                     }
 
                     // if (pin_config.function.is_adc()) {
@@ -1099,8 +1177,8 @@ pub const GlobalConfiguration = struct {
             }
         }
 
-        // Enable USBD
-        if (usbd_cfg.setup) {
+        // Enable clock for USBD and/or USBFS
+        if (usbd_cfg.setup or usbfs_cfg.setup) {
             if (!root.__Clocks_freq.use_pll) {
                 // PLL start
                 // RCC_CFGR0
@@ -1141,6 +1219,10 @@ pub const GlobalConfiguration = struct {
                 },
                 else => unreachable, // PLL freq must 48, 96, or 144 MHz.
             }
+        }
+
+        // Enable USBD
+        if (usbd_cfg.setup) {
             // supply clocks to USBD.
             RCC.APB1PCENR.modify(.{
                 .USBDEN = 1,
@@ -1151,6 +1233,39 @@ pub const GlobalConfiguration = struct {
             });
         }
 
+        // Enable USBFS
+        if (usbfs_cfg.setup) {
+            // supply clocks to USBFS.
+
+            RCC.AHBPCENR.modify(.{
+                // USBFS on CH32V203 means USBFS.
+                // USBFS is combided with OTG
+                .OTG_EN = 1,
+                // CH32V203 has no USBHS
+                // .USBHS_EN = 1,
+            });
+
+            // reset USBHD
+            RCC.AHBRSTR.modify(.{
+                .OTGFSRST = 1,
+            });
+            for (0..50000) |_| {
+                asm volatile ("" ::: "memory");
+            }
+            RCC.AHBRSTR.modify(.{
+                .OTGFSRST = 0,
+            });
+
+            // RCC_CFGR2
+            // USBFS uses USB internal PLL clock.
+            RCC.CFGR2.modify(.{
+                .USBHS_CLK_SRC = 0, // use PLL for 48MHz. This might be useless.
+                // .USBHS_PLLALIVE = 1,
+                // .USBHS_CKPEF_SEL = 0b10, // 8MHz
+                // .USBHS_PLL_SRC = 1, // HIS
+                // .USBHS_PREDIY = 0b000, // Not divid
+            });
+        }
         // if (output_gpios != 0)
         //     SIO.GPIO_OE_SET.raw = output_gpios;
 

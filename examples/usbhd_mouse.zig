@@ -5,15 +5,13 @@ const ch32v = microzig.hal;
 const clocks = ch32v.clocks;
 const time = ch32v.time;
 const serial = ch32v.serial;
-const usbd = if (ch32v.cpu_type == .ch32v103) ch32v.usbhd else ch32v.usbd;
+const usbhd = if (ch32v.cpu_type == .ch32v103) ch32v.usbhd else ch32v.usbfs;
 const interrupt = ch32v.interrupt;
-
-pub const BUFFER_SIZE = usbd.BUFFER_SIZE;
 
 pub const usbd_class = if (ch32v.cpu_type == .ch32v103)
     @import("lib_ch32v103/hid_mouse.zig")
 else
-    @import("lib_ch32v203/hid_mouse.zig");
+    @import("lib_ch32v203/usbfs_hid_mouse.zig");
 
 pub const pin_config = if (ch32v.cpu_type == .ch32v103)
     ch32v.pins.GlobalConfiguration{
@@ -58,7 +56,6 @@ else
             .direction = .out,
             .level = .low,
         },
-
         .PA9 = .{
             .name = "tx",
             .function = .SERIAL,
@@ -68,17 +65,18 @@ else
         //     // .name = "rx",
         //     .function = .SERIAL,
         // },
-        .PA11 = .{
+        .PB6 = .{
             .name = "usb",
-            .function = .USBD,
-            // .usbd_speed = .Full_speed,
-            // .usbd_speed = .Low_speed, // default speed
-            .usbd_ep_num = 2,
-            // .usbd_buffer_size = .byte_8, // default buffer size
-            // .usbd_handle_sof = false, // genellary no need to handle SOF
+            .function = .USBFS,
+            // .usbfs_speed = .Full_speed,
+            // .usbfs_speed = .Low_speed, // default speed
+            .usbfs_ep_num = 2,
+            // .usbfs_buffer_size = .byte_8, // default buffer size
+            // .usbfs_buffer_size = .byte_64,
+            // .usbfs_handle_sof = false, // genellary no need to handle SOF
         },
-        // .PA12 = .{
-        //     // Using for other than USBD will make error.
+        // .PB7 = .{
+        //     // Using for other than USBFS will make error.
         //     .name = "dummy",
         //     .function = .GPIO,
         // },
@@ -105,14 +103,17 @@ pub const microzig_options = struct {
         struct {
             // CH32V103
             pub fn USBHD() void {
-                usbd.interrupt_handler();
+                usbhd.interrupt_handler();
             }
         }
     else
         struct {
             // CH32V203
-            pub fn USB_LP_CAN1_RX0() void {
-                usbd.interrupt_handler();
+            // pub fn OTG_FS() void {
+            //     usbhd.interrupt_handler();
+            // }
+            pub fn TIM8_BRK() void {
+                usbhd.interrupt_handler();
             }
         };
 };

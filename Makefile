@@ -91,6 +91,10 @@ usb_serial_asciiart: all
 	riscv64-unknown-elf-objcopy -O binary zig-out/bin/usb_serial_asciiart zig-out/${BIN_NAME} && \
 	riscv64-unknown-elf-objdump --disassemble-all zig-out/bin/usb_serial_asciiart > zig-out/usb_serial_asciiart.s
 
+usbhd_mouse: all
+	riscv64-unknown-elf-objcopy -O binary zig-out/bin/usbhd_mouse zig-out/${BIN_NAME} && \
+	riscv64-unknown-elf-objdump --disassemble-all zig-out/bin/usbhd_mouse > zig-out/usbhd_mouse.s
+
 flash:
 	#wchisp flash zig-out/${BIN_NAME}
 	wch-isp -pr flash zig-out/${BIN_NAME}
