@@ -1245,7 +1245,7 @@ pub const GlobalConfiguration = struct {
                 // .USBHS_EN = 1,
             });
 
-            // reset USBHD
+            // reset USBFS
             RCC.AHBRSTR.modify(.{
                 .OTGFSRST = 1,
             });
