@@ -132,7 +132,6 @@ pub fn main() !void {
         while (!ios.usb.is_connected()) {
             asm volatile ("" ::: "memory");
         }
-        // FIXME: tailing char not send but key will triger send them.
         usb_writer.writeAll("Echo typed charactors.\r\n") catch {};
 
         while (ios.usb.is_connected()) {

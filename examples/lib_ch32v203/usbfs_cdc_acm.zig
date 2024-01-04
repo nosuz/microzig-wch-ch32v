@@ -286,20 +286,22 @@ fn set_ep3_tx_data() void {
         buf[i] = chr;
         tx_count += 1;
     }
-    // set next data length
-    USB.R16_UEP3_T_LEN = tx_count;
     // USBHD doesn't change to NAK automatically. Without set RES, it will keep RES state.
-    if (tx_count == 0) {
+    if ((tx_count > 0) or (USB.R16_UEP3_T_LEN == usbfs.BUFFER_SIZE)) {
+        // Notify no more data if previous packet was full.
+        USB.R8_UEP3_T_CTRL.modify(.{
+            .MASK_UEP_T_RES = 0b00, // ACK
+        });
+        IN_TX_TRANSACTION = true;
+    } else {
         // No more data to send
         USB.R8_UEP3_T_CTRL.modify(.{
             .MASK_UEP_T_RES = 0b10, // NAK
         });
-    } else {
-        USB.R8_UEP3_T_CTRL.modify(.{
-            .MASK_UEP_T_RES = 0b00, // ACK
-        });
+        IN_TX_TRANSACTION = false;
     }
-    IN_TX_TRANSACTION = if (tx_count > 0) true else false;
+    // set next data length
+    USB.R16_UEP3_T_LEN = tx_count;
 }
 
 pub fn write_str(comptime fmt: []const u8, args: anytype) !void {
