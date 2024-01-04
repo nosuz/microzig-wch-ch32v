@@ -111,6 +111,10 @@ pub fn init() void {
     });
 
     // setup EP0
+    // set DMA buffer for endpoint0
+    USB.R16_UEP0_DMA = @truncate(@intFromPtr(&ep_buf[0]));
+
+    // setup endpoint0
     reset_endpoints();
 
     // enable interrupts for USB
@@ -187,9 +191,6 @@ fn reset_endpoints() void {
     // Reset device address
     USB.R8_USB_DEV_AD.write_raw(0);
 
-    // setup endpoint0
-    // set DMA buffer for endpoint0
-    USB.R16_UEP0_DMA = @truncate(@intFromPtr(&ep_buf[0]));
     USB.R8_UEP0_CTRL.modify(.{
         .RB_UEP_R_TOG = 0,
         .RB_UEP_T_TOG = 0,

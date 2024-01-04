@@ -110,7 +110,10 @@ pub fn init() void {
         .USBHD_UD_PORT_EN = 1,
     });
 
-    // setup EP0
+    // set DMA buffer for endpoint0
+    USB.R32_UEP0_DMA = @truncate(@intFromPtr(&ep_buf[0]));
+
+    // setup endpoint0
     reset_endpoints();
 
     // enable interrupts for USB
@@ -195,11 +198,6 @@ fn default_SOF() void {}
 fn reset_endpoints() void {
     // Reset device address
     USB.R8_USB_DEV_AD.write_raw(0);
-
-    // TODO: set DMA address for ep0 in init.
-    // setup endpoint0
-    // set DMA buffer for endpoint0
-    USB.R32_UEP0_DMA = @truncate(@intFromPtr(&ep_buf[0]));
 
     USB.R8_UEP0_T_CTRL.modify(.{
         .MASK_UEP_T_RES = 0b10, // NAK
