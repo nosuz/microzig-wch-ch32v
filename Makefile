@@ -99,6 +99,18 @@ usbhd_keyboard: all
 	riscv64-unknown-elf-objcopy -O binary zig-out/bin/usbhd_keyboard zig-out/${BIN_NAME} && \
 	riscv64-unknown-elf-objdump --disassemble-all zig-out/bin/usbhd_keyboard > zig-out/usbhd_keyboard.s
 
+usbhd_serial_echo: all
+	riscv64-unknown-elf-objcopy -O binary zig-out/bin/usbhd_serial_echo zig-out/${BIN_NAME} && \
+	riscv64-unknown-elf-objdump --disassemble-all zig-out/bin/usbhd_serial_echo > zig-out/usbhd_serial_echo.s
+
+usbhd_serial_log: all
+	riscv64-unknown-elf-objcopy -O binary zig-out/bin/usbhd_serial_log zig-out/${BIN_NAME} && \
+	riscv64-unknown-elf-objdump --disassemble-all zig-out/bin/usbhd_serial_log > zig-out/usbhd_serial_log.s
+
+usbhd_serial_asciiart: all
+	riscv64-unknown-elf-objcopy -O binary zig-out/bin/usbhd_serial_asciiart zig-out/${BIN_NAME} && \
+	riscv64-unknown-elf-objdump --disassemble-all zig-out/bin/usbhd_serial_asciiart > zig-out/usbhd_serial_asciiart.s
+
 flash:
 	#wchisp flash zig-out/${BIN_NAME}
 	wch-isp -pr flash zig-out/${BIN_NAME}

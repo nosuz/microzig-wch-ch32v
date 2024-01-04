@@ -8,6 +8,8 @@ const pins = ch32v.pins;
 const rb = ch32v.ring_buffer;
 const time = ch32v.time;
 
+pub const BUFFER_SIZE = usbd.BUFFER_SIZE;
+
 const peripherals = microzig.chip.peripherals;
 const USB = peripherals.USB;
 
@@ -378,8 +380,6 @@ pub fn EP2_OUT() void {
 }
 
 fn set_ep3_tx_data() void {
-    const pin = pins.get_pins(root.pin_config);
-    pin.led.toggle();
     var tx_count: u32 = 0;
     for (0..usbd.BUFFER_SIZE) |i| {
         const chr = Tx_Buffer.read() catch {

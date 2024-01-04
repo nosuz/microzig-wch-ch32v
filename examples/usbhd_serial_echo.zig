@@ -5,14 +5,14 @@ const ch32v = microzig.hal;
 const clocks = ch32v.clocks;
 const time = ch32v.time;
 const serial = ch32v.serial;
-const usbd = if (ch32v.cpu_type == .ch32v103) ch32v.usbhd else ch32v.usbd;
+const usbhd = if (ch32v.cpu_type == .ch32v103) ch32v.usbhd else ch32v.usbfs;
 const interrupt = ch32v.interrupt;
 
 // variable name is fixed for usb device class
 pub const usbd_class = if (ch32v.cpu_type == .ch32v103)
     @import("lib_ch32v103/cdc_acm.zig")
 else
-    @import("lib_ch32v203/cdc_acm.zig");
+    @import("lib_ch32v203/usbfs_cdc_acm.zig");
 
 pub const pin_config = if (ch32v.cpu_type == .ch32v103)
     ch32v.pins.GlobalConfiguration{
@@ -55,15 +55,15 @@ else
         //     // .name = "rx",
         //     .function = .SERIAL,
         // },
-        .PA11 = .{
+        .PB6 = .{
             .name = "usb",
-            .function = .USBD,
-            // .usbd_speed = .Full_speed, // use SOF instead of timer
-            .usbd_speed = .Low_speed, // no BULK transfer; for debugging
-            .usbd_ep_num = 4,
-            // .usbd_buffer_size = .byte_8, // default buffer size
-            // .usbd_handle_sof = false, // genellary no need to handle SOF
-            .usbd_handle_sof = true,
+            .function = .USBFS,
+            // .usbfs_speed = .Full_speed, // use SOF instead of timer
+            .usbfs_speed = .Low_speed, // no BULK transfer; for debugging
+            .usbfs_ep_num = 4,
+            // .usbfs_buffer_size = .byte_8, // default buffer size
+            // .usbfs_handle_sof = false, // genellary no need to handle SOF
+            .usbfs_handle_sof = true,
         },
     };
 
@@ -88,7 +88,7 @@ pub const microzig_options = struct {
         struct {
             // CH32V103
             pub fn USBHD() void {
-                usbd.interrupt_handler();
+                usbhd.interrupt_handler();
             }
             pub fn TIM1_UP() void {
                 tim1_up_handler();
@@ -97,8 +97,8 @@ pub const microzig_options = struct {
     else
         struct {
             // CH32V203
-            pub fn USB_LP_CAN1_RX0() void {
-                usbd.interrupt_handler();
+            pub fn TIM8_BRK() void {
+                usbhd.interrupt_handler();
             }
             pub fn TIM1_UP() void {
                 tim1_up_handler();
@@ -132,6 +132,7 @@ pub fn main() !void {
         while (!ios.usb.is_connected()) {
             asm volatile ("" ::: "memory");
         }
+        // FIXME: tailing char not send but key will triger send them.
         usb_writer.writeAll("Echo typed charactors.\r\n") catch {};
 
         while (ios.usb.is_connected()) {

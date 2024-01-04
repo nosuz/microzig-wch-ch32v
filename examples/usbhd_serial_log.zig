@@ -4,15 +4,14 @@ const microzig = @import("microzig");
 const ch32v = microzig.hal;
 const clocks = ch32v.clocks;
 const time = ch32v.time;
-const serial = ch32v.serial;
-const usbd = if (ch32v.cpu_type == .ch32v103) ch32v.usbhd else ch32v.usbd;
+const usbhd = if (ch32v.cpu_type == .ch32v103) ch32v.usbhd else ch32v.usbfs;
 const interrupt = ch32v.interrupt;
 
 // variable name is fixed for usb device class
 pub const usbd_class = if (ch32v.cpu_type == .ch32v103)
     @import("lib_ch32v103/cdc_acm.zig")
 else
-    @import("lib_ch32v203/cdc_acm.zig");
+    @import("lib_ch32v203/usbfs_cdc_acm.zig");
 
 pub const pin_config = if (ch32v.cpu_type == .ch32v103)
     ch32v.pins.GlobalConfiguration{
@@ -20,23 +19,13 @@ pub const pin_config = if (ch32v.cpu_type == .ch32v103)
             .name = "led",
             .direction = .out,
         },
-        .PA9 = .{
-            .name = "tx",
-            .function = .SERIAL,
-            .baud_rate = 115200,
-        },
-        // .PA10 = .{
-        //     // .name = "rx",
-        //     .function = .SERIAL,
-        // },
         .PA11 = .{
             .name = "usb",
             .function = .USBHD,
-            // .usbhd_speed = .Full_speed, // use SOF instead of timer
-            .usbhd_speed = .Low_speed, // no BULK transfer; for debugging
+            .usbhd_speed = .Full_speed, // use SOF instead of timer
+            // .usbhd_speed = .Low_speed, // no BULK transfer; for debugging
             .usbhd_ep_num = 4,
-            // .usbhd_buffer_size = .byte_8, // default buffer size
-            // .usbhd_handle_sof = false, // genellary no need to handle SOF
+            // .usbhd_buffer_size = .byte_64,
             .usbhd_handle_sof = true,
         },
     }
@@ -46,24 +35,14 @@ else
             .name = "led",
             .direction = .out,
         },
-        .PA9 = .{
-            .name = "tx",
-            .function = .SERIAL,
-            .baud_rate = 115200,
-        },
-        // .PA10 = .{
-        //     // .name = "rx",
-        //     .function = .SERIAL,
-        // },
-        .PA11 = .{
+        .PB6 = .{
             .name = "usb",
-            .function = .USBD,
-            // .usbd_speed = .Full_speed, // use SOF instead of timer
-            .usbd_speed = .Low_speed, // no BULK transfer; for debugging
-            .usbd_ep_num = 4,
-            // .usbd_buffer_size = .byte_8, // default buffer size
-            // .usbd_handle_sof = false, // genellary no need to handle SOF
-            .usbd_handle_sof = true,
+            .function = .USBFS,
+            .usbfs_speed = .Full_speed, // use SOF instead of timer
+            // .usbfs_speed = .Low_speed, // no BULK transfer; for debugging
+            .usbfs_ep_num = 4,
+            // .usbfs_buffer_size = .byte_64,
+            .usbfs_handle_sof = true,
         },
     };
 
@@ -88,7 +67,7 @@ pub const microzig_options = struct {
         struct {
             // CH32V103
             pub fn USBHD() void {
-                usbd.interrupt_handler();
+                usbhd.interrupt_handler();
             }
             pub fn TIM1_UP() void {
                 tim1_up_handler();
@@ -97,8 +76,8 @@ pub const microzig_options = struct {
     else
         struct {
             // CH32V203
-            pub fn USB_LP_CAN1_RX0() void {
-                usbd.interrupt_handler();
+            pub fn TIM8_BRK() void {
+                usbhd.interrupt_handler();
             }
             pub fn TIM1_UP() void {
                 tim1_up_handler();
@@ -109,7 +88,7 @@ pub const microzig_options = struct {
 // set logger
 pub const std_options = struct {
     pub const log_level = .debug;
-    pub const logFn = serial.log;
+    pub const logFn = usbd_class.log;
     // pub const logFn = ch32v.serial.log_no_timestamp;
 };
 
@@ -119,29 +98,30 @@ pub fn main() !void {
     const ios = pin_config.apply();
 
     ios.usb.init();
-    setup_timer(); // comment out at full-speed
+    // setup_timer(); // low-speed has no SOF packet.
     interrupt.enable_interrupt();
 
-    // start logger
-    serial.init_logger(ios.tx.get_port());
-
-    const usb_writer = ios.usb.writer();
-
+    const count = 10000;
+    var i: u32 = 0;
     while (true) {
-        // wait connect
-        while (!ios.usb.is_connected()) {
-            asm volatile ("" ::: "memory");
-        }
-        usb_writer.writeAll("Echo typed charactors.\r\n") catch {};
+        time.sleep_ms(500);
+        ios.led.toggle();
 
-        while (ios.usb.is_connected()) {
-            // echo recieved data
-            const chr = ios.usb.read();
-            // usb_serial.Tx_Buffer.write_block(chr);
-            for (0..10) |_| {
-                ios.usb.write_byte(chr);
-            }
+        std.log.debug("start seq: {}", .{i});
+        const time_start = time.get_uptime();
+        for (0..count) |_| {
+            ios.usb.write_byte('@');
         }
+        ios.usb.write_byte('\r');
+        ios.usb.write_byte('\n');
+        const delta = time.get_uptime() - time_start;
+        std.log.debug("finish seq: {}", .{i});
+        std.log.debug("count: {} bytes", .{count});
+        std.log.debug("delta: {} ms", .{delta});
+        // makes really large binary
+        // const speed: f32 = count / @as(f32, @floatFromInt(delta)) / 1000;
+        // std.log.debug("speed: {d:.1} byte/sec", .{speed});
+        i += 1;
     }
 }
 

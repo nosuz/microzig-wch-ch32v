@@ -182,8 +182,8 @@ pub fn USBD(comptime config: pins.Pin.Configuration) type {
         // device class specific methods
         pub fn update(self: @This(), x: i8, y: i8) void {
             _ = self;
-            const pin = pins.get_pins(root.pin_config);
-            pin.led.toggle();
+            // const pin = pins.get_pins(root.pin_config);
+            // pin.led.toggle();
 
             const epr = USB.EP1R.read();
 

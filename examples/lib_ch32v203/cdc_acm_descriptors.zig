@@ -1,9 +1,8 @@
 const microzig = @import("microzig");
 
-const ch32v = microzig.hal;
-const usbd = ch32v.usbd;
+const root = @import("root");
 
-const MAX_LEN = usbd.BUFFER_SIZE;
+const MAX_LEN = root.usbd_class.BUFFER_SIZE;
 
 const VENDER_ID_H: u8 = 0x66;
 const VENDER_ID_L: u8 = 0x66;

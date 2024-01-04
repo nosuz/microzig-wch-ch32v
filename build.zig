@@ -74,8 +74,11 @@ pub const Examples = struct {
     usb_keyboard: *microzig.EmbeddedExecutable,
     usbhd_keyboard: *microzig.EmbeddedExecutable,
     usb_serial_echo: *microzig.EmbeddedExecutable,
+    usbhd_serial_echo: *microzig.EmbeddedExecutable,
     usb_serial_log: *microzig.EmbeddedExecutable,
+    usbhd_serial_log: *microzig.EmbeddedExecutable,
     usb_serial_asciiart: *microzig.EmbeddedExecutable,
+    usbhd_serial_asciiart: *microzig.EmbeddedExecutable,
 
     pub fn init(b: *Builder, optimize: std.builtin.OptimizeMode) Examples {
         var ret: Examples = undefined;

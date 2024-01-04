@@ -196,6 +196,7 @@ fn reset_endpoints() void {
     // Reset device address
     USB.R8_USB_DEV_AD.write_raw(0);
 
+    // TODO: set DMA address for ep0 in init.
     // setup endpoint0
     // set DMA buffer for endpoint0
     USB.R32_UEP0_DMA = @truncate(@intFromPtr(&ep_buf[0]));

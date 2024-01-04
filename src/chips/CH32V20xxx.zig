@@ -7318,19 +7318,14 @@ pub const types = struct {
                 padding: u4,
             }),
             ///  endpoint 2 transmittal length
-            R8_UEP2_T_LEN: mmio.Mmio(packed struct(u8) {
-                ///  bit mask of endpoint number for USB host transfer
-                USBHD_UH_ENDP_MASK: u4,
-                ///  bit mask of token PID for USB host transfer
-                USBHD_UH_TOKEN_MASK: u4,
-            }),
+            R8_UEP2_T_LEN: u8,
             reserved58: [1]u8,
             ///  endpoint 2 control
             R8_UEP2_T_CTRL: mmio.Mmio(packed struct(u8) {
                 ///  bit mask of handshake response type for USB endpoint X transmittal (IN)
                 MASK_UEP_T_RES: u2,
                 ///  prepared data toggle flag of USB endpoint X transmittal (IN): 0=DATA0, 1=DATA1
-                USBHD_UEP_T_TOG_: u1,
+                USBHD_UEP_T_TOG: u1,
                 ///  enable automatic toggle after successful transfer completion on endpoint 1/2/3: 0=manual toggle, 1=automatic toggle
                 USBHD_UEP_AUTO_TOG: u1,
                 padding: u4,
@@ -7346,8 +7341,8 @@ pub const types = struct {
                 padding: u4,
             }),
             ///  endpoint 3 transmittal length
-            R8_UEP3_T_LEN: u8,
-            reserved62: [1]u8,
+            /// The max length for endpoint 3 is 64 bytes as a device. But the max size of thw packet is 1024 bytes as host and this registor is R16.
+            R16_UEP3_T_LEN: u16,
             ///  endpoint 3 control
             R8_UEP3_T_CTRL: mmio.Mmio(packed struct(u8) {
                 ///  bit mask of handshake response type for USB endpoint X transmittal (IN)
@@ -7359,7 +7354,7 @@ pub const types = struct {
                 padding: u4,
             }),
             ///  endpoint 3 control
-            R8_UEP3_R_CTRL_: mmio.Mmio(packed struct(u8) {
+            R8_UEP3_R_CTRL: mmio.Mmio(packed struct(u8) {
                 ///  bit mask of handshake response type for USB endpoint X receiving (OUT)
                 MASK_UEP_R_RES: u2,
                 ///  expected data toggle flag of USB endpoint X receiving (OUT): 0=DATA0, 1=DATA1
