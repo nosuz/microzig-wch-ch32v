@@ -79,6 +79,7 @@ pub const Examples = struct {
     usbhd_serial_log: *microzig.EmbeddedExecutable,
     usb_serial_asciiart: *microzig.EmbeddedExecutable,
     usbhd_serial_asciiart: *microzig.EmbeddedExecutable,
+    sd_driver: *microzig.EmbeddedExecutable,
 
     pub fn init(b: *Builder, optimize: std.builtin.OptimizeMode) Examples {
         var ret: Examples = undefined;
