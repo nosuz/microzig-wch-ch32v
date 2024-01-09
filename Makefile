@@ -5,7 +5,7 @@ INIT = libinit.a
 all: ${INIT}
 	zig build -Doptimize=ReleaseSmall
 
-init:
+libinit.a:
 	zig build-lib -target riscv32-freestanding -mcpu=baseline_rv32-d \
 	--name init lib/init_interrupt.S && \
 	cp lib/ch32v_interrupt.ld ./ch32v.ld
