@@ -77,6 +77,10 @@ pub fn main() !void {
     const sd_card = sd_driver.SD_DRIVER(pins.spi, pins.cs);
     pins.led.toggle();
     if (sd_card.init()) {
+        // gear up. set new communication speed.
+        // pins.spi.set_clock_div(.PCLK_4); // worked at 2 Mbps
+        pins.spi.set_clock_div(.PCLK_16);
+
         time.sleep_ms(1);
 
         const cid = sd_card.read_cid() catch 0;

@@ -161,5 +161,15 @@ pub fn SPI(comptime pin_name: []const u8) type {
             // reset RXNE if set
             _ = regs.DATAR.raw;
         }
+
+        pub inline fn set_clock_div(self: @This(), div: Clock_div) void {
+            // baud rate should not change during communication.
+            self.wait_complete();
+
+            const regs = pin.spi_port_regs;
+            regs.CTLR1.modify(.{
+                .BR = @intFromEnum(div),
+            });
+        }
     };
 }
