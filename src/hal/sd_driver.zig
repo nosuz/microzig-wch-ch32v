@@ -13,23 +13,23 @@ const SDError = error{
     CardError,
 };
 
-const CMD0 = [_]u8{ 0b01_000000 + 0, 0, 0, 0, 0, 0b1001010_1 }; // need correct CRC7
+const CMD0 = [_]u8{ 0b01_000000 + 0, 0, 0, 0, 0, 0b1001010_1 }; // need correct CRC7 (0x4A << 1 | 1 = 0x95)
 const CMD8 = [_]u8{ 0x40 + 8, 0, 0, 1, 0xAA, 0x87 }; // need correct CRC7
 // https://userweb.alles.or.jp/chunichidenko/sdif27.html
-const CMD9 = [_]u8{ 0x40 + 9, 0, 0, 0, 0, 1 }; // ask CSD; recieve data packet 16 bytes + CRC
-const CMD10 = [_]u8{ 0x40 + 10, 0, 0, 0, 0, 1 }; // ask CSD; recieve data packet 16 bytes + CRC
-const CMD16 = [_]u8{ 0x40 + 16, 0, 0, 2, 0, 1 }; // set block length to 512 bytes for SDCD not for SDHC and SDXC
-const CMD58 = [_]u8{ 0x40 + 58, 0, 0, 0, 0, 1 };
-// const CMD59 = [_]u8{ 0x40 + 59, 0, 0, 0, 0, 1 }; // turn off CRC; off by default
+const CMD9 = [_]u8{ 0x40 + 9, 0, 0, 0, 0, 0xAF }; // ask CSD; recieve data packet 16 bytes + CRC
+const CMD10 = [_]u8{ 0x40 + 10, 0, 0, 0, 0, 0x1B }; // ask CID; recieve data packet 16 bytes + CRC
+const CMD16 = [_]u8{ 0x40 + 16, 0, 0, 2, 0, 0x15 }; // set block length to 512 bytes for SDCD not for SDHC and SDXC
+const CMD58 = [_]u8{ 0x40 + 58, 0, 0, 0, 0, 0xFD };
+const CMD59 = [_]u8{ 0x40 + 59, 0, 0, 0, 1, 0x83 }; // turn ON CRC; off by default
 
 // Pre-command for ACMD
-const CMD55 = [_]u8{ 0x40 + 55, 0, 0, 0, 0, 1 };
+const CMD55 = [_]u8{ 0x40 + 55, 0, 0, 0, 0, 0x65 };
 // Table 7-4 : Application Specific Commands used/reserved by SD Memory Card - SPI Mode
-const ACMD41 = [_]u8{ 0x40 + 41, 0b0100_0000, 0, 0, 0, 1 };
+const ACMD41 = [_]u8{ 0x40 + 41, 0b0100_0000, 0, 0, 0, 0x77 };
 
 const CMD17 = [_]u8{ 0x40 + 17, 0, 0, 0, 0, 1 }; // single read
 const CMD18 = [_]u8{ 0x40 + 18, 0, 0, 0, 0, 1 }; // multiple read
-const CMD12 = [_]u8{ 0x40 + 12, 0, 0, 0, 0, 1 }; // stop read
+const CMD12 = [_]u8{ 0x40 + 12, 0, 0, 0, 0, 0x61 }; // stop read
 
 const CMD24 = [_]u8{ 0x40 + 24, 0, 0, 0, 0, 1 }; // single write
 const CMD25 = [_]u8{ 0x40 + 25, 0, 0, 0, 0, 1 }; // multiple write
@@ -40,6 +40,29 @@ pub fn SD_DRIVER(comptime spi_port: anytype, comptime cs_pin: anytype) type {
         var response_r1: [1]u8 = undefined;
         var response_r3: [4]u8 = undefined;
         var response_r7: [4]u8 = undefined;
+
+        fn crc7(message: []const u8) u8 {
+            // https://bushowhige.blogspot.com/2017/05/blog-post.html
+            const poly: u8 = 0b10001001;
+            var crc: u8 = 0;
+            for (0..message.len) |i| {
+                crc ^= message[i];
+                for (0..8) |_| {
+                    crc = if ((crc & 0x80) > 0) ((crc ^ poly) << 1) else (crc << 1);
+                }
+            }
+            return crc >> 1;
+        }
+
+        fn send_with_crc(cmd: []const u8) void {
+            var cmd_crc: [6]u8 = undefined;
+            for (0..6) |i| {
+                cmd_crc[i] = cmd[i];
+            }
+            cmd_crc[5] = (crc7(cmd[0..(cmd.len - 1)]) << 1) | 0b1;
+
+            spi_port.write(&cmd_crc);
+        }
 
         pub fn init() SDError!void {
             time.sleep_ms(1);
@@ -142,7 +165,7 @@ pub fn SD_DRIVER(comptime spi_port: anytype, comptime cs_pin: anytype) type {
                 cmd[i + 1] = @truncate(addr >> @as(u5, @truncate(8 * (3 - i))));
             }
 
-            spi_port.write(&cmd);
+            send_with_crc(&cmd);
             for (0..10) |i| {
                 spi_port.read(&response_r1);
                 if ((response_r1[0] & 0x80) == 0) break;
@@ -167,7 +190,7 @@ pub fn SD_DRIVER(comptime spi_port: anytype, comptime cs_pin: anytype) type {
                 cmd[i + 1] = @truncate(addr >> @as(u5, @truncate(8 * (3 - i))));
             }
 
-            spi_port.write(&cmd);
+            send_with_crc(&cmd);
             for (0..10) |i| {
                 spi_port.read(&response_r1);
                 if ((response_r1[0] & 0x80) == 0) break;
@@ -223,7 +246,7 @@ pub fn SD_DRIVER(comptime spi_port: anytype, comptime cs_pin: anytype) type {
                 cmd[i + 1] = @truncate(addr >> @as(u5, @truncate(8 * (3 - i))));
             }
 
-            spi_port.write(&cmd);
+            send_with_crc(&cmd);
             for (0..10) |i| {
                 spi_port.read(&response_r1);
                 if ((response_r1[0] & 0x80) == 0) break;
@@ -250,7 +273,7 @@ pub fn SD_DRIVER(comptime spi_port: anytype, comptime cs_pin: anytype) type {
                 cmd[i + 1] = @truncate(addr >> @as(u5, @truncate(8 * (3 - i))));
             }
 
-            spi_port.write(&cmd);
+            send_with_crc(&cmd);
             for (0..10) |i| {
                 spi_port.read(&response_r1);
                 if ((response_r1[0] & 0x80) == 0) break;
