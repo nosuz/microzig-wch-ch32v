@@ -295,7 +295,7 @@ pub fn SD_DRIVER(comptime spi_port: anytype, comptime cs_pin: anytype) type {
             spi_port.wait_complete();
         }
 
-        fn write_data(token: u8, buffer: []u8) SDError!void {
+        fn write_data(token: u8, buffer: []const u8) SDError!void {
             const data_token = [_]u8{token};
             spi_port.write(&data_token);
             spi_port.write(buffer);
@@ -319,7 +319,7 @@ pub fn SD_DRIVER(comptime spi_port: anytype, comptime cs_pin: anytype) type {
             }
         }
 
-        pub fn write_single(addr: usize, buffer: []u8) SDError!void {
+        pub fn write_single(addr: usize, buffer: []const u8) SDError!void {
             errdefer cleanup();
 
             cs_pin.put(0);
@@ -348,7 +348,7 @@ pub fn SD_DRIVER(comptime spi_port: anytype, comptime cs_pin: anytype) type {
             spi_port.wait_complete();
         }
 
-        pub fn write_multi(addr: usize, buffer: []u8) SDError!void {
+        pub fn write_multi(addr: usize, buffer: []const u8) SDError!void {
             errdefer cleanup();
 
             const count: usize = buffer.len / SECTOR_SIZE;
