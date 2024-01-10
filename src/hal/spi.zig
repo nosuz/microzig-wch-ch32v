@@ -85,7 +85,7 @@ pub fn SPI(comptime pin_name: []const u8) type {
                     asm volatile ("" ::: "memory");
                 }
                 regs.DATAR.write(.{
-                    .DATAR = @as(u16, @intCast(bytes[i])),
+                    .DATAR = @as(u16, bytes[i]),
                     .padding = 0,
                 });
             }
@@ -119,7 +119,7 @@ pub fn SPI(comptime pin_name: []const u8) type {
                     asm volatile ("" ::: "memory");
                 }
                 regs.DATAR.write(.{
-                    .DATAR = @as(u16, @intCast(bytes[i])),
+                    .DATAR = @as(u16, bytes[i]),
                     .padding = 0,
                 });
             }
