@@ -489,27 +489,29 @@ pub fn SD_DRIVER(comptime spi_port: anytype, comptime cs_pin: anytype) type {
             return size;
         }
 
-        pub fn fix_block_len512() SDError!void {
+        pub fn fix_block_len512() SDError!bool {
             errdefer cleanup();
 
             const size = try sector_size();
 
-            if (size != 512) {
-                cs_pin.put(0);
+            if (size == 512) return true;
 
-                spi_port.write(&CMD16);
-                for (0..10) |i| {
-                    spi_port.read(&response_r1);
-                    if ((response_r1[0] & 0x80) == 0) break;
-                    if (i == 9) return SDError.ReadError;
-                }
-                if ((response_r1[0] & 0x7F) == 8) return SDError.CrcError;
+            cs_pin.put(0);
 
-                spi_port.wait_complete();
-                cs_pin.put(1);
-                spi_port.write(&[_]u8{0xff});
-                spi_port.wait_complete();
+            spi_port.write(&CMD16);
+            for (0..10) |i| {
+                spi_port.read(&response_r1);
+                if ((response_r1[0] & 0x80) == 0) break;
+                if (i == 9) return SDError.ReadError;
             }
+            if ((response_r1[0] & 0x7F) == 8) return SDError.CrcError;
+
+            spi_port.wait_complete();
+            cs_pin.put(1);
+            spi_port.write(&[_]u8{0xff});
+            spi_port.wait_complete();
+
+            return ((response_r1[0] & 0x7F) == 0);
         }
     };
 }
