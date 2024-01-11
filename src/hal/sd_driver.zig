@@ -127,6 +127,14 @@ pub fn SD_DRIVER(comptime spi_port: anytype, comptime cs_pin: anytype) type {
 
             time.sleep_ms(1);
 
+            // one SD card send data while sending command.
+            // it might be working SD mode and reset it.
+            spi_port.write(&CMD0);
+            for (0..10) |_| {
+                spi_port.read(&response_r1);
+            }
+            time.sleep_ms(1);
+
             cs_pin.put(0);
             spi_port.write(&CMD0);
             for (0..10) |i| {
@@ -138,6 +146,7 @@ pub fn SD_DRIVER(comptime spi_port: anytype, comptime cs_pin: anytype) type {
 
             time.sleep_ms(1);
 
+            spi_port.write(&[1]u8{0xff});
             spi_port.write(&CMD8);
             for (0..10) |i| {
                 spi_port.read(&response_r1);
