@@ -32,6 +32,7 @@ const CMD17 = [_]u8{ 0x40 + 17, 0, 0, 0, 0, 1 }; // single read
 const CMD18 = [_]u8{ 0x40 + 18, 0, 0, 0, 0, 1 }; // multiple read
 const CMD12 = [_]u8{ 0x40 + 12, 0, 0, 0, 0, 0x61 }; // stop read
 
+const ACMD23 = [_]u8{ 0x40 + 23, 0, 0, 0, 0, 1 }; // pre-define number of write blocks
 const CMD24 = [_]u8{ 0x40 + 24, 0, 0, 0, 0, 1 }; // single write
 const CMD25 = [_]u8{ 0x40 + 25, 0, 0, 0, 0, 1 }; // multiple write
 // const CMD13 = [_]u8{ 0x40 + 13, 0, 0, 0, 0, 1 }; // get status
@@ -357,12 +358,40 @@ pub fn SD_DRIVER(comptime spi_port: anytype, comptime cs_pin: anytype) type {
             const count: usize = buffer.len / SECTOR_SIZE;
 
             activate();
-            var cmd = CMD25;
+
+            // ACMD23 set pre-erased block number before writing
+            spi_port.write(&CMD55);
+            for (0..10) |i| {
+                spi_port.read(&response_r1);
+                if ((response_r1[0] & 0x80) == 0) break;
+                if (i == 9) return SDError.InitError;
+            }
+            if ((response_r1[0] & 0x7F) == 8) return SDError.CrcError;
+
+            spi_port.write(&[_]u8{0xff});
+
+            var cmd23 = ACMD23;
             for (0..4) |i| {
-                cmd[i + 1] = @truncate(addr >> @as(u5, @truncate(8 * (3 - i))));
+                cmd23[i + 1] = @truncate(count >> @as(u5, @truncate(8 * (3 - i))));
             }
 
-            send_with_crc(&cmd);
+            send_with_crc(&cmd23);
+            for (0..10) |i| {
+                spi_port.read(&response_r1);
+                if ((response_r1[0] & 0x80) == 0) break;
+                if (i == 9) return SDError.InitError;
+            }
+            if ((response_r1[0] & 0x7F) == 8) return SDError.CrcError;
+
+            spi_port.write(&[_]u8{0xff});
+
+            // CMD25
+            var cmd25 = CMD25;
+            for (0..4) |i| {
+                cmd25[i + 1] = @truncate(addr >> @as(u5, @truncate(8 * (3 - i))));
+            }
+
+            send_with_crc(&cmd25);
             for (0..10) |i| {
                 spi_port.read(&response_r1);
                 if ((response_r1[0] & 0x80) == 0) break;
