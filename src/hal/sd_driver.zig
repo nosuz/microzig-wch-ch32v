@@ -184,10 +184,6 @@ pub fn SD_DRIVER(comptime spi_port: anytype, comptime cs_pin: anytype) type {
 
             // ACMD41
             activate();
-            // FIXME: sometimes fail to init
-            // https://stackoverflow.com/questions/76002524/trying-to-initialize-sdhc-card-using-spi-after-sending-cmd55-in-preparation-for
-            // https://stackoverflow.com/questions/2365897/initializing-sd-card-in-spi-issues
-            // https://stackoverflow.com/questions/69565103/spi-sd-card-32gb-never-passes-cmd55-acmd41-initalization-step
             for (0..2000) |j| {
                 spi_port.write(&CMD55);
                 for (0..10) |i| {
