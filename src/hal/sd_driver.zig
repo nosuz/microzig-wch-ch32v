@@ -111,8 +111,24 @@ pub fn SD_DRIVER(comptime spi_port: anytype, comptime cs_pin: anytype) type {
             return crc;
         }
 
+        pub inline fn activate() void {
+            spi_port.wait_complete();
+            spi_port.write(&[_]u8{0xff} ** 5);
+            cs_pin.put(0);
+            // send dummy
+            spi_port.write(&[_]u8{0xff});
+        }
+
+        pub inline fn deactivate() void {
+            spi_port.wait_complete();
+            cs_pin.put(1);
+            // send dummy
+            spi_port.write(&[_]u8{0xff});
+            spi_port.wait_complete();
+        }
+
         pub fn init() SDError!void {
-            errdefer cleanup();
+            errdefer deactivate();
 
             time.sleep_ms(1);
 
@@ -126,15 +142,8 @@ pub fn SD_DRIVER(comptime spi_port: anytype, comptime cs_pin: anytype) type {
 
             time.sleep_ms(1);
 
-            // one SD card send data while sending command.
-            // it might be working SD mode and reset it.
-            spi_port.write(&CMD0);
-            for (0..10) |_| {
-                spi_port.read(&response_r1);
-            }
-            time.sleep_ms(1);
-
-            cs_pin.put(0);
+            // CMD0
+            activate();
             spi_port.write(&CMD0);
             for (0..10) |i| {
                 spi_port.read(&response_r1);
@@ -142,10 +151,12 @@ pub fn SD_DRIVER(comptime spi_port: anytype, comptime cs_pin: anytype) type {
                 if (i == 9) return SDError.InitError;
             }
             if ((response_r1[0] & 0x7F) == 8) return SDError.CrcError;
+            deactivate();
 
             time.sleep_ms(1);
 
-            spi_port.write(&[1]u8{0xff});
+            // CMD8
+            activate();
             spi_port.write(&CMD8);
             for (0..10) |i| {
                 spi_port.read(&response_r1);
@@ -154,10 +165,12 @@ pub fn SD_DRIVER(comptime spi_port: anytype, comptime cs_pin: anytype) type {
             }
             if ((response_r1[0] & 0x7F) == 8) return SDError.CrcError;
             spi_port.read(&response_r7);
+            deactivate();
 
             time.sleep_ms(1);
 
-            // Turn ON CRC
+            // CMD9, Turn ON CRC
+            activate();
             spi_port.write(&CMD59);
             for (0..10) |i| {
                 spi_port.read(&response_r1);
@@ -165,7 +178,12 @@ pub fn SD_DRIVER(comptime spi_port: anytype, comptime cs_pin: anytype) type {
                 if (i == 9) return SDError.InitError;
             }
             if ((response_r1[0] & 0x7F) == 8) return SDError.CrcError;
+            deactivate();
 
+            time.sleep_ms(1);
+
+            // ACMD41
+            activate();
             // FIXME: sometimes fail to init
             // https://stackoverflow.com/questions/76002524/trying-to-initialize-sdhc-card-using-spi-after-sending-cmd55-in-preparation-for
             // https://stackoverflow.com/questions/2365897/initializing-sd-card-in-spi-issues
@@ -179,6 +197,8 @@ pub fn SD_DRIVER(comptime spi_port: anytype, comptime cs_pin: anytype) type {
                 }
                 if ((response_r1[0] & 0x7F) == 8) return SDError.CrcError;
 
+                spi_port.write(&[_]u8{0xff});
+
                 spi_port.write(&ACMD41);
                 for (0..10) |i| {
                     spi_port.read(&response_r1);
@@ -191,11 +211,16 @@ pub fn SD_DRIVER(comptime spi_port: anytype, comptime cs_pin: anytype) type {
                     else => {},
                 }
                 if (j == 1999) return SDError.InitError;
+
+                spi_port.write(&[_]u8{0xff});
                 time.sleep_ms(1);
             }
+            deactivate();
 
             time.sleep_ms(1);
 
+            // CMD58
+            activate();
             spi_port.write(&CMD58);
             for (0..10) |i| {
                 spi_port.read(&response_r1);
@@ -204,20 +229,7 @@ pub fn SD_DRIVER(comptime spi_port: anytype, comptime cs_pin: anytype) type {
             }
             if ((response_r1[0] & 0x7F) == 8) return SDError.CrcError;
             spi_port.read(&response_r3);
-
-            spi_port.wait_complete();
-            cs_pin.put(1);
-            // send dummy
-            spi_port.write(&[_]u8{0xff});
-            spi_port.wait_complete();
-        }
-
-        pub fn cleanup() void {
-            spi_port.wait_complete();
-            cs_pin.put(1);
-            // send dummy
-            spi_port.write(&[_]u8{0xff});
-            spi_port.wait_complete();
+            deactivate();
         }
 
         fn read_data(buffer: []u8) SDError!void {
@@ -235,10 +247,9 @@ pub fn SD_DRIVER(comptime spi_port: anytype, comptime cs_pin: anytype) type {
         }
 
         pub fn read_single(addr: usize, buffer: []u8) SDError!void {
-            errdefer cleanup();
+            errdefer deactivate();
 
-            cs_pin.put(0);
-
+            activate();
             var cmd = CMD17;
             for (0..4) |i| {
                 cmd[i + 1] = @truncate(addr >> @as(u5, @truncate(8 * (3 - i))));
@@ -254,19 +265,15 @@ pub fn SD_DRIVER(comptime spi_port: anytype, comptime cs_pin: anytype) type {
 
             try read_data(buffer);
 
-            spi_port.wait_complete();
-            cs_pin.put(1);
-            spi_port.write(&[_]u8{0xff});
-            spi_port.wait_complete();
+            deactivate();
         }
 
         pub fn read_multi(addr: usize, buffer: []u8) SDError!void {
-            errdefer cleanup();
+            errdefer deactivate();
 
             const count: usize = buffer.len / SECTOR_SIZE;
 
-            cs_pin.put(0);
-
+            activate();
             var cmd = CMD18;
             for (0..4) |i| {
                 cmd[i + 1] = @truncate(addr >> @as(u5, @truncate(8 * (3 - i))));
@@ -296,11 +303,7 @@ pub fn SD_DRIVER(comptime spi_port: anytype, comptime cs_pin: anytype) type {
                 if (i == 9) return SDError.ReadError;
             }
 
-            spi_port.wait_complete();
-            cs_pin.put(1);
-            // send dummy
-            spi_port.write(&[_]u8{0xff});
-            spi_port.wait_complete();
+            deactivate();
         }
 
         fn write_data(token: u8, buffer: []const u8) SDError!void {
@@ -328,10 +331,9 @@ pub fn SD_DRIVER(comptime spi_port: anytype, comptime cs_pin: anytype) type {
         }
 
         pub fn write_single(addr: usize, buffer: []const u8) SDError!void {
-            errdefer cleanup();
+            errdefer deactivate();
 
-            cs_pin.put(0);
-
+            activate();
             var cmd = CMD24;
             for (0..4) |i| {
                 cmd[i + 1] = @truncate(addr >> @as(u5, @truncate(8 * (3 - i))));
@@ -350,19 +352,15 @@ pub fn SD_DRIVER(comptime spi_port: anytype, comptime cs_pin: anytype) type {
 
             try write_data(0xfe, buffer);
 
-            spi_port.wait_complete();
-            cs_pin.put(1);
-            spi_port.write(&[_]u8{0xff});
-            spi_port.wait_complete();
+            deactivate();
         }
 
         pub fn write_multi(addr: usize, buffer: []const u8) SDError!void {
-            errdefer cleanup();
+            errdefer deactivate();
 
             const count: usize = buffer.len / SECTOR_SIZE;
 
-            cs_pin.put(0);
-
+            activate();
             var cmd = CMD25;
             for (0..4) |i| {
                 cmd[i + 1] = @truncate(addr >> @as(u5, @truncate(8 * (3 - i))));
@@ -396,11 +394,7 @@ pub fn SD_DRIVER(comptime spi_port: anytype, comptime cs_pin: anytype) type {
                 if (response_r1[0] == 0xff) break;
             }
 
-            spi_port.wait_complete();
-            cs_pin.put(1);
-            // send dummy
-            spi_port.write(&[_]u8{0xff});
-            spi_port.wait_complete();
+            deactivate();
         }
 
         // methods for FatFs
@@ -413,12 +407,12 @@ pub fn SD_DRIVER(comptime spi_port: anytype, comptime cs_pin: anytype) type {
         }
 
         pub fn read_cid() SDError!u128 {
-            errdefer cleanup();
+            errdefer deactivate();
 
             var buffer: [16]u8 = undefined;
 
-            cs_pin.put(0);
-
+            // CMD10
+            activate();
             spi_port.write(&CMD10);
             for (0..10) |i| {
                 spi_port.read(&response_r1);
@@ -429,10 +423,7 @@ pub fn SD_DRIVER(comptime spi_port: anytype, comptime cs_pin: anytype) type {
 
             try read_data(&buffer);
 
-            spi_port.wait_complete();
-            cs_pin.put(1);
-            spi_port.write(&[_]u8{0xff});
-            spi_port.wait_complete();
+            deactivate();
 
             var CID: u128 = 0;
             for (0..buffer.len) |i| {
@@ -443,12 +434,12 @@ pub fn SD_DRIVER(comptime spi_port: anytype, comptime cs_pin: anytype) type {
         }
 
         pub fn read_csd() SDError!u128 {
-            errdefer cleanup();
+            errdefer deactivate();
 
             var buffer: [16]u8 = undefined;
 
-            cs_pin.put(0);
-
+            // CMD9
+            activate();
             spi_port.write(&CMD9);
             for (0..10) |i| {
                 spi_port.read(&response_r1);
@@ -459,10 +450,7 @@ pub fn SD_DRIVER(comptime spi_port: anytype, comptime cs_pin: anytype) type {
 
             try read_data(&buffer);
 
-            spi_port.wait_complete();
-            cs_pin.put(1);
-            spi_port.write(&[_]u8{0xff});
-            spi_port.wait_complete();
+            deactivate();
 
             var CSD: u128 = 0;
             for (0..buffer.len) |i| {
@@ -507,14 +495,14 @@ pub fn SD_DRIVER(comptime spi_port: anytype, comptime cs_pin: anytype) type {
         }
 
         pub fn fix_block_len512() SDError!bool {
-            errdefer cleanup();
+            errdefer deactivate();
 
             const size = try sector_size();
 
             if (size == 512) return true;
 
-            cs_pin.put(0);
-
+            // CMD16
+            activate();
             spi_port.write(&CMD16);
             for (0..10) |i| {
                 spi_port.read(&response_r1);
@@ -523,10 +511,7 @@ pub fn SD_DRIVER(comptime spi_port: anytype, comptime cs_pin: anytype) type {
             }
             if ((response_r1[0] & 0x7F) == 8) return SDError.CrcError;
 
-            spi_port.wait_complete();
-            cs_pin.put(1);
-            spi_port.write(&[_]u8{0xff});
-            spi_port.wait_complete();
+            deactivate();
 
             return ((response_r1[0] & 0x7F) == 0);
         }

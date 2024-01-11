@@ -132,7 +132,7 @@ pub fn main() !void {
         pins.led.toggle();
         // _ = err;
     }
-    sd_card.cleanup();
+    sd_card.deactivate();
 
     while (true) {
         time.sleep_ms(1000);
