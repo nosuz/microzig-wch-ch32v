@@ -115,7 +115,6 @@ pub fn SD_DRIVER(comptime spi_port: anytype, comptime cs_pin: anytype) type {
             errdefer cleanup();
 
             time.sleep_ms(1);
-            // _ = self;
 
             // send dumy clock
             cs_pin.put(1);
@@ -402,6 +401,15 @@ pub fn SD_DRIVER(comptime spi_port: anytype, comptime cs_pin: anytype) type {
             // send dummy
             spi_port.write(&[_]u8{0xff});
             spi_port.wait_complete();
+        }
+
+        // methods for FatFs
+        pub fn read(addr: usize, buffer: [*]u8, count: usize) SDError!void {
+            try read_multi(addr, buffer[0..(SECTOR_SIZE * count)]);
+        }
+
+        pub fn write(addr: usize, buffer: [*]const u8, count: usize) SDError!void {
+            try write_multi(addr, buffer[0..(SECTOR_SIZE * count)]);
         }
 
         pub fn read_cid() SDError!u128 {
