@@ -115,6 +115,10 @@ sd_driver: all
 	riscv64-unknown-elf-objcopy -O binary zig-out/bin/sd_driver zig-out/${BIN_NAME} && \
 	riscv64-unknown-elf-objdump --disassemble-all zig-out/bin/sd_driver > zig-out/sd_driver.s
 
+usbd_memory: all
+	riscv64-unknown-elf-objcopy -O binary zig-out/bin/usbd_memory zig-out/${BIN_NAME} && \
+	riscv64-unknown-elf-objdump --disassemble-all zig-out/bin/usbd_memory > zig-out/usbd_memory.s
+
 
 flash:
 	#wchisp flash zig-out/${BIN_NAME}
