@@ -86,6 +86,7 @@ const BUFFER = union {
     rx: [BUFFER_SIZE * 2]u8,
 };
 
+// use write_tx() and read_rx() to access buffer.
 pub var ep_buf align(4) linksection(".packet_buffer") = [_]BUFFER{
     BUFFER{
         .tx = undefined,
@@ -506,7 +507,7 @@ fn EP0_CONTROL_SETUP() void {
                     EP0_expect_IN(0);
                 },
                 .SET_CONFIGURATION => {
-                    // set Endpoint 1
+                    // setup endpoints
                     usb_request = .set_configuration;
                     root.usbd_class.set_configuration(setup_data.wValue);
                     EP0_expect_IN(0);
