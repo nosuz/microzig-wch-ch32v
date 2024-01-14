@@ -34,10 +34,9 @@ pub const pin_config = if (ch32v.cpu_type == .ch32v103)
         .PA11 = .{
             .name = "usb",
             .function = .USBHD,
-            // .usbhd_speed = .Full_speed,
-            // .usbhd_speed = .Low_speed, // default speed
+            .usbhd_speed = .Full_speed,
             .usbhd_ep_num = 3,
-            // .usbhd_buffer_size = .byte_8, // default buffer size
+            .usbhd_buffer_size = .byte_64,
             // .usbhd_handle_sof = false, // genellary no need to handle SOF
         },
         // .PA12 = .{
@@ -71,10 +70,11 @@ else
         .PA11 = .{
             .name = "usb",
             .function = .USBD,
-            // .usbd_speed = .Full_speed,
-            .usbd_speed = .Low_speed, // default speed
+            .usbd_speed = .Full_speed,
+            .usbd_buffer_size = .byte_64,
+            // not work on low-speed
+            // .usbd_speed = .Low_speed,
             .usbd_ep_num = 3,
-            // .usbd_buffer_size = .byte_8, // default buffer size
             // .usbd_handle_sof = false, // genellary no need to handle SOF
         },
         // .PA12 = .{

@@ -61,7 +61,7 @@ pub const CONFIG_DESC = [32]u8{
     // Interface descriptor type
     0x00, // bInterfaceNumber: Number of Interface
     0x00, // bAlternateSetting: Alternate setting
-    0x02, // bNumEndpoints: One endpoints used
+    0x02, // bNumEndpoints: Number of endpoints (exclude endpoint 0)
     0x08, // bInterfaceClass: Mass Storage Class
     0x06, // bInterfaceSubClass: SCSI transparent command set
     0x50, // bInterfaceProtocol: Bulk-Only Transport
@@ -72,16 +72,16 @@ pub const CONFIG_DESC = [32]u8{
     0x07, // bLength: Endpoint Descriptor size
     USB_DESC_TYPE_ENDPOINT, // bDescriptorType: Endpoint
     MSC_IN_EP + EP_IN, // bEndpointAddress
-    0x10, // bmAttributes: Bulk
+    0x02, // bmAttributes: Bulk
     MAX_LEN, // wMaxPacketSize:
     0,
-    0x10, // bInterval: 10ms
+    0x1, // bInterval: 1ms
 
     // endpoint 2 IN descriptor
     0x07, // bLength: Endpoint Descriptor size
     USB_DESC_TYPE_ENDPOINT, // bDescriptorType: Endpoint
     MSC_OUT_EP + EP_OUT, // bEndpointAddress
-    0x10, // bmAttributes: Bulk
+    0x02, // bmAttributes: Bulk
     MAX_LEN, // wMaxPacketSize:
     0,
     0x0, // bInterval: none
@@ -147,27 +147,9 @@ pub const STR_3 = [12]u8{
     0,
 };
 
-pub const STR_4 = [20]u8{
-    20, // length
-    0x03, // string descriptor (0x03)
-    'm',
-    0,
-    's',
-    0,
-    'c',
-    0,
-    ' ',
-    0,
-    'c',
-    0,
-    'l',
-    0,
-    'a',
-    0,
-    's',
-    0,
-    's',
-    0,
+pub const STR_4 = [0]u8{
+    // 20, // length
+    // 0x03, // string descriptor (0x03)
 };
 
 pub const DESCRIPTORS = [_][*]const u8{
@@ -198,4 +180,18 @@ pub const DescriptorIndex = enum(u4) {
     string2 = 4,
     string3 = 5,
     string4 = 6,
+};
+
+pub const InquiryResponse = [36]u8{
+    0x00, // peripheral device is connected, direct access block device
+    0x80, // removable
+    0x04, //, 4=> SPC-2
+    0x02, // response is in format specified by SPC-2
+    0x20, // n-4 = 36-4=32= 0x20
+    0x00, // sccs etc.
+    0x00, // bque=1 and cmdque=0,indicates simple queueing
+    0x00, // 00 obsolete, 0x80 for basic task queueing
+    'C', 'H', '3', '2', 'V', 'x', '0', '3', // T10-assigned Vendor ID
+    'U', 'S', 'B', ' ', 'M', 'e', 'm', 'o', 'r', 'y', ' ', ' ', ' ', ' ', ' ', ' ', //product ID
+    '0', '0', '0', '1', //revision information
 };
