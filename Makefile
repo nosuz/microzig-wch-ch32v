@@ -111,9 +111,9 @@ usbhd_serial_asciiart: all
 	riscv64-unknown-elf-objcopy -O binary zig-out/bin/usbhd_serial_asciiart zig-out/${BIN_NAME} && \
 	riscv64-unknown-elf-objdump --disassemble-all zig-out/bin/usbhd_serial_asciiart > zig-out/usbhd_serial_asciiart.s
 
-sd_driver: all
-	riscv64-unknown-elf-objcopy -O binary zig-out/bin/sd_driver zig-out/${BIN_NAME} && \
-	riscv64-unknown-elf-objdump --disassemble-all zig-out/bin/sd_driver > zig-out/sd_driver.s
+sdcard: all
+	riscv64-unknown-elf-objcopy -O binary zig-out/bin/sdcard zig-out/${BIN_NAME} && \
+	riscv64-unknown-elf-objdump --disassemble-all zig-out/bin/sdcard > zig-out/sdcard.s
 
 
 flash:
