@@ -1,8 +1,10 @@
 const microzig = @import("microzig");
+const root = @import("root");
 
 const ch32v = microzig.hal;
 const spi = ch32v.spi;
 const time = ch32v.time;
+const pins = ch32v.pins;
 
 const SECTOR_SIZE = 512;
 
@@ -37,7 +39,12 @@ const CMD24 = [_]u8{ 0x40 + 24, 0, 0, 0, 0, 1 }; // single write
 const CMD25 = [_]u8{ 0x40 + 25, 0, 0, 0, 0, 1 }; // multiple write
 // const CMD13 = [_]u8{ 0x40 + 13, 0, 0, 0, 0, 1 }; // get status
 
-pub fn SD_DRIVER(comptime spi_port: anytype, comptime cs_pin: anytype) type {
+pub fn SDCARD_DRIVER(comptime spi_port_name: []const u8, comptime cs_pin_name: []const u8) type {
+    const pin = pins.get_pins(root.pin_config);
+
+    const spi_port = @field(pin, spi_port_name);
+    const cs_pin = @field(pin, cs_pin_name);
+
     return struct {
         var response_r1: [1]u8 = undefined;
         var response_r3: [4]u8 = undefined;

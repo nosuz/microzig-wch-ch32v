@@ -5,7 +5,7 @@ const ch32v = microzig.hal;
 const serial = ch32v.serial;
 const time = ch32v.time;
 const clocks = ch32v.clocks;
-const sd_driver = ch32v.sd_driver;
+const sdcard = ch32v.sdcard;
 
 const clocks_config = clocks.Configuration{
     .sysclk_src = .HSI,
@@ -17,7 +17,7 @@ const clocks_config = clocks.Configuration{
 pub const __Clocks_freq = clocks_config.get_freqs();
 // pub const __Clocks_freq = clocks.Default_clocks_freq();
 
-const pin_config = ch32v.pins.GlobalConfiguration{
+pub const pin_config = ch32v.pins.GlobalConfiguration{
     .PA4 = .{
         .name = "cs",
         .direction = .out,
@@ -72,9 +72,7 @@ pub fn main() !void {
     // wait loading default config
     time.sleep_ms(1);
 
-    // const sd = sd_driver.SD_DRIVER;
-    // sd.init(pins.spi, pins.cs);
-    const sd_card = sd_driver.SD_DRIVER(pins.spi, pins.cs);
+    const sd_card = sdcard.SDCARD_DRIVER("spi", "cs");
     pins.led.toggle();
     if (sd_card.init()) {
         // gear up. set new communication speed.

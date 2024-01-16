@@ -20,4 +20,4 @@ pub const usbhd = @import("hal_ch32v103/usbhd_device.zig");
 pub const gpio = @import("hal/gpio.zig");
 pub const spi = @import("hal/spi.zig");
 pub const ring_buffer = @import("hal/ring_buffer.zig");
-pub const sd_driver = @import("hal/sd_driver.zig");
+pub const sdcard = @import("hal/sdcard.zig");
