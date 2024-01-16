@@ -18,6 +18,7 @@ pub const __Clocks_freq = clocks_config.get_freqs();
 // pub const __Clocks_freq = clocks.Default_clocks_freq();
 
 pub const pin_config = ch32v.pins.GlobalConfiguration{
+    // For CH32V203
     .PA4 = .{
         .name = "cs",
         .direction = .out,

@@ -7,6 +7,7 @@ const time = ch32v.time;
 const serial = ch32v.serial;
 const usbd = if (ch32v.cpu_type == .ch32v103) ch32v.usbhd else ch32v.usbd;
 const interrupt = ch32v.interrupt;
+const sdcard = ch32v.sdcard;
 
 pub const BUFFER_SIZE = usbd.BUFFER_SIZE;
 
@@ -17,10 +18,26 @@ else
 
 pub const pin_config = if (ch32v.cpu_type == .ch32v103)
     ch32v.pins.GlobalConfiguration{
-        .PA5 = .{
-            .name = "led",
+        .PA4 = .{
+            .name = "cs",
             .direction = .out,
-            .level = .low,
+            .level = .high,
+        },
+        .PA5 = .{
+            // SCK
+            .name = "spi",
+            .function = .SPI,
+            .clock_div = .PCLK_64,
+            .cpol = 0,
+            .cpha = 0,
+        },
+        .PA6 = .{
+            // MISO
+            .function = .SPI,
+        },
+        .PA7 = .{
+            // MOSI
+            .function = .SPI,
         },
         .PA9 = .{
             .name = "tx",
@@ -44,20 +61,35 @@ pub const pin_config = if (ch32v.cpu_type == .ch32v103)
         //     .name = "dummy",
         //     .function = .GPIO,
         // },
+        .PB6 = .{
+            .name = "led",
+            .direction = .out,
+        },
     }
 else
     ch32v.pins.GlobalConfiguration{
-        .PA5 = .{
-            .name = "led",
+        // For CH32V203
+        .PA4 = .{
+            .name = "cs",
             .direction = .out,
-            .level = .low,
+            .level = .high,
+        },
+        .PA5 = .{
+            // SCK
+            .name = "spi",
+            .function = .SPI,
+            .clock_div = .PCLK_64,
+            .cpol = 0,
+            .cpha = 0,
         },
         .PA6 = .{
-            .name = "triger",
-            .direction = .out,
-            .level = .low,
+            // MISO
+            .function = .SPI,
         },
-
+        .PA7 = .{
+            // MOSI
+            .function = .SPI,
+        },
         .PA9 = .{
             .name = "tx",
             .function = .SERIAL,
@@ -82,6 +114,10 @@ else
         //     .name = "dummy",
         //     .function = .GPIO,
         // },
+        .PB6 = .{
+            .name = "led",
+            .direction = .out,
+        },
     };
 
 const clocks_config = clocks.Configuration{
@@ -92,6 +128,7 @@ const clocks_config = clocks.Configuration{
     .pll_multiplex = .MUL_6, // 48 MHz
     // .pll_multiplex = .MUL_12, // 96 MHz
     // .ahb_prescale = .SYSCLK_2, // sysclk / 2
+    .apb2_prescale = .HCLK_4, // 12 MHz
 
     // .enable_rtc = false, // Disable RTC blocks log with timestamp.
 };
@@ -131,12 +168,33 @@ pub fn main() !void {
 
     // start logger
     serial.init_logger(pins.tx.get_port());
+    const writer = pins.tx.writer();
+    // wait loading default config
+    time.sleep_ms(1);
 
-    pins.usb.init();
-    interrupt.enable_interrupt();
+    // init SD card
+    const sd_card = sdcard.SDCARD_DRIVER("spi", "cs");
+    if (sd_card.init()) {
+        _ = try writer.write("SD card ready");
+        // gear up. set new communication speed.
+        // pins.spi.set_clock_div(.PCLK_4); // worked at 2 Mbps
+        pins.spi.set_clock_div(.PCLK_16);
+
+        pins.usb.init();
+        interrupt.enable_interrupt();
+
+        while (true) {
+            time.sleep_ms(1000);
+            pins.led.toggle();
+        }
+    } else |_| {
+        pins.led.toggle();
+        // _ = err;
+    }
+    sd_card.deactivate();
 
     while (true) {
-        time.sleep_ms(1000);
+        time.sleep_ms(100);
         pins.led.toggle();
     }
 }
