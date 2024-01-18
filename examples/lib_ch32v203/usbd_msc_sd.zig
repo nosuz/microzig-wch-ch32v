@@ -1,21 +1,26 @@
-// const std = @import("std"); // for debug
-const root = @import("root"); // for debug
+const std = @import("std"); // for debug
+const root = @import("root");
 
 const microzig = @import("microzig");
 const ch32v = microzig.hal;
 const usbd = ch32v.usbd;
 const pins = ch32v.pins;
+const sdcard = ch32v.sdcard;
 
 pub const BUFFER_SIZE = usbd.BUFFER_SIZE;
 
 const peripherals = microzig.chip.peripherals;
 const USB = peripherals.USB;
 
+const pin = pins.get_pins(root.pin_config);
+
 // provide device descriptor dat to usbd
 // variable name is fixed.
 pub const descriptors = @import("msc_sd_descriptors.zig");
 
 const MAX_LUN = 0;
+
+const sd_card = sdcard.SDCARD_DRIVER("spi", "cs");
 
 // add device class specific requests.
 pub const bRequest = enum(u8) {
@@ -34,6 +39,7 @@ const ClassRequest = enum(u8) {
     _,
 };
 
+// FIXME: separate requests to common and class spesific.
 // add state for device class specific requests.
 pub const USB_REQUESTS = enum {
     none,
@@ -56,7 +62,7 @@ var bulk_state: Bulk_only_state = .command;
 const CBW = packed struct(u248) {
     dCBWSignature: u32,
     dCBWTag: u32,
-    dCBWDataTransferLength: u32,
+    dCBWDataTransferLength: u32, // big endian
     bmCBWFlags: u8,
     //
     bCBWLUN: u4,
@@ -76,14 +82,23 @@ const SCSI_COMMAND = enum(u8) {
     inquiry = 0x12,
     request_sense = 0x03,
     read_capacity = 0x25,
+    prevent_allow_medium_removal = 0x1e,
     read = 0x28, // READ (10)
     write = 0x2a, // WRITE (10)
-    mode_send = 0x5a, // MODE SENSE (10)
+    mode_send = 0x1a, // MODE SENSE (6) return error status for now.
     _,
 };
 
 var cbw: CBW = undefined;
 var send_index: usize = 0;
+
+const MAX_SECTOR_NUM = 8;
+var sector_buffer: [512 * MAX_SECTOR_NUM]u8 = undefined;
+
+var requested_lba: u32 = 0;
+var requested_num: u16 = 0;
+var transfered_num: u16 = 0;
+var transfer_error: bool = false;
 
 // 13 bytes
 const CSW = packed struct(u104) {
@@ -262,7 +277,7 @@ fn send_data(length: u32) void {
 fn send_nak() void {
     const ep1r = USB.EP1R.read();
     // set STAT to ACK
-    const set_tx1_nak = ep1r.STAT_TX ^ 0b11; // NAK
+    const set_tx1_nak = ep1r.STAT_TX ^ 0b10; // NAK
     USB.EP1R.write(.{
         .CTR_RX = 0,
         .DTOG_RX = 0, // 1: flip; don't care for single buffer
@@ -279,9 +294,9 @@ fn send_nak() void {
 
 fn send_stuffing() void {
     // SCSI is a big endian and the CH32V is a little endian.
-    const requested_length: u32 = @byteSwap(@as(u32, @truncate(cbw.CDB_args >> 40)));
-    // const last_point = if ((requested_length - send_index) > usbd.BUFFER_SIZE) send_index + BUFFER_SIZE else requested_length;
-    const stuff_size = if ((requested_length - send_index) > usbd.BUFFER_SIZE) usbd.BUFFER_SIZE else requested_length - send_index;
+    var stuff_size = cbw.dCBWDataTransferLength - send_index;
+    if (stuff_size > usbd.BUFFER_SIZE) stuff_size = usbd.BUFFER_SIZE;
+
     if (stuff_size == 0) {
         const csw = CSW{
             .dCSWTag = cbw.dCBWTag,
@@ -292,13 +307,12 @@ fn send_stuffing() void {
             usbd.write_tx(&usbd.ep_buf[1].tx, i, unkown_op[i]);
         }
         send_data(unkown_op.len);
-        send_index = 0;
         bulk_state = .status;
     } else {
-        for (0..usbd.BUFFER_SIZE) |i| {
+        for (0..stuff_size) |i| {
             usbd.write_tx(&usbd.ep_buf[1].tx, i, 0);
         }
-        send_data(usbd.BUFFER_SIZE);
+        send_data(stuff_size);
         send_index += stuff_size;
         bulk_state = .data;
     }
@@ -323,9 +337,65 @@ pub fn EP1_IN() void {
                     send_data(buf.len);
                     bulk_state = .status;
                 },
+                .read_capacity => {
+                    const csw = CSW{
+                        .dCSWTag = cbw.dCBWTag,
+                    };
+                    const buf: [13]u8 = @bitCast(csw);
+                    for (0..buf.len) |i| {
+                        usbd.write_tx(&usbd.ep_buf[1].tx, i, buf[i]);
+                    }
+                    send_data(buf.len);
+                    bulk_state = .status;
+                },
+                .request_sense => {
+                    const csw = CSW{
+                        .dCSWTag = cbw.dCBWTag,
+                    };
+                    const buf: [13]u8 = @bitCast(csw);
+                    for (0..buf.len) |i| {
+                        usbd.write_tx(&usbd.ep_buf[1].tx, i, buf[i]);
+                    }
+                    send_data(buf.len);
+                    bulk_state = .status;
+                },
+                .read => {
+                    // pin.in_use.toggle();
+                    if (transfered_num == requested_num) {
+                        // transfered all, send status
+                        const csw = CSW{
+                            .dCSWTag = cbw.dCBWTag,
+                            .bCSWStatus = if (transfer_error) 0x02 else 0,
+                        };
+                        const buf: [13]u8 = @bitCast(csw);
+                        for (0..buf.len) |i| {
+                            usbd.write_tx(&usbd.ep_buf[1].tx, i, buf[i]);
+                        }
+                        send_data(buf.len);
+                        bulk_state = .status;
+                    } else {
+                        // send next data
+                        if (send_index == sector_buffer.len) {
+                            // read new data
+                            var read_sector_num = requested_num - transfered_num;
+                            if (read_sector_num > MAX_SECTOR_NUM) read_sector_num = MAX_SECTOR_NUM;
+                            sd_card.read_multi(requested_lba + transfered_num, sector_buffer[0..(read_sector_num * 512)]) catch {
+                                // SD card read error
+                                transfer_error = true;
+                            };
+                            send_index = 0;
+                        }
+                        // send buffered data
+                        for (0..BUFFER_SIZE) |i| {
+                            usbd.write_tx(&usbd.ep_buf[1].tx, i, sector_buffer[send_index + i]);
+                        }
+                        send_data(BUFFER_SIZE);
+                        send_index += BUFFER_SIZE;
+                        if ((send_index % 512) == 0) transfered_num += 1;
+                    }
+                },
                 else => {
-                    bulk_state = .command;
-                    send_nak();
+                    send_stuffing();
                 },
             }
         },
@@ -345,6 +415,7 @@ pub fn EP2_OUT() void {
             }
 
             cbw = @bitCast(buf);
+            send_index = 0;
             switch (cbw.CDB_op) {
                 .inquiry => {
                     for (0..descriptors.InquiryResponse.len) |i| {
@@ -357,12 +428,75 @@ pub fn EP2_OUT() void {
                     const csw = CSW{
                         .dCSWTag = cbw.dCBWTag,
                     };
-                    const test_unit_ready: [13]u8 = @bitCast(csw);
-                    for (0..test_unit_ready.len) |i| {
-                        usbd.write_tx(&usbd.ep_buf[1].tx, i, test_unit_ready[i]);
+                    const csw_good: [13]u8 = @bitCast(csw);
+                    for (0..csw_good.len) |i| {
+                        usbd.write_tx(&usbd.ep_buf[1].tx, i, csw_good[i]);
                     }
-                    send_data(test_unit_ready.len);
+                    send_data(csw_good.len);
                     bulk_state = .status;
+                },
+                .read_capacity => {
+                    var cap_param = [8]u8{ 0, 0, 0, 0, 0, 0, 2, 0 };
+                    const vol_size = sd_card.volume_size() catch 0;
+                    if (vol_size == 0) {
+                        send_stuffing();
+                    } else {
+                        const lba_size: u32 = @truncate(vol_size / 512);
+                        for (0..4) |i| {
+                            cap_param[i] = @truncate(lba_size >> @truncate(8 * (3 - i)));
+                        }
+                        // set reply data
+                        for (0..cap_param.len) |i| {
+                            usbd.write_tx(&usbd.ep_buf[1].tx, i, cap_param[i]);
+                        }
+                        send_data(cap_param.len);
+                        bulk_state = .data;
+                    }
+                },
+                .prevent_allow_medium_removal => {
+                    // indicate in use
+                    pin.in_use.put(@truncate((cbw.CDB_args >> 24) & 0x1));
+                    const csw = CSW{
+                        .dCSWTag = cbw.dCBWTag,
+                    };
+                    const csw_good: [13]u8 = @bitCast(csw);
+                    for (0..csw_good.len) |i| {
+                        usbd.write_tx(&usbd.ep_buf[1].tx, i, csw_good[i]);
+                    }
+                    send_data(csw_good.len);
+                    bulk_state = .status;
+                },
+                .request_sense => {
+                    const res_sense = [18]u8{ 0x70, 0x00, 0x05, 0x00, 0x00, 0x00, 0x00, 0x0a, 0x00, 0x00, 0x00, 0x00, 0x24, 0x00, 0x00, 0x00, 0x00, 0x00 };
+                    // set reply data
+                    for (0..res_sense.len) |i| {
+                        usbd.write_tx(&usbd.ep_buf[1].tx, i, res_sense[i]);
+                    }
+                    send_data(res_sense.len);
+                    bulk_state = .data;
+                },
+                .read => {
+                    // pin.in_use.toggle();
+                    requested_lba = @byteSwap(@as(u32, @truncate(cbw.CDB_args >> 8)));
+                    requested_num = @byteSwap(@as(u16, @truncate(cbw.CDB_args >> 48)));
+                    transfered_num = 0;
+                    // std.log.debug("lba: {X}, num:{d}", .{ requested_lba, requested_num });
+
+                    var read_sector_num = requested_num;
+                    if (read_sector_num > MAX_SECTOR_NUM) read_sector_num = MAX_SECTOR_NUM;
+                    if (sd_card.read_multi(requested_lba, sector_buffer[0..(read_sector_num * 512)])) {
+                        // send sector data
+                        for (0..BUFFER_SIZE) |i| {
+                            usbd.write_tx(&usbd.ep_buf[1].tx, i, sector_buffer[i]);
+                        }
+                        send_data(BUFFER_SIZE);
+                        send_index = BUFFER_SIZE;
+                        transfer_error = false;
+                        bulk_state = .data;
+                    } else |_| {
+                        // read error
+                        send_stuffing();
+                    }
                 },
                 else => {
                     send_stuffing();

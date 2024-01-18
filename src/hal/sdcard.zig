@@ -40,6 +40,7 @@ const CMD25 = [_]u8{ 0x40 + 25, 0, 0, 0, 0, 1 }; // multiple write
 // const CMD13 = [_]u8{ 0x40 + 13, 0, 0, 0, 0, 1 }; // get status
 
 pub fn SDCARD_DRIVER(comptime spi_port_name: []const u8, comptime cs_pin_name: []const u8) type {
+    // const sd = sdcard.SDCARD_DRIVER("spi", "cs");
     const pin = pins.get_pins(root.pin_config);
 
     const spi_port = @field(pin, spi_port_name);

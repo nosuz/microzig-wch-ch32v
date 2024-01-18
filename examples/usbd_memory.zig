@@ -65,6 +65,11 @@ pub const pin_config = if (ch32v.cpu_type == .ch32v103)
             .name = "led",
             .direction = .out,
         },
+        .PB7 = .{
+            .name = "in_use",
+            .direction = .out,
+            .level = .low,
+        },
     }
 else
     ch32v.pins.GlobalConfiguration{
@@ -118,6 +123,11 @@ else
             .name = "led",
             .direction = .out,
         },
+        .PB7 = .{
+            .name = "in_use",
+            .direction = .out,
+            .level = .low,
+        },
     };
 
 const clocks_config = clocks.Configuration{
@@ -168,33 +178,35 @@ pub fn main() !void {
 
     // start logger
     serial.init_logger(pins.tx.get_port());
-    const writer = pins.tx.writer();
+    // const writer = pins.tx.writer();
     // wait loading default config
     time.sleep_ms(1);
 
     // init SD card
+    var led_period: u16 = 1000;
     const sd_card = sdcard.SDCARD_DRIVER("spi", "cs");
     if (sd_card.init()) {
-        _ = try writer.write("SD card ready");
         // gear up. set new communication speed.
-        // pins.spi.set_clock_div(.PCLK_4); // worked at 2 Mbps
-        pins.spi.set_clock_div(.PCLK_16);
-
-        pins.usb.init();
-        interrupt.enable_interrupt();
-
-        while (true) {
-            time.sleep_ms(1000);
-            pins.led.toggle();
+        pins.spi.set_clock_div(.PCLK_4); // worked at 3 Mbps
+        // pins.spi.set_clock_div(.PCLK_2); // 6 MHz worked
+        if (sd_card.fix_block_len512() catch false) {
+            pins.usb.init();
+            interrupt.enable_interrupt();
+            // _ = try writer.write("SD card ready");
+            std.log.debug("SD card ready", .{});
+        } else {
+            sd_card.deactivate();
+            std.log.err("failed to fix sector size", .{});
         }
     } else |_| {
+        sd_card.deactivate();
         pins.led.toggle();
-        // _ = err;
+        std.log.err("failed to init SD card", .{});
+        led_period = 100;
     }
-    sd_card.deactivate();
 
     while (true) {
-        time.sleep_ms(100);
+        time.sleep_ms(led_period);
         pins.led.toggle();
     }
 }
