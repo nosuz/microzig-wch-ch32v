@@ -187,8 +187,8 @@ pub fn main() !void {
     const sd_card = sdcard.SDCARD_DRIVER("spi", "cs");
     if (sd_card.init()) {
         // gear up. set new communication speed.
-        pins.spi.set_clock_div(.PCLK_4); // worked at 3 Mbps
-        // pins.spi.set_clock_div(.PCLK_2); // 6 MHz worked
+        // pins.spi.set_clock_div(.PCLK_4); // 3 Mbps
+        pins.spi.set_clock_div(.PCLK_2); // 6 MHz worked
         if (sd_card.fix_block_len512() catch false) {
             pins.usb.init();
             interrupt.enable_interrupt();
