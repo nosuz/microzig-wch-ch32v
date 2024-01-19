@@ -116,6 +116,8 @@ const CSW_STATUS = enum(u8) {
     _,
 };
 
+var in_use_status: u1 = 0;
+
 // handle device specific endpoints
 pub fn packet_handler(ep_id: u4) void {
     switch (ep_id) {
@@ -367,13 +369,13 @@ pub fn EP1_IN() void {
                     send_csw(.good);
                 },
                 .read => {
-                    // pin.in_use.toggle();
                     if (transfered_num == requested_num) {
                         // transfered all, send status
                         send_csw(if (transfer_error) .phase_error else .good);
                     } else {
                         // send next data
                         if (buffer_index == sector_buffer.len) {
+                            pin.in_use.toggle();
                             // read new data
                             var read_sector_num = requested_num - transfered_num;
                             if (read_sector_num > MAX_SECTOR_NUM) read_sector_num = MAX_SECTOR_NUM;
@@ -400,6 +402,7 @@ pub fn EP1_IN() void {
         .status => {
             bulk_state = .command;
             send_nak();
+            pin.in_use.put(in_use_status);
         },
     }
 }
@@ -445,7 +448,8 @@ pub fn EP2_OUT() void {
                 },
                 .prevent_allow_medium_removal => {
                     // indicate in use
-                    pin.in_use.put(@truncate((cbw.CDB_args >> 24) & 0x1));
+                    in_use_status = @truncate((cbw.CDB_args >> 24) & 0x1);
+                    pin.in_use.put(in_use_status);
                     send_csw(.good);
                 },
                 .request_sense => {
@@ -458,7 +462,9 @@ pub fn EP2_OUT() void {
                     bulk_state = .data;
                 },
                 .read => {
-                    // pin.in_use.toggle();
+                    // store current LED status
+                    in_use_status = pin.in_use.read();
+
                     requested_lba = @byteSwap(@as(u32, @truncate(cbw.CDB_args >> 8)));
                     requested_num = @byteSwap(@as(u16, @truncate(cbw.CDB_args >> 48)));
                     transfered_num = 0;
@@ -481,7 +487,9 @@ pub fn EP2_OUT() void {
                     }
                 },
                 .write => {
-                    // pin.in_use.toggle();
+                    // store current LED status
+                    in_use_status = pin.in_use.read();
+
                     requested_lba = @byteSwap(@as(u32, @truncate(cbw.CDB_args >> 8)));
                     requested_num = @byteSwap(@as(u16, @truncate(cbw.CDB_args >> 48)));
                     transfered_num = 0;
@@ -507,6 +515,7 @@ pub fn EP2_OUT() void {
 
                     if ((buffer_index % 512) == 0) transfered_num += 1;
                     if ((transfered_num == requested_num) or (buffer_index == sector_buffer.len)) {
+                        pin.in_use.toggle();
                         // reply NAK while writing
                         accept_out_ep2(false);
                         // write to SD card
@@ -528,7 +537,9 @@ pub fn EP2_OUT() void {
                 else => {},
             }
         },
-        .status => {},
+        .status => {
+            pin.in_use.put(in_use_status);
+        },
     }
 
     const ep2r = USB.EP2R.read();
