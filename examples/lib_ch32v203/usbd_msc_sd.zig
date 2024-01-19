@@ -513,19 +513,20 @@ pub fn EP2_OUT() void {
                     }
                     buffer_index += BUFFER_SIZE;
 
-                    if ((buffer_index % 512) == 0) transfered_num += 1;
-                    if ((transfered_num == requested_num) or (buffer_index == sector_buffer.len)) {
+                    const received_num = transfered_num + @as(u16, @truncate(buffer_index / 512));
+                    if ((received_num == requested_num) or (buffer_index == sector_buffer.len)) {
                         pin.in_use.toggle();
                         // reply NAK while writing
                         accept_out_ep2(false);
                         // write to SD card
-                        if (sd_card.write_multi(requested_lba, sector_buffer[0..buffer_index])) {
+                        if (sd_card.write_multi(requested_lba + transfered_num, sector_buffer[0..buffer_index])) {
                             //
                         } else |_| {
                             transfer_error = true;
                         }
-                        // resume recieving
+                        transfered_num = received_num;
                         buffer_index = 0;
+                        // resume recieving
                         accept_out_ep2(true);
                     }
 
