@@ -40,6 +40,7 @@ const CMD25 = [_]u8{ 0x40 + 25, 0, 0, 0, 0, 1 }; // multiple write
 // const CMD13 = [_]u8{ 0x40 + 13, 0, 0, 0, 0, 1 }; // get status
 
 pub fn SDCARD_DRIVER(comptime spi_port_name: []const u8, comptime cs_pin_name: []const u8) type {
+    // const sd = sdcard.SDCARD_DRIVER("spi", "cs");
     const pin = pins.get_pins(root.pin_config);
 
     const spi_port = @field(pin, spi_port_name);
@@ -136,6 +137,15 @@ pub fn SDCARD_DRIVER(comptime spi_port_name: []const u8, comptime cs_pin_name: [
         }
 
         pub fn init() SDError!void {
+            const max_retry = 10;
+            for (0..max_retry) |i| {
+                if (do_init() catch false) break;
+                if (i == (max_retry - 1)) return SDError.InitError;
+                time.sleep_ms(1);
+            }
+        }
+
+        fn do_init() SDError!bool {
             errdefer deactivate();
 
             time.sleep_ms(1);
@@ -191,8 +201,8 @@ pub fn SDCARD_DRIVER(comptime spi_port_name: []const u8, comptime cs_pin_name: [
             time.sleep_ms(1);
 
             // ACMD41
-            activate();
             for (0..2000) |j| {
+                activate();
                 spi_port.write(&CMD55);
                 for (0..10) |i| {
                     spi_port.read(&response_r1);
@@ -209,6 +219,8 @@ pub fn SDCARD_DRIVER(comptime spi_port_name: []const u8, comptime cs_pin_name: [
                     if ((response_r1[0] & 0x80) == 0) break;
                     if (i == 9) return SDError.InitError;
                 }
+                deactivate();
+
                 switch (response_r1[0] & 0x7F) {
                     0 => break,
                     8 => return SDError.CrcError,
@@ -219,7 +231,6 @@ pub fn SDCARD_DRIVER(comptime spi_port_name: []const u8, comptime cs_pin_name: [
                 spi_port.write(&[_]u8{0xff});
                 time.sleep_ms(1);
             }
-            deactivate();
 
             time.sleep_ms(1);
 
@@ -234,6 +245,8 @@ pub fn SDCARD_DRIVER(comptime spi_port_name: []const u8, comptime cs_pin_name: [
             if ((response_r1[0] & 0x7F) == 8) return SDError.CrcError;
             spi_port.read(&response_r3);
             deactivate();
+
+            return true;
         }
 
         fn read_data(buffer: []u8) SDError!void {

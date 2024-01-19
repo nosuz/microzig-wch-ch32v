@@ -41,7 +41,7 @@ pub const CONFIG_DESC = [34]u8{
     1, // num of configs
     0, // no config string
     0x80, // device attrib: bus powered, no remote wakeup
-    49, // max power by 2mA: 49 * 2mA = 98mA
+    49, // max power by 2mA: 0x49 * 2mA = 146mA
 
     // interface descriptor
     9, // size of descriptor

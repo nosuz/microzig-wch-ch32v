@@ -10,7 +10,7 @@ const VENDER_ID_L: u8 = 0x66;
 const PRODUCT_ID_H: u8 = 0x56;
 const PRODUCT_ID_L: u8 = 0x78;
 
-const DEV_DESC = [18]u8{
+pub const DEV_DESC = [18]u8{
     18, // size of descriptor
     0x01, // device descriptor (0x01)
     0x00, // USB 2.0 in BCD
@@ -31,9 +31,6 @@ const DEV_DESC = [18]u8{
     1, // number of possible configs
 };
 
-// https://github.com/RoboMaster/DevelopmentBoard-Examples/blob/master/USB/Middlewares/ST/STM32_USB_Device_Library/Class/CDC/Src/usbd_cdc.c
-// also https://gist.github.com/tai/acd59b125a007ad47767
-
 const USB_DESC_TYPE_CONFIGURATION: u8 = 0x02; // bDescriptorType: Configuration
 const USB_DESC_TYPE_INTERFACE: u8 = 0x04; // bDescriptorType: Interface
 const CS_INTERFACE: u8 = 0x24;
@@ -42,25 +39,21 @@ const USB_DESC_TYPE_ENDPOINT: u8 = 0x05;
 const EP_IN: u8 = 0x80;
 const EP_OUT: u8 = 0x00;
 
-const CDC_CMD_EP: u8 = 1;
-const CDC_OUT_EP: u8 = 2;
-const CDC_IN_EP: u8 = 3;
+const MSC_IN_EP: u8 = 1;
+const MSC_OUT_EP: u8 = 2;
 
-const CONFIG_DESC = [67]u8{
+pub const CONFIG_DESC = [32]u8{
     //Configuration Descriptor
     0x09, // bLength: Configuration Descriptor size
     USB_DESC_TYPE_CONFIGURATION, // bDescriptorType: Configuration
     // wTotalLength:no of returned bytes
-    // total length: conf(9) + iface(9) + cdc(5 + 5 + 4 + 5) + ep1(7) + iface(9) +  + ep2(7 + 7)
-    67, // or length of CONFIG_DESC
+    32, // or length of CONFIG_DESC
     0x00,
-    0x02, // bNumInterfaces: 2 interface
+    0x01, // bNumInterfaces: 1 interface
     0x01, // bConfigurationValue: Configuration value
     0x00, // iConfiguration: Index of string descriptor describing the configuration
-    0x80, // bmAttributes: self powered
-    0x32, // MaxPower 100 mA
-
-    //---------------------------------------------------------------------------
+    0x80, // bmAttributes: bus powered(0x80), self power (0xc0)
+    0x49, // MaxPower 146 mA
 
     //Interface Descriptor
     0x09, // bLength: Interface Descriptor size
@@ -68,80 +61,33 @@ const CONFIG_DESC = [67]u8{
     // Interface descriptor type
     0x00, // bInterfaceNumber: Number of Interface
     0x00, // bAlternateSetting: Alternate setting
-    0x01, // bNumEndpoints: One endpoints used
-    0x02, // bInterfaceClass: Communication Interface Class
-    0x02, // bInterfaceSubClass: Abstract Control Model
-    0x01, // bInterfaceProtocol: Common AT commands
+    0x02, // bNumEndpoints: Number of endpoints (exclude endpoint 0)
+    0x08, // bInterfaceClass: Mass Storage Class
+    0x06, // bInterfaceSubClass: SCSI transparent command set
+    0x50, // bInterfaceProtocol: Bulk-Only Transport
     0x00, // iInterface:
 
-    //Header Functional Descriptor
-    0x05, // bLength: Endpoint Descriptor size
-    CS_INTERFACE, // bDescriptorType: CS_INTERFACE
-    0x00, // bDescriptorSubtype: Header Func Desc
-    0x10, // bcdCDC: spec release number
-    0x01,
-
-    //Call Management Functional Descriptor
-    0x05, // bFunctionLength
-    CS_INTERFACE, // bDescriptorType: CS_INTERFACE
-    0x01, // bDescriptorSubtype: Call Management Func Desc
-    0x00, // bmCapabilities: D0+D1
-    0x01, // bDataInterface: 1
-
-    //ACM Functional Descriptor
-    0x04, // bFunctionLength
-    CS_INTERFACE, // bDescriptorType: CS_INTERFACE
-    0x02, // bDescriptorSubtype: Abstract Control Management desc
-    0x02, // bmCapabilities
-
-    //Union Functional Descriptor
-    0x05, // bFunctionLength
-    CS_INTERFACE, // bDescriptorType: CS_INTERFACE
-    0x06, // bDescriptorSubtype: Union func desc
-    0x00, // bMasterInterface: Communication class interface
-    0x01, // bSlaveInterface0: Data Class Interface
-
+    // MSC descriptor
     //Endpoint 1 Descriptor
     0x07, // bLength: Endpoint Descriptor size
     USB_DESC_TYPE_ENDPOINT, // bDescriptorType: Endpoint
-    CDC_CMD_EP + EP_IN, // bEndpointAddress
-    0x03, // bmAttributes: Interrupt
-    MAX_LEN, // wMaxPacketSize:
-    0,
-    0x10, // bInterval:
-    //---------------------------------------------------------------------------
-
-    //Data class interface descriptor
-    0x09, // bLength: Endpoint Descriptor size
-    USB_DESC_TYPE_INTERFACE, // bDescriptorType:
-    0x01, // bInterfaceNumber: Number of Interface
-    0x00, // bAlternateSetting: Alternate setting
-    0x02, // bNumEndpoints: Two endpoints used
-    0x0a, // bInterfaceClass: CDC
-    0x00, // bInterfaceSubClass:
-    0x00, // bInterfaceProtocol:
-    0x00, // iInterface:
-
-    //Endpoint OUT Descriptor
-    0x07, // bLength: Endpoint Descriptor size
-    USB_DESC_TYPE_ENDPOINT, // bDescriptorType: Endpoint
-    CDC_OUT_EP + EP_OUT, // bEndpointAddress
+    MSC_IN_EP + EP_IN, // bEndpointAddress
     0x02, // bmAttributes: Bulk
     MAX_LEN, // wMaxPacketSize:
     0,
-    0x00, // bInterval: ignore for Bulk transfer
+    0x1, // bInterval: 1ms
 
-    //Endpoint IN Descriptor
+    // endpoint 2 IN descriptor
     0x07, // bLength: Endpoint Descriptor size
     USB_DESC_TYPE_ENDPOINT, // bDescriptorType: Endpoint
-    CDC_IN_EP + EP_IN, // bEndpointAddress
+    MSC_OUT_EP + EP_OUT, // bEndpointAddress
     0x02, // bmAttributes: Bulk
     MAX_LEN, // wMaxPacketSize:
     0,
-    0x00, // bInterval: ignore for Bulk transfer
+    0x0, // bInterval: none
 };
 
-const LANG_IDS = [4]u8{
+pub const LANG_IDS = [4]u8{
     4, // length
     0x03, // string descriptor (0x03)
     0x09, // 0x0409 English (United States)
@@ -150,7 +96,7 @@ const LANG_IDS = [4]u8{
     // 0x04,
 };
 
-const STR_1 = [12]u8{
+pub const STR_1 = [12]u8{
     12, // length
     0x03, // string descriptor (0x03)
     'n',
@@ -165,7 +111,7 @@ const STR_1 = [12]u8{
     0,
 };
 
-const STR_2 = [18]u8{
+pub const STR_2 = [18]u8{
     18, // length
     0x03, // string descriptor (0x03)
     'C',
@@ -178,7 +124,7 @@ const STR_2 = [18]u8{
     0,
     'V',
     0,
-    '1',
+    '2',
     0,
     '0',
     0,
@@ -186,7 +132,7 @@ const STR_2 = [18]u8{
     0,
 };
 
-const STR_3 = [12]u8{
+pub const STR_3 = [12]u8{
     12, // length
     0x03, // string descriptor (0x03)
     '1',
@@ -201,29 +147,9 @@ const STR_3 = [12]u8{
     0,
 };
 
-const STR_4 = [22]u8{
-    22, // length
-    0x03, // string descriptor (0x03)
-    'c',
-    0,
-    'd',
-    0,
-    'c',
-    0,
-    ' ',
-    0,
-    's',
-    0,
-    'a',
-    0,
-    'm',
-    0,
-    'p',
-    0,
-    'l',
-    0,
-    'e',
-    0,
+pub const STR_4 = [0]u8{
+    // 20, // length
+    // 0x03, // string descriptor (0x03)
 };
 
 pub const DESCRIPTORS = [_][*]const u8{
@@ -254,4 +180,18 @@ pub const DescriptorIndex = enum(u4) {
     string2 = 4,
     string3 = 5,
     string4 = 6,
+};
+
+pub const InquiryResponse = [36]u8{
+    0x00, // peripheral device is connected, direct access block device
+    0x80, // removable
+    0x04, //, 4=> SPC-2
+    0x02, // response is in format specified by SPC-2
+    0x20, // n-4 = 36-4=32= 0x20
+    0x00, // sccs etc.
+    0x00, // bque=1 and cmdque=0,indicates simple queueing
+    0x00, // 00 obsolete, 0x80 for basic task queueing
+    'C', 'H', '3', '2', 'V', 'x', '0', '3', // T10-assigned Vendor ID
+    'U', 'S', 'B', ' ', 'M', 'e', 'm', 'o', 'r', 'y', ' ', ' ', ' ', ' ', ' ', ' ', //product ID
+    '0', '0', '0', '1', //revision information
 };

@@ -115,6 +115,10 @@ sdcard: all
 	riscv64-unknown-elf-objcopy -O binary zig-out/bin/sdcard zig-out/${BIN_NAME} && \
 	riscv64-unknown-elf-objdump --disassemble-all zig-out/bin/sdcard > zig-out/sdcard.s
 
+usbd_memory: all
+	riscv64-unknown-elf-objcopy -O binary zig-out/bin/usbd_memory zig-out/${BIN_NAME} && \
+	riscv64-unknown-elf-objdump --disassemble-all zig-out/bin/usbd_memory > zig-out/usbd_memory.s
+
 
 flash:
 	#wchisp flash zig-out/${BIN_NAME}
