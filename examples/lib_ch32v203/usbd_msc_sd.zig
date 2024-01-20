@@ -284,43 +284,6 @@ fn send_data(length: u32) void {
     });
 }
 
-fn send_nak() void {
-    const ep1r = USB.EP1R.read();
-    // set STAT to ACK
-    const set_tx1_nak = ep1r.STAT_TX ^ 0b10; // NAK
-    USB.EP1R.write(.{
-        .CTR_RX = 0,
-        .DTOG_RX = 0, // 1: flip; don't care for single buffer
-        .STAT_RX = 0, // 1: flip
-        .SETUP = 0,
-        .EP_TYPE = 0b00, // BULK
-        .EP_KIND = 0, // 1: double buffer for BULK
-        .CTR_TX = 0,
-        .DTOG_TX = 0, // 1: flip; auto toggled
-        .STAT_TX = set_tx1_nak, // 1: flip
-        .EA = 1, // EP1
-    });
-}
-
-fn accept_out_ep2(accept: bool) void {
-    const ep2r = USB.EP2R.read();
-    // set STAT
-    const new_stat: u2 = if (accept) 0b11 else 0b10; // 0b11: ACK, 0b10: NAK
-    const set_rx2_stat = ep2r.STAT_RX ^ new_stat;
-    USB.EP2R.write(.{
-        .CTR_RX = 0,
-        .DTOG_RX = 0, // 1: flip; don't care for single buffer
-        .STAT_RX = set_rx2_stat, // 1: flip
-        .SETUP = 0,
-        .EP_TYPE = 0b00, // BULK
-        .EP_KIND = 0, // 1: double buffer for BULK
-        .CTR_TX = 0,
-        .DTOG_TX = 0, // 1: flip
-        .STAT_TX = 0, // 1: flip
-        .EA = 2, // EP2
-    });
-}
-
 fn send_csw(status: CSW_STATUS) void {
     const csw = CSW{
         .dCSWTag = cbw.dCBWTag,
@@ -353,9 +316,7 @@ fn send_stuffing() void {
 
 pub fn EP1_IN() void {
     switch (bulk_state) {
-        .command => {
-            send_nak();
-        },
+        .command => {},
         .data => {
             switch (cbw.CDB_op) {
                 .unknown => send_stuffing(),
@@ -405,10 +366,23 @@ pub fn EP1_IN() void {
         },
         .status => {
             bulk_state = .command;
-            send_nak();
             pin.in_use.put(in_use_status);
         },
     }
+
+    // reset interrupt flags
+    USB.EP1R.write(.{
+        .CTR_RX = 0,
+        .DTOG_RX = 0, // 1: flip; don't care for single buffer
+        .STAT_RX = 0, // 1: flip
+        .SETUP = 0,
+        .EP_TYPE = 0b00, // BULK
+        .EP_KIND = 0, // 1: double buffer for BULK
+        .CTR_TX = 0,
+        .DTOG_TX = 0, // 1: flip; auto toggled
+        .STAT_TX = 0, // 1: flip
+        .EA = 1, // EP1
+    });
 }
 
 pub fn EP2_OUT() void {
@@ -527,8 +501,6 @@ pub fn EP2_OUT() void {
                     const received_num = transfered_num + @as(u16, @truncate(buffer_index / 512));
                     if ((received_num == requested_num) or (buffer_index == sector_buffer.len)) {
                         pin.in_use.toggle();
-                        // reply NAK while writing
-                        accept_out_ep2(false);
                         // write to SD card
                         if (sd_card.write_multi(requested_lba + transfered_num, sector_buffer[0..buffer_index])) {
                             //
@@ -537,8 +509,6 @@ pub fn EP2_OUT() void {
                         }
                         transfered_num = received_num;
                         buffer_index = 0;
-                        // resume recieving
-                        accept_out_ep2(true);
                     }
 
                     if (transfered_num == requested_num) {
@@ -549,11 +519,10 @@ pub fn EP2_OUT() void {
                 else => {},
             }
         },
-        .status => {
-            pin.in_use.put(in_use_status);
-        },
+        .status => {},
     }
 
+    // reset interrupt flags and resume recieving
     const ep2r = USB.EP2R.read();
     // set STAT to ACK
     const set_rx2_ack = ep2r.STAT_RX ^ 0b11; // ACK
