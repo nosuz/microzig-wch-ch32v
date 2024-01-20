@@ -86,7 +86,7 @@ const SCSI_COMMAND = enum(u8) {
     read = 0x28, // READ (10)
     write = 0x2a, // WRITE (10)
     start_stop_unit = 0x1b,
-    mode_send = 0x1a, // MODE SENSE (6) return error status for now.
+    mode_sense = 0x1a, // MODE SENSE (6) return error status for now.
     _,
 };
 
@@ -394,6 +394,10 @@ pub fn EP1_IN() void {
                         if ((buffer_index % 512) == 0) transfered_num += 1;
                     }
                 },
+                .mode_sense => {
+                    send_csw(.good);
+                },
+
                 else => {
                     send_stuffing();
                 },
@@ -499,6 +503,13 @@ pub fn EP2_OUT() void {
                 },
                 .start_stop_unit => {
                     send_csw(.good);
+                },
+                .mode_sense => {
+                    for (0..descriptors.ModeSenseResponse_CardReader.len) |i| {
+                        usbd.write_tx(&usbd.ep_buf[1].tx, i, descriptors.ModeSenseResponse_CardReader[i]);
+                    }
+                    send_data(descriptors.ModeSenseResponse_CardReader.len);
+                    bulk_state = .data;
                 },
                 else => {
                     send_stuffing();
