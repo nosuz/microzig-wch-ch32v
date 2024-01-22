@@ -6,7 +6,7 @@ const spi = ch32v.spi;
 const time = ch32v.time;
 const pins = ch32v.pins;
 
-const SECTOR_SIZE = 512;
+pub const SECTOR_SIZE = 512;
 
 const SDError = error{
     InitError,

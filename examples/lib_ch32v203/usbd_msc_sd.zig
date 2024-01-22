@@ -94,7 +94,7 @@ var cbw: CBW = undefined;
 var buffer_index: usize = 0;
 
 const MAX_SECTOR_NUM = 8;
-var sector_buffer: [512 * MAX_SECTOR_NUM]u8 = undefined;
+var sector_buffer: [sdcard.SECTOR_SIZE * MAX_SECTOR_NUM]u8 = undefined;
 
 var requested_lba: u32 = 0;
 var requested_num: u16 = 0;
@@ -340,7 +340,7 @@ pub fn EP1_IN() void {
                             // read new data
                             var read_sector_num = requested_num - transfered_num;
                             if (read_sector_num > MAX_SECTOR_NUM) read_sector_num = MAX_SECTOR_NUM;
-                            sd_card.read_multi(requested_lba + transfered_num, sector_buffer[0..(read_sector_num * 512)]) catch {
+                            sd_card.read_multi(requested_lba + transfered_num, sector_buffer[0..(read_sector_num * sdcard.SECTOR_SIZE)]) catch {
                                 // SD card read error
                                 transfer_error = true;
                             };
@@ -352,7 +352,7 @@ pub fn EP1_IN() void {
                         }
                         send_data(BUFFER_SIZE);
                         buffer_index += BUFFER_SIZE;
-                        if ((buffer_index % 512) == 0) transfered_num += 1;
+                        if ((buffer_index % sdcard.SECTOR_SIZE) == 0) transfered_num += 1;
                     }
                 },
                 .mode_sense => {
@@ -412,7 +412,7 @@ pub fn EP2_OUT() void {
                     if (vol_size == 0) {
                         send_stuffing();
                     } else {
-                        const lba_size: u32 = @truncate(vol_size / 512);
+                        const lba_size: u32 = @truncate(vol_size / sdcard.SECTOR_SIZE);
                         for (0..4) |i| {
                             cap_param[i] = @truncate(lba_size >> @truncate(8 * (3 - i)));
                         }
@@ -450,7 +450,7 @@ pub fn EP2_OUT() void {
 
                     var read_sector_num = requested_num;
                     if (read_sector_num > MAX_SECTOR_NUM) read_sector_num = MAX_SECTOR_NUM;
-                    if (sd_card.read_multi(requested_lba, sector_buffer[0..(read_sector_num * 512)])) {
+                    if (sd_card.read_multi(requested_lba, sector_buffer[0..(read_sector_num * sdcard.SECTOR_SIZE)])) {
                         // send sector data
                         for (0..BUFFER_SIZE) |i| {
                             usbd.write_tx(&usbd.ep_buf[1].tx, i, sector_buffer[i]);
@@ -498,7 +498,7 @@ pub fn EP2_OUT() void {
                     }
                     buffer_index += BUFFER_SIZE;
 
-                    const received_num = transfered_num + @as(u16, @truncate(buffer_index / 512));
+                    const received_num = transfered_num + @as(u16, @truncate(buffer_index / sdcard.SECTOR_SIZE));
                     if ((received_num == requested_num) or (buffer_index == sector_buffer.len)) {
                         pin.in_use.toggle();
                         // write to SD card
