@@ -246,6 +246,21 @@ pub fn SDCARD_DRIVER(comptime spi_port_name: []const u8, comptime cs_pin_name: [
             spi_port.read(&response_r3);
             deactivate();
 
+            time.sleep_ms(1);
+
+            // fix access block size to 512
+            // CMD16
+            activate();
+            spi_port.write(&CMD16);
+            for (0..10) |i| {
+                spi_port.read(&response_r1);
+                if ((response_r1[0] & 0x80) == 0) break;
+                if (i == 9) return SDError.InitError;
+            }
+            if ((response_r1[0] & 0x7F) == 8) return SDError.CrcError;
+
+            deactivate();
+
             return true;
         }
 
@@ -537,28 +552,6 @@ pub fn SDCARD_DRIVER(comptime spi_port_name: []const u8, comptime cs_pin_name: [
                 else => return SDError.CardError,
             }
             return size;
-        }
-
-        pub fn fix_block_len512() SDError!bool {
-            errdefer deactivate();
-
-            const size = try sector_size();
-
-            if (size == 512) return true;
-
-            // CMD16
-            activate();
-            spi_port.write(&CMD16);
-            for (0..10) |i| {
-                spi_port.read(&response_r1);
-                if ((response_r1[0] & 0x80) == 0) break;
-                if (i == 9) return SDError.ReadError;
-            }
-            if ((response_r1[0] & 0x7F) == 8) return SDError.CrcError;
-
-            deactivate();
-
-            return ((response_r1[0] & 0x7F) == 0);
         }
     };
 }

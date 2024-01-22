@@ -189,15 +189,12 @@ pub fn main() !void {
         // gear up. set new communication speed.
         // pins.spi.set_clock_div(.PCLK_4); // 3 Mbps
         pins.spi.set_clock_div(.PCLK_2); // 6 MHz worked
-        if (sd_card.fix_block_len512() catch false) {
-            pins.usb.init();
-            interrupt.enable_interrupt();
-            // _ = try writer.write("SD card ready");
-            std.log.debug("SD card ready", .{});
-        } else {
-            sd_card.deactivate();
-            std.log.err("failed to fix sector size", .{});
-        }
+        // sd_card.setup_speed();
+
+        pins.usb.init();
+        interrupt.enable_interrupt();
+        // _ = try writer.write("SD card ready");
+        std.log.debug("SD card ready", .{});
     } else |_| {
         sd_card.deactivate();
         pins.led.toggle();
