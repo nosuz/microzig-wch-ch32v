@@ -47,6 +47,8 @@ pub fn SDCARD_DRIVER(comptime spi_port_name: []const u8, comptime cs_pin_name: [
     const cs_pin = @field(pin, cs_pin_name);
 
     return struct {
+        pub var is_sd: bool = false;
+
         var response_r1: [1]u8 = undefined;
         var response_r3: [4]u8 = undefined;
         var response_r7: [4]u8 = undefined;
@@ -246,6 +248,9 @@ pub fn SDCARD_DRIVER(comptime spi_port_name: []const u8, comptime cs_pin_name: [
             spi_port.read(&response_r3);
             deactivate();
 
+            // check SD or HC (XC) card.
+            if ((response_r3[0] & 0x40) == 0) is_sd = true;
+
             time.sleep_ms(1);
 
             // fix access block size to 512
@@ -278,11 +283,13 @@ pub fn SDCARD_DRIVER(comptime spi_port_name: []const u8, comptime cs_pin_name: [
             if (crc != crc16(buffer)) return SDError.CrcError;
         }
 
-        pub fn read_single(addr: usize, buffer: []u8) SDError!void {
+        pub fn read_single(lba: usize, buffer: []u8) SDError!void {
             errdefer deactivate();
 
             activate();
             var cmd = CMD17;
+            // conver LBA to address if SD card.
+            const addr: usize = if (is_sd) lba * SECTOR_SIZE else lba;
             for (0..4) |i| {
                 cmd[i + 1] = @truncate(addr >> @as(u5, @truncate(8 * (3 - i))));
             }
@@ -293,20 +300,22 @@ pub fn SDCARD_DRIVER(comptime spi_port_name: []const u8, comptime cs_pin_name: [
                 if ((response_r1[0] & 0x80) == 0) break;
                 if (i == 9) return SDError.ReadError;
             }
-            if ((response_r1[0] & 0x7F) == 8) return SDError.CrcError;
+            if (response_r1[0] != 0) return SDError.ReadError;
 
             try read_data(buffer);
 
             deactivate();
         }
 
-        pub fn read_multi(addr: usize, buffer: []u8) SDError!void {
+        pub fn read_multi(lba: usize, buffer: []u8) SDError!void {
             errdefer deactivate();
 
             const count: usize = buffer.len / SECTOR_SIZE;
 
             activate();
             var cmd = CMD18;
+            // conver LBA to address if SD card.
+            const addr: usize = if (is_sd) lba * SECTOR_SIZE else lba;
             for (0..4) |i| {
                 cmd[i + 1] = @truncate(addr >> @as(u5, @truncate(8 * (3 - i))));
             }
@@ -315,9 +324,10 @@ pub fn SDCARD_DRIVER(comptime spi_port_name: []const u8, comptime cs_pin_name: [
             for (0..10) |i| {
                 spi_port.read(&response_r1);
                 if ((response_r1[0] & 0x80) == 0) break;
+                // 0x40?
                 if (i == 9) return SDError.ReadError;
             }
-            if ((response_r1[0] & 0x7F) == 8) return SDError.CrcError;
+            if (response_r1[0] != 0) return SDError.ReadError;
 
             for (0..count) |i| {
                 try read_data(buffer[(SECTOR_SIZE * i)..(SECTOR_SIZE * (i + 1))]);
@@ -362,11 +372,13 @@ pub fn SDCARD_DRIVER(comptime spi_port_name: []const u8, comptime cs_pin_name: [
             }
         }
 
-        pub fn write_single(addr: usize, buffer: []const u8) SDError!void {
+        pub fn write_single(lba: usize, buffer: []const u8) SDError!void {
             errdefer deactivate();
 
             activate();
             var cmd = CMD24;
+            // conver LBA to address if SD card.
+            const addr: usize = if (is_sd) lba * SECTOR_SIZE else lba;
             for (0..4) |i| {
                 cmd[i + 1] = @truncate(addr >> @as(u5, @truncate(8 * (3 - i))));
             }
@@ -377,7 +389,7 @@ pub fn SDCARD_DRIVER(comptime spi_port_name: []const u8, comptime cs_pin_name: [
                 if ((response_r1[0] & 0x80) == 0) break;
                 if (i == 9) return SDError.ReadError;
             }
-            if ((response_r1[0] & 0x7F) == 8) return SDError.CrcError;
+            if (response_r1[0] != 0) return SDError.WriteError;
 
             //send dummy space
             spi_port.write(&[_]u8{0xff});
@@ -387,7 +399,7 @@ pub fn SDCARD_DRIVER(comptime spi_port_name: []const u8, comptime cs_pin_name: [
             deactivate();
         }
 
-        pub fn write_multi(addr: usize, buffer: []const u8) SDError!void {
+        pub fn write_multi(lba: usize, buffer: []const u8) SDError!void {
             errdefer deactivate();
 
             const count: usize = buffer.len / SECTOR_SIZE;
@@ -401,7 +413,7 @@ pub fn SDCARD_DRIVER(comptime spi_port_name: []const u8, comptime cs_pin_name: [
                 if ((response_r1[0] & 0x80) == 0) break;
                 if (i == 9) return SDError.InitError;
             }
-            if ((response_r1[0] & 0x7F) == 8) return SDError.CrcError;
+            if (response_r1[0] != 0) return SDError.WriteError;
 
             spi_port.write(&[_]u8{0xff});
 
@@ -416,12 +428,14 @@ pub fn SDCARD_DRIVER(comptime spi_port_name: []const u8, comptime cs_pin_name: [
                 if ((response_r1[0] & 0x80) == 0) break;
                 if (i == 9) return SDError.InitError;
             }
-            if ((response_r1[0] & 0x7F) == 8) return SDError.CrcError;
+            if (response_r1[0] != 0) return SDError.WriteError;
 
             spi_port.write(&[_]u8{0xff});
 
             // CMD25
             var cmd25 = CMD25;
+            // conver LBA to address if SD card.
+            const addr: usize = if (is_sd) lba * SECTOR_SIZE else lba;
             for (0..4) |i| {
                 cmd25[i + 1] = @truncate(addr >> @as(u5, @truncate(8 * (3 - i))));
             }
@@ -432,7 +446,7 @@ pub fn SDCARD_DRIVER(comptime spi_port_name: []const u8, comptime cs_pin_name: [
                 if ((response_r1[0] & 0x80) == 0) break;
                 if (i == 9) return SDError.ReadError;
             }
-            if ((response_r1[0] & 0x7F) == 8) return SDError.CrcError;
+            if (response_r1[0] != 0) return SDError.WriteError;
 
             //send dummy space
             spi_port.write(&[_]u8{0xff});
@@ -458,12 +472,12 @@ pub fn SDCARD_DRIVER(comptime spi_port_name: []const u8, comptime cs_pin_name: [
         }
 
         // methods for FatFs
-        pub fn read(addr: usize, buffer: [*]u8, count: usize) SDError!void {
-            try read_multi(addr, buffer[0..(SECTOR_SIZE * count)]);
+        pub fn read(lba: usize, buffer: [*]u8, count: usize) SDError!void {
+            try read_multi(lba, buffer[0..(SECTOR_SIZE * count)]);
         }
 
-        pub fn write(addr: usize, buffer: [*]const u8, count: usize) SDError!void {
-            try write_multi(addr, buffer[0..(SECTOR_SIZE * count)]);
+        pub fn write(lba: usize, buffer: [*]const u8, count: usize) SDError!void {
+            try write_multi(lba, buffer[0..(SECTOR_SIZE * count)]);
         }
 
         pub fn read_cid() SDError!u128 {
@@ -547,7 +561,7 @@ pub fn SDCARD_DRIVER(comptime spi_port_name: []const u8, comptime cs_pin_name: [
                 0b01 => {
                     // this makes max 2TB
                     const C_SIZE: u64 = @truncate((csd >> 48) & 0x3f_ffff);
-                    size = (C_SIZE + 1) * 512 * 1024;
+                    size = (C_SIZE + 1) * SECTOR_SIZE * 1024;
                 },
                 else => return SDError.CardError,
             }
