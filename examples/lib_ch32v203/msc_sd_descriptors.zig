@@ -185,7 +185,7 @@ pub const DescriptorIndex = enum(u4) {
 pub const InquiryResponse = [36]u8{
     0x00, // peripheral device is connected, direct access block device
     0x80, // removable
-    0x04, //, 4=> SPC-2
+    0x06, // 4=> SPC-2, 6 => SPC-4
     0x02, // response is in format specified by SPC-2
     0x20, // n-4 = 36-4=32= 0x20
     0x00, // sccs etc.
@@ -194,4 +194,136 @@ pub const InquiryResponse = [36]u8{
     'C', 'H', '3', '2', 'V', 'x', '0', '3', // T10-assigned Vendor ID
     'U', 'S', 'B', ' ', 'M', 'e', 'm', 'o', 'r', 'y', ' ', ' ', ' ', ' ', ' ', ' ', //product ID
     '0', '0', '0', '1', //revision information
+};
+
+pub const ModeSenseResponse_UsbMemory = [68]u8{
+    // Mode parameter header, last param length 0x43 (67)
+    // Mode Data Length: 67
+    // Medium Type: 0x00
+    // Device-Specific Parameter: 0x00
+    // Block Descriptor Length: 0
+    0x43, 0x00, 0x00, 0x00,
+
+    // Read/Write Error Recovery Mode Page
+    //     0... .... = PS: False
+    //     .0.. .... = SPF: False
+    //     ..00 0001 = SBC-2 Page Code: Read/Write Error Recovery (0x01)
+    //     Page Length: 10
+    //     0... .... = AWRE: False
+    //     .0.. .... = ARRE: False
+    //     ..0. .... = TB: False
+    //     ...0 .... = RC: False
+    //     .... 0... = EER: False
+    //     .... .0.. = PER: False
+    //     .... ..0. = DTE: False
+    //     .... ...0 = DCR: False
+    //     Read Retry Count: 3
+    //     Correction Span: 0
+    //     Head Offset Count: 0
+    //     Data Strobe Offset Count: 0
+    //     Write Retry Count: 128
+    //     Recovery Time Limit (ms): 0
+    0x01, 0x0a, 0x00, 0x03,
+    0x00, 0x00, 0x00, 0x00,
+    0x80, 0x03, 0x00, 0x00,
+
+    // Flexible Disk Mode Page
+    //     0... .... = PS: False
+    //     .0.. .... = SPF: False
+    //     ..00 0101 = SBC-2 Page Code: Flexible Disk (0x05)
+    //     Page Length: 30
+    //     Unknown Page
+    0x05, 0x1e, 0x13, 0x88,
+    0x00, 0x10, 0x3f, 0x00,
+    0x00, 0x0f, 0x60, 0x00,
+    0x00, 0x00, 0x00, 0x00,
+    0x00, 0x00, 0x00, 0x05,
+    0x1e, 0x00, 0x00, 0x00,
+    0x00, 0x00, 0x00, 0x00,
+    0x01, 0x68, 0x00, 0x00,
+
+    // Unknown (0x0000001b) Mode Page
+    //     0... .... = PS: False
+    //     .0.. .... = SPF: False
+    //     ..01 1011 = SBC-2 Page Code: Unknown (0x1b)
+    //     Page Length: 10
+    //     Unknown Page
+    0x1b, 0x0a, 0x00, 0x01,
+    0x00, 0x00, 0x00, 0x00,
+    0x00, 0x00, 0x00, 0x00,
+
+    // Informational Exceptions Control Mode Page
+    //     0... .... = PS: False
+    //     .0.. .... = SPF: False
+    //     ..01 1100 = SPC-2 Page Code: Informational Exceptions Control (0x1c)
+    //     Page Length: 6
+    //     0... .... = Perf: False
+    //     ..0. .... = EBF: False
+    //     ...0 .... = EWasc: False
+    //     .... 0... = DExcpt: False
+    //     .... .0.. = Test: False
+    //     .... ...0 = LogErr: False
+    //     .... 0101 = MRIE: Generate No Sense (0x5)
+    //     Interval Timer: 28
+    0x1c, 0x06, 0x00, 0x05,
+    0x00, 0x00, 0x00, 0x1c,
+};
+
+pub const ModeSenseResponse_CardReader = [36]u8{
+    // Mode parameter header, last param length 0x23 (35)
+    // Mode Data Length: 35
+    // Medium Type: 0x00
+    // Device-Specific Parameter: 0x00
+    // Block Descriptor Length: 0
+    0x23, 0x00, 0x00, 0x00,
+
+    // Caching Mode Page
+    //     0... .... = PS: False
+    //     .0.. .... = SPF: False
+    //     ..00 1000 = SBC-2 Page Code: Caching (0x08)
+    //     Page Length: 18
+    //     0... .... = IC: False
+    //     .0.. .... = ABPF: False
+    //     ..0. .... = CAP: False
+    //     ...0 .... = Disc: False
+    //     .... 0... = Size: False
+    //     .... .0.. = WCE: False
+    //     .... ..0. = MF: False
+    //     .... ...0 = RCD: False
+    //     0000 .... = Demand Read Retention Priority: 0
+    //     .... 0000 = Write Retention Priority: 0
+    //     Disable Pre-fetch Xfer Len: 0
+    //     Minimum Pre-Fetch: 0
+    //     Maximum Pre-Fetch: 0
+    //     Maximum Pre-Fetch Ceiling: 0
+    //     0... .... = FSW: False
+    //     .0.. .... = LBCSS: False
+    //     ..0. .... = DRA: False
+    //     ...0 0000 = Vendor Specific: 0
+    //     Number of Cache Segments: 0
+    //     Cache Segment Size: 0
+    //     Non-Cache Segment Size: 0
+    0x08, 0x12, 0x00, 0x00,
+    0x00, 0x00, 0x00, 0x00,
+    0x00, 0x00, 0x00, 0x00,
+    0x00, 0x00, 0x00, 0x00,
+    0x00, 0x00, 0x00, 0x00,
+
+    // Informational Exceptions Control Mode Page
+    //     0... .... = PS: False
+    //     .0.. .... = SPF: False
+    //     ..01 1100 = SPC-2 Page Code: Informational Exceptions Control (0x1c)
+    //     Page Length: 10
+    //     0... .... = Perf: False
+    //     ..0. .... = EBF: False
+    //     ...0 .... = EWasc: False
+    //     .... 0... = DExcpt: False
+    //     .... .0.. = Test: False
+    //     .... ...0 = LogErr: False
+    //     .... 0000 = MRIE: No Reporting of Informational Exception Condition (0x0)
+    //     Interval Timer: 0
+    //     Report Count: 0
+    0x1c, 0x0a, 0x00, 0x00,
+    0x00, 0x00, 0x00, 0x00,
+    0x00, 0x00, 0x00, 0x00,
 };

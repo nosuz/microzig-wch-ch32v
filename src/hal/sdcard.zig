@@ -1,3 +1,4 @@
+const std = @import("std");
 const microzig = @import("microzig");
 const root = @import("root");
 
@@ -6,7 +7,7 @@ const spi = ch32v.spi;
 const time = ch32v.time;
 const pins = ch32v.pins;
 
-const SECTOR_SIZE = 512;
+pub const SECTOR_SIZE = 512;
 
 const SDError = error{
     InitError,
@@ -47,6 +48,8 @@ pub fn SDCARD_DRIVER(comptime spi_port_name: []const u8, comptime cs_pin_name: [
     const cs_pin = @field(pin, cs_pin_name);
 
     return struct {
+        pub var is_sd: bool = false;
+
         var response_r1: [1]u8 = undefined;
         var response_r3: [4]u8 = undefined;
         var response_r7: [4]u8 = undefined;
@@ -246,7 +249,41 @@ pub fn SDCARD_DRIVER(comptime spi_port_name: []const u8, comptime cs_pin_name: [
             spi_port.read(&response_r3);
             deactivate();
 
+            // check SD or HC (XC) card.
+            if ((response_r3[0] & 0x40) == 0) is_sd = true;
+
+            time.sleep_ms(1);
+
+            // fix access block size to 512
+            // CMD16
+            activate();
+            spi_port.write(&CMD16);
+            for (0..10) |i| {
+                spi_port.read(&response_r1);
+                if ((response_r1[0] & 0x80) == 0) break;
+                if (i == 9) return SDError.InitError;
+            }
+            if ((response_r1[0] & 0x7F) == 8) return SDError.CrcError;
+
+            deactivate();
+
             return true;
+        }
+
+        pub fn optimize_speed(max_hz: u32) void {
+            var buf: [SECTOR_SIZE * 2]u8 = undefined;
+            const gear = [_]spi.Clock_div{ .PCLK_2, .PCLK_4, .PCLK_8, .PCLK_16, .PCLK_32, .PCLK_64, .PCLK_128, .PCLK_256 };
+            for (gear) |i| {
+                // limit SPI clock under 20 MHz
+                const div = @as(u32, 1) << (@intFromEnum(i) + 1);
+                if ((root.__Clocks_freq.pclk2 / div) > max_hz) continue;
+
+                spi_port.set_clock_div(i);
+
+                if (read_multi(0, &buf)) break else |_| {
+                    continue;
+                }
+            }
         }
 
         fn read_data(buffer: []u8) SDError!void {
@@ -259,15 +296,17 @@ pub fn SDCARD_DRIVER(comptime spi_port_name: []const u8, comptime cs_pin_name: [
             var crc_data: [2]u8 = undefined;
             spi_port.read(&crc_data);
 
-            var crc = (@as(u16, crc_data[0]) << 8) | crc_data[1];
+            const crc = (@as(u16, crc_data[0]) << 8) | crc_data[1];
             if (crc != crc16(buffer)) return SDError.CrcError;
         }
 
-        pub fn read_single(addr: usize, buffer: []u8) SDError!void {
+        pub fn read_single(lba: usize, buffer: []u8) SDError!void {
             errdefer deactivate();
 
             activate();
             var cmd = CMD17;
+            // conver LBA to address if SD card.
+            const addr: usize = if (is_sd) lba * SECTOR_SIZE else lba;
             for (0..4) |i| {
                 cmd[i + 1] = @truncate(addr >> @as(u5, @truncate(8 * (3 - i))));
             }
@@ -278,20 +317,22 @@ pub fn SDCARD_DRIVER(comptime spi_port_name: []const u8, comptime cs_pin_name: [
                 if ((response_r1[0] & 0x80) == 0) break;
                 if (i == 9) return SDError.ReadError;
             }
-            if ((response_r1[0] & 0x7F) == 8) return SDError.CrcError;
+            if (response_r1[0] != 0) return SDError.ReadError;
 
             try read_data(buffer);
 
             deactivate();
         }
 
-        pub fn read_multi(addr: usize, buffer: []u8) SDError!void {
+        pub fn read_multi(lba: usize, buffer: []u8) SDError!void {
             errdefer deactivate();
 
             const count: usize = buffer.len / SECTOR_SIZE;
 
             activate();
             var cmd = CMD18;
+            // conver LBA to address if SD card.
+            const addr: usize = if (is_sd) lba * SECTOR_SIZE else lba;
             for (0..4) |i| {
                 cmd[i + 1] = @truncate(addr >> @as(u5, @truncate(8 * (3 - i))));
             }
@@ -300,9 +341,10 @@ pub fn SDCARD_DRIVER(comptime spi_port_name: []const u8, comptime cs_pin_name: [
             for (0..10) |i| {
                 spi_port.read(&response_r1);
                 if ((response_r1[0] & 0x80) == 0) break;
+                // 0x40?
                 if (i == 9) return SDError.ReadError;
             }
-            if ((response_r1[0] & 0x7F) == 8) return SDError.CrcError;
+            if (response_r1[0] != 0) return SDError.ReadError;
 
             for (0..count) |i| {
                 try read_data(buffer[(SECTOR_SIZE * i)..(SECTOR_SIZE * (i + 1))]);
@@ -347,11 +389,13 @@ pub fn SDCARD_DRIVER(comptime spi_port_name: []const u8, comptime cs_pin_name: [
             }
         }
 
-        pub fn write_single(addr: usize, buffer: []const u8) SDError!void {
+        pub fn write_single(lba: usize, buffer: []const u8) SDError!void {
             errdefer deactivate();
 
             activate();
             var cmd = CMD24;
+            // conver LBA to address if SD card.
+            const addr: usize = if (is_sd) lba * SECTOR_SIZE else lba;
             for (0..4) |i| {
                 cmd[i + 1] = @truncate(addr >> @as(u5, @truncate(8 * (3 - i))));
             }
@@ -362,7 +406,7 @@ pub fn SDCARD_DRIVER(comptime spi_port_name: []const u8, comptime cs_pin_name: [
                 if ((response_r1[0] & 0x80) == 0) break;
                 if (i == 9) return SDError.ReadError;
             }
-            if ((response_r1[0] & 0x7F) == 8) return SDError.CrcError;
+            if (response_r1[0] != 0) return SDError.WriteError;
 
             //send dummy space
             spi_port.write(&[_]u8{0xff});
@@ -372,7 +416,7 @@ pub fn SDCARD_DRIVER(comptime spi_port_name: []const u8, comptime cs_pin_name: [
             deactivate();
         }
 
-        pub fn write_multi(addr: usize, buffer: []const u8) SDError!void {
+        pub fn write_multi(lba: usize, buffer: []const u8) SDError!void {
             errdefer deactivate();
 
             const count: usize = buffer.len / SECTOR_SIZE;
@@ -386,7 +430,7 @@ pub fn SDCARD_DRIVER(comptime spi_port_name: []const u8, comptime cs_pin_name: [
                 if ((response_r1[0] & 0x80) == 0) break;
                 if (i == 9) return SDError.InitError;
             }
-            if ((response_r1[0] & 0x7F) == 8) return SDError.CrcError;
+            if (response_r1[0] != 0) return SDError.WriteError;
 
             spi_port.write(&[_]u8{0xff});
 
@@ -401,12 +445,14 @@ pub fn SDCARD_DRIVER(comptime spi_port_name: []const u8, comptime cs_pin_name: [
                 if ((response_r1[0] & 0x80) == 0) break;
                 if (i == 9) return SDError.InitError;
             }
-            if ((response_r1[0] & 0x7F) == 8) return SDError.CrcError;
+            if (response_r1[0] != 0) return SDError.WriteError;
 
             spi_port.write(&[_]u8{0xff});
 
             // CMD25
             var cmd25 = CMD25;
+            // conver LBA to address if SD card.
+            const addr: usize = if (is_sd) lba * SECTOR_SIZE else lba;
             for (0..4) |i| {
                 cmd25[i + 1] = @truncate(addr >> @as(u5, @truncate(8 * (3 - i))));
             }
@@ -417,7 +463,7 @@ pub fn SDCARD_DRIVER(comptime spi_port_name: []const u8, comptime cs_pin_name: [
                 if ((response_r1[0] & 0x80) == 0) break;
                 if (i == 9) return SDError.ReadError;
             }
-            if ((response_r1[0] & 0x7F) == 8) return SDError.CrcError;
+            if (response_r1[0] != 0) return SDError.WriteError;
 
             //send dummy space
             spi_port.write(&[_]u8{0xff});
@@ -443,12 +489,12 @@ pub fn SDCARD_DRIVER(comptime spi_port_name: []const u8, comptime cs_pin_name: [
         }
 
         // methods for FatFs
-        pub fn read(addr: usize, buffer: [*]u8, count: usize) SDError!void {
-            try read_multi(addr, buffer[0..(SECTOR_SIZE * count)]);
+        pub fn read(lba: usize, buffer: [*]u8, count: usize) SDError!void {
+            try read_multi(lba, buffer[0..(SECTOR_SIZE * count)]);
         }
 
-        pub fn write(addr: usize, buffer: [*]const u8, count: usize) SDError!void {
-            try write_multi(addr, buffer[0..(SECTOR_SIZE * count)]);
+        pub fn write(lba: usize, buffer: [*]const u8, count: usize) SDError!void {
+            try write_multi(lba, buffer[0..(SECTOR_SIZE * count)]);
         }
 
         pub fn read_cid() SDError!u128 {
@@ -520,11 +566,13 @@ pub fn SDCARD_DRIVER(comptime spi_port_name: []const u8, comptime cs_pin_name: [
                 0b00 => {
                     // sector size
                     const READ_BL_LEN = (csd >> 80) & 0xf;
+                    const C_SIZE = (csd >> 62) & 0xfff;
+                    const C_SIZE_MULT = (csd >> 47) & 0b111;
+                    // std.log.debug("{X} {X} {X}", .{ READ_BL_LEN, C_SIZE, C_SIZE_MULT });
+
+                    const MULT = @as(u32, 1) <<| (C_SIZE_MULT + 2);
                     const SECT_SIZE = @as(u32, 1) <<| READ_BL_LEN;
 
-                    const C_SIZE = (csd >> 62 & 0xfff);
-                    const C_SIZE_MULT = (csd >> 47 & 0b111);
-                    const MULT = @as(u32, 1) <<| (C_SIZE_MULT + 2);
                     const BLOCKNR = (C_SIZE + 1) * MULT;
 
                     size = @truncate(BLOCKNR * SECT_SIZE);
@@ -532,33 +580,11 @@ pub fn SDCARD_DRIVER(comptime spi_port_name: []const u8, comptime cs_pin_name: [
                 0b01 => {
                     // this makes max 2TB
                     const C_SIZE: u64 = @truncate((csd >> 48) & 0x3f_ffff);
-                    size = (C_SIZE + 1) * 512 * 1024;
+                    size = (C_SIZE + 1) * SECTOR_SIZE * 1024;
                 },
                 else => return SDError.CardError,
             }
             return size;
-        }
-
-        pub fn fix_block_len512() SDError!bool {
-            errdefer deactivate();
-
-            const size = try sector_size();
-
-            if (size == 512) return true;
-
-            // CMD16
-            activate();
-            spi_port.write(&CMD16);
-            for (0..10) |i| {
-                spi_port.read(&response_r1);
-                if ((response_r1[0] & 0x80) == 0) break;
-                if (i == 9) return SDError.ReadError;
-            }
-            if ((response_r1[0] & 0x7F) == 8) return SDError.CrcError;
-
-            deactivate();
-
-            return ((response_r1[0] & 0x7F) == 0);
         }
     };
 }

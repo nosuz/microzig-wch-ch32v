@@ -92,10 +92,10 @@ pub fn main() !void {
 
         time.sleep_ms(1);
 
-        const sec_size = sd_card.sector_size() catch 0;
-        try writer.print("sec size: {}", .{sec_size});
+        // const sec_size = sd_card.sector_size() catch 0;
+        // try writer.print("sec size: {}", .{sec_size});
 
-        time.sleep_ms(1);
+        // time.sleep_ms(1);
 
         const vol_size = sd_card.volume_size() catch 0;
         // try writer.print("vol size: {}", .{vol_size});
@@ -103,30 +103,25 @@ pub fn main() !void {
 
         time.sleep_ms(1);
 
-        // set block size to 512 bytes if sector size is not 512 bytes.
-        if (try sd_card.fix_block_len512()) {
-            time.sleep_ms(1);
+        // read and write
+        var buffer1: [512]u8 = undefined;
+        var buffer2: [2 * 512]u8 = undefined;
 
-            // read and write
-            var buffer1: [512]u8 = undefined;
-            var buffer2: [2 * 512]u8 = undefined;
+        // read
+        sd_card.read_single(0, &buffer1) catch {};
 
-            // read
-            sd_card.read_single(0, &buffer1) catch {};
+        time.sleep_ms(1);
 
-            time.sleep_ms(1);
+        sd_card.read_multi(1, &buffer2) catch {};
 
-            sd_card.read_multi(0, &buffer2) catch {};
+        time.sleep_ms(1);
 
-            time.sleep_ms(1);
+        // write
+        sd_card.write_single(0, &buffer1) catch {};
 
-            // write
-            sd_card.write_single(0, &buffer1) catch {};
+        time.sleep_ms(1);
 
-            time.sleep_ms(1);
-
-            sd_card.write_multi(0, &buffer2) catch {};
-        }
+        sd_card.write_multi(1, &buffer2) catch {};
     } else |_| {
         pins.led.toggle();
         // _ = err;

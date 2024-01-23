@@ -86,7 +86,7 @@ const SCSI_COMMAND = enum(u8) {
     read = 0x28, // READ (10)
     write = 0x2a, // WRITE (10)
     start_stop_unit = 0x1b,
-    mode_send = 0x1a, // MODE SENSE (6) return error status for now.
+    mode_sense = 0x1a, // MODE SENSE (6) return error status for now.
     _,
 };
 
@@ -94,7 +94,7 @@ var cbw: CBW = undefined;
 var buffer_index: usize = 0;
 
 const MAX_SECTOR_NUM = 8;
-var sector_buffer: [512 * MAX_SECTOR_NUM]u8 = undefined;
+var sector_buffer: [sdcard.SECTOR_SIZE * MAX_SECTOR_NUM]u8 = undefined;
 
 var requested_lba: u32 = 0;
 var requested_num: u16 = 0;
@@ -284,43 +284,6 @@ fn send_data(length: u32) void {
     });
 }
 
-fn send_nak() void {
-    const ep1r = USB.EP1R.read();
-    // set STAT to ACK
-    const set_tx1_nak = ep1r.STAT_TX ^ 0b10; // NAK
-    USB.EP1R.write(.{
-        .CTR_RX = 0,
-        .DTOG_RX = 0, // 1: flip; don't care for single buffer
-        .STAT_RX = 0, // 1: flip
-        .SETUP = 0,
-        .EP_TYPE = 0b00, // BULK
-        .EP_KIND = 0, // 1: double buffer for BULK
-        .CTR_TX = 0,
-        .DTOG_TX = 0, // 1: flip; auto toggled
-        .STAT_TX = set_tx1_nak, // 1: flip
-        .EA = 1, // EP1
-    });
-}
-
-fn accept_out_ep2(accept: bool) void {
-    const ep2r = USB.EP2R.read();
-    // set STAT
-    const new_stat: u2 = if (accept) 0b11 else 0b10; // 0b11: ACK, 0b10: NAK
-    const set_rx2_stat = ep2r.STAT_RX ^ new_stat;
-    USB.EP2R.write(.{
-        .CTR_RX = 0,
-        .DTOG_RX = 0, // 1: flip; don't care for single buffer
-        .STAT_RX = set_rx2_stat, // 1: flip
-        .SETUP = 0,
-        .EP_TYPE = 0b00, // BULK
-        .EP_KIND = 0, // 1: double buffer for BULK
-        .CTR_TX = 0,
-        .DTOG_TX = 0, // 1: flip
-        .STAT_TX = 0, // 1: flip
-        .EA = 2, // EP2
-    });
-}
-
 fn send_csw(status: CSW_STATUS) void {
     const csw = CSW{
         .dCSWTag = cbw.dCBWTag,
@@ -353,9 +316,7 @@ fn send_stuffing() void {
 
 pub fn EP1_IN() void {
     switch (bulk_state) {
-        .command => {
-            send_nak();
-        },
+        .command => {},
         .data => {
             switch (cbw.CDB_op) {
                 .unknown => send_stuffing(),
@@ -379,7 +340,7 @@ pub fn EP1_IN() void {
                             // read new data
                             var read_sector_num = requested_num - transfered_num;
                             if (read_sector_num > MAX_SECTOR_NUM) read_sector_num = MAX_SECTOR_NUM;
-                            sd_card.read_multi(requested_lba + transfered_num, sector_buffer[0..(read_sector_num * 512)]) catch {
+                            sd_card.read_multi(requested_lba + transfered_num, sector_buffer[0..(read_sector_num * sdcard.SECTOR_SIZE)]) catch {
                                 // SD card read error
                                 transfer_error = true;
                             };
@@ -391,9 +352,13 @@ pub fn EP1_IN() void {
                         }
                         send_data(BUFFER_SIZE);
                         buffer_index += BUFFER_SIZE;
-                        if ((buffer_index % 512) == 0) transfered_num += 1;
+                        if ((buffer_index % sdcard.SECTOR_SIZE) == 0) transfered_num += 1;
                     }
                 },
+                .mode_sense => {
+                    send_csw(.good);
+                },
+
                 else => {
                     send_stuffing();
                 },
@@ -401,10 +366,23 @@ pub fn EP1_IN() void {
         },
         .status => {
             bulk_state = .command;
-            send_nak();
             pin.in_use.put(in_use_status);
         },
     }
+
+    // reset interrupt flags
+    USB.EP1R.write(.{
+        .CTR_RX = 0,
+        .DTOG_RX = 0, // 1: flip; don't care for single buffer
+        .STAT_RX = 0, // 1: flip
+        .SETUP = 0,
+        .EP_TYPE = 0b00, // BULK
+        .EP_KIND = 0, // 1: double buffer for BULK
+        .CTR_TX = 0,
+        .DTOG_TX = 0, // 1: flip; auto toggled
+        .STAT_TX = 0, // 1: flip
+        .EA = 1, // EP1
+    });
 }
 
 pub fn EP2_OUT() void {
@@ -434,9 +412,10 @@ pub fn EP2_OUT() void {
                     if (vol_size == 0) {
                         send_stuffing();
                     } else {
-                        const lba_size: u32 = @truncate(vol_size / 512);
+                        // READ CAPACITY returns LAST LBA address. not a volume size.
+                        const last_lba = @as(u32, @truncate(vol_size / sdcard.SECTOR_SIZE)) - 1;
                         for (0..4) |i| {
-                            cap_param[i] = @truncate(lba_size >> @truncate(8 * (3 - i)));
+                            cap_param[i] = @truncate(last_lba >> @truncate(8 * (3 - i)));
                         }
                         // set reply data
                         for (0..cap_param.len) |i| {
@@ -472,7 +451,7 @@ pub fn EP2_OUT() void {
 
                     var read_sector_num = requested_num;
                     if (read_sector_num > MAX_SECTOR_NUM) read_sector_num = MAX_SECTOR_NUM;
-                    if (sd_card.read_multi(requested_lba, sector_buffer[0..(read_sector_num * 512)])) {
+                    if (sd_card.read_multi(requested_lba, sector_buffer[0..(read_sector_num * sdcard.SECTOR_SIZE)])) {
                         // send sector data
                         for (0..BUFFER_SIZE) |i| {
                             usbd.write_tx(&usbd.ep_buf[1].tx, i, sector_buffer[i]);
@@ -500,6 +479,13 @@ pub fn EP2_OUT() void {
                 .start_stop_unit => {
                     send_csw(.good);
                 },
+                .mode_sense => {
+                    for (0..descriptors.ModeSenseResponse_CardReader.len) |i| {
+                        usbd.write_tx(&usbd.ep_buf[1].tx, i, descriptors.ModeSenseResponse_CardReader[i]);
+                    }
+                    send_data(descriptors.ModeSenseResponse_CardReader.len);
+                    bulk_state = .data;
+                },
                 else => {
                     send_stuffing();
                 },
@@ -513,11 +499,9 @@ pub fn EP2_OUT() void {
                     }
                     buffer_index += BUFFER_SIZE;
 
-                    const received_num = transfered_num + @as(u16, @truncate(buffer_index / 512));
+                    const received_num = transfered_num + @as(u16, @truncate(buffer_index / sdcard.SECTOR_SIZE));
                     if ((received_num == requested_num) or (buffer_index == sector_buffer.len)) {
                         pin.in_use.toggle();
-                        // reply NAK while writing
-                        accept_out_ep2(false);
                         // write to SD card
                         if (sd_card.write_multi(requested_lba + transfered_num, sector_buffer[0..buffer_index])) {
                             //
@@ -526,8 +510,6 @@ pub fn EP2_OUT() void {
                         }
                         transfered_num = received_num;
                         buffer_index = 0;
-                        // resume recieving
-                        accept_out_ep2(true);
                     }
 
                     if (transfered_num == requested_num) {
@@ -538,11 +520,10 @@ pub fn EP2_OUT() void {
                 else => {},
             }
         },
-        .status => {
-            pin.in_use.put(in_use_status);
-        },
+        .status => {},
     }
 
+    // reset interrupt flags and resume recieving
     const ep2r = USB.EP2R.read();
     // set STAT to ACK
     const set_rx2_ack = ep2r.STAT_RX ^ 0b11; // ACK
