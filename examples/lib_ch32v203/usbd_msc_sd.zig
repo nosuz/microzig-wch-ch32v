@@ -117,6 +117,7 @@ const CSW_STATUS = enum(u8) {
 };
 
 var in_use_status: u1 = 0;
+var exist_media: bool = true;
 
 // handle device specific endpoints
 pub fn packet_handler(ep_id: u4) void {
@@ -404,7 +405,7 @@ pub fn EP2_OUT() void {
                     bulk_state = .data;
                 },
                 .test_unit_ready => {
-                    send_csw(.good);
+                    send_csw(if (exist_media) .good else .phase_error);
                 },
                 .read_capacity => {
                     var cap_param = [8]u8{ 0, 0, 0, 0, 0, 0, 2, 0 };
@@ -477,6 +478,21 @@ pub fn EP2_OUT() void {
                     bulk_state = .data;
                 },
                 .start_stop_unit => {
+                    const loej_start = (cbw.CDB_args >> 24) & 0b11;
+                    switch (loej_start) {
+                        0b10 => {
+                            // STOP and eject media
+                            exist_media = false;
+                        },
+                        0b01 => {
+                            // START
+                        },
+                        0b11 => {
+                            // load media and START
+                            exist_media = true;
+                        },
+                        else => {},
+                    }
                     send_csw(.good);
                 },
                 .mode_sense => {
