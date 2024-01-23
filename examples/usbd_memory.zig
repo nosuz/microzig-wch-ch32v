@@ -83,7 +83,7 @@ else
             // SCK
             .name = "spi",
             .function = .SPI,
-            .clock_div = .PCLK_64,
+            .clock_div = .PCLK_128, // 48MHz / 128 = 375KHz
             .cpol = 0,
             .cpha = 0,
         },
@@ -138,7 +138,8 @@ const clocks_config = clocks.Configuration{
     .pll_multiplex = .MUL_6, // 48 MHz
     // .pll_multiplex = .MUL_12, // 96 MHz
     // .ahb_prescale = .SYSCLK_2, // sysclk / 2
-    .apb2_prescale = .HCLK_4, // 12 MHz
+    // .apb2_prescale = .HCLK_4, // 12 MHz
+    // .apb2_prescale = .HCLK_2, // 24 MHz
 
     // .enable_rtc = false, // Disable RTC blocks log with timestamp.
 };
@@ -188,8 +189,8 @@ pub fn main() !void {
     if (sd_card.init()) {
         // gear up. set new communication speed.
         // pins.spi.set_clock_div(.PCLK_4); // 3 Mbps
-        pins.spi.set_clock_div(.PCLK_2); // 6 MHz worked
-        // sd_card.setup_speed();
+        // pins.spi.set_clock_div(.PCLK_2); // 6 MHz worked
+        sd_card.optimize_speed(15_000_000); // limit under 15 MHz
 
         pins.usb.init();
         interrupt.enable_interrupt();

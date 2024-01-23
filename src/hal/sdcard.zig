@@ -270,6 +270,22 @@ pub fn SDCARD_DRIVER(comptime spi_port_name: []const u8, comptime cs_pin_name: [
             return true;
         }
 
+        pub fn optimize_speed(max_hz: u32) void {
+            var buf: [SECTOR_SIZE * 2]u8 = undefined;
+            const gear = [_]spi.Clock_div{ .PCLK_2, .PCLK_4, .PCLK_8, .PCLK_16, .PCLK_32, .PCLK_64, .PCLK_128, .PCLK_256 };
+            for (gear) |i| {
+                // limit SPI clock under 20 MHz
+                const div = @as(u32, 1) << (@intFromEnum(i) + 1);
+                if ((root.__Clocks_freq.pclk2 / div) > max_hz) continue;
+
+                spi_port.set_clock_div(i);
+
+                if (read_multi(0, &buf)) break else |_| {
+                    continue;
+                }
+            }
+        }
+
         fn read_data(buffer: []u8) SDError!void {
             while (true) {
                 spi_port.read(&response_r1);
