@@ -412,9 +412,10 @@ pub fn EP2_OUT() void {
                     if (vol_size == 0) {
                         send_stuffing();
                     } else {
-                        const lba_size: u32 = @truncate(vol_size / sdcard.SECTOR_SIZE);
+                        // READ CAPACITY returns LAST LBA address. not a volume size.
+                        const last_lba = @as(u32, @truncate(vol_size / sdcard.SECTOR_SIZE)) - 1;
                         for (0..4) |i| {
-                            cap_param[i] = @truncate(lba_size >> @truncate(8 * (3 - i)));
+                            cap_param[i] = @truncate(last_lba >> @truncate(8 * (3 - i)));
                         }
                         // set reply data
                         for (0..cap_param.len) |i| {

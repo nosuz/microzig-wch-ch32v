@@ -1,3 +1,4 @@
+const std = @import("std");
 const microzig = @import("microzig");
 const root = @import("root");
 
@@ -549,11 +550,13 @@ pub fn SDCARD_DRIVER(comptime spi_port_name: []const u8, comptime cs_pin_name: [
                 0b00 => {
                     // sector size
                     const READ_BL_LEN = (csd >> 80) & 0xf;
+                    const C_SIZE = (csd >> 62) & 0xfff;
+                    const C_SIZE_MULT = (csd >> 47) & 0b111;
+                    // std.log.debug("{X} {X} {X}", .{ READ_BL_LEN, C_SIZE, C_SIZE_MULT });
+
+                    const MULT = @as(u32, 1) <<| (C_SIZE_MULT + 2);
                     const SECT_SIZE = @as(u32, 1) <<| READ_BL_LEN;
 
-                    const C_SIZE = (csd >> 62 & 0xfff);
-                    const C_SIZE_MULT = (csd >> 47 & 0b111);
-                    const MULT = @as(u32, 1) <<| (C_SIZE_MULT + 2);
                     const BLOCKNR = (C_SIZE + 1) * MULT;
 
                     size = @truncate(BLOCKNR * SECT_SIZE);
