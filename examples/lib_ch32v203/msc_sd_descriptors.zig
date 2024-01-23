@@ -185,7 +185,7 @@ pub const DescriptorIndex = enum(u4) {
 pub const InquiryResponse = [36]u8{
     0x00, // peripheral device is connected, direct access block device
     0x80, // removable
-    0x04, //, 4=> SPC-2
+    0x06, // 4=> SPC-2, 6 => SPC-4
     0x02, // response is in format specified by SPC-2
     0x20, // n-4 = 36-4=32= 0x20
     0x00, // sccs etc.
