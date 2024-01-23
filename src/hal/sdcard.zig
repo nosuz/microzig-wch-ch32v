@@ -279,7 +279,7 @@ pub fn SDCARD_DRIVER(comptime spi_port_name: []const u8, comptime cs_pin_name: [
             var crc_data: [2]u8 = undefined;
             spi_port.read(&crc_data);
 
-            var crc = (@as(u16, crc_data[0]) << 8) | crc_data[1];
+            const crc = (@as(u16, crc_data[0]) << 8) | crc_data[1];
             if (crc != crc16(buffer)) return SDError.CrcError;
         }
 
